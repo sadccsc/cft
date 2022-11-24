@@ -4,7 +4,7 @@ Climate Forecasting Toolbox
 
 INTRODUCTION
 ------------
-The Climate Forecasting Toolbox is a Python based tool for statistical climate forecasting application. 
+The Climate Forecasting Toolbox is a Python based tool for statistical climate forecasting. 
 
 CREDITS
 =======
@@ -14,7 +14,7 @@ Climatologist: Mduduzi Sunshine Gamedze
 
 SOURCE CODE
 ------------
-The CFT code is maintained at:  https://github.com/taxmanyana/cft.git
+The CFT code is maintained at:  https://github.com/sadc-csc/cft.git
 
 INSTALLATION ON WINDOWS
 --------------------
@@ -38,6 +38,7 @@ The installation script will download dependency sources, compile and deploy the
 6. The MPI version can be run on the terminal by executing the following commands:
    source python3/bin/activate
    mpirun -n 40 python3 cft_mpi.py settings.json
+   
 
 ALTERNATIVE INSTALLATION ON LINUX (FOR UBUNTU ONLY)
 --------------------
@@ -54,6 +55,5 @@ MAIN FEATURES
 --------
 - Create homogenous zones for a country/region
 - Forecast based on existing indices (CSV/Text) data, or can detect high correlation areas from gridded data (NetCDF) to use as input
-- Artificial Intelligence (MLP) and Linear Regression statistical forecasting methods
+- Machine Learning (MLP) and Linear Regression statistical forecasting methods
 - Predictand in NetCDF and CSV format
-# cft

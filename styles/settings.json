@@ -1,0 +1,55 @@
+{
+    "Version": "3.0.0",
+    "outDir": "/scratch/cft",
+    "predictorList": [
+        "/cm/shared/apps/cft/cft/data/GPH850_Jul_1960_2020.nc",
+        "/cm/shared/apps/cft/cft/data/SST_Jul_1960_2020.nc"
+    ],
+    "predictandList": [
+        "/cm/shared/apps/cft/cft/data/chirps_monthly_1981_2020_BWA.csv"
+    ],
+    "predictantMissingValue": -9999,
+    "predictantattr": "",
+    "fcstPeriodStartMonth": "Oct",
+    "fcstPeriodLength": "3month",
+    "trainStartYear": 1971,
+    "trainEndYear": 2000,
+    "predictorMonth": "Jul",
+    "PValue": 0.05,
+    "stepwisePvalue": 0.3,
+    "minHSscore": 40,
+    "PODfilter": 1,
+    "inputFormat": "CSV",
+    "composition": "Sum",
+    "zonevector": {
+        "file": "",
+        "ID": -1,
+        "attr": []
+    },
+    "fcstyear": 2020,
+    "algorithms": [
+        "LR"
+    ],
+    "basinbounds": {
+        "minlat": -90.0,
+        "maxlat": 90.0,
+        "minlon": -180.0,
+        "maxlon": 360.0
+    },
+    "plots": {
+        "basemap": "data/countries.geojson",
+        "zonepoints": 1,
+        "corrmaps": 1,
+        "corrcsvs": 1,
+        "regrcsvs": 1,
+        "fcstgraphs": 1,
+        "trainingraphs": 1
+    },
+    "colors": {
+        "class0": "#ffffff",
+        "class1": "#d2b48c",
+        "class2": "#fbff03",
+        "class3": "#0bfffb",
+        "class4": "#1601fc"
+    }
+}

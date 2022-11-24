@@ -1,0 +1,59 @@
+{
+    "Version": "3.1.1",
+    "outDir": "/work/data/sarcof/forecast",
+    "predictorList": [
+        "/work/data/sarcof/cft_input/sst_mon-Oct_ERSSTv5_1960-2022.nc",
+        "/work/data/sarcof/cft_input/elnino_mon_194901-202210.txt",
+        "/work/data/sarcof/cft_input/iod_mon_195001-202210.txt"
+    ],
+    "predictandList": [
+        "/work/data/sarcof/cft_input/pr_chirps_BWA_198101-202209.csv"
+    ],
+    "predictandMissingValue": -9999,
+    "predictandattr": "",
+    "fcstPeriodStartMonth": "Nov",
+    "fcstPeriodLength": "3month",
+    "trainStartYear": 1981,
+    "trainEndYear": 2000,
+    "predictorMonth": "Oct",
+    "PValue": 0.05,
+    "stepwisePvalue": 0.3,
+    "minHSscore": 50,
+    "PODfilter": 1,
+    "inputFormat": "CSV",
+    "composition": "Sum",
+    "zonevector": {
+        "file": "/work/data/sarcof/gis/sadc_NDJ_zones.geojson",
+        "ID": 0,
+        "attr": [
+            "ID"
+        ]
+    },
+    "fcstyear": 2022,
+    "algorithms": [
+        "LR"
+    ],
+    "basinbounds": {
+        "minlat": -90.0,
+        "maxlat": 90.0,
+        "minlon": -180.0,
+        "maxlon": 360.0
+    },
+    "plots": {
+        "basemap": "data/sadc_countries.geojson",
+        "zonepoints": 1,
+        "fcstqml": "styles/fcstplot_new.qml",
+        "corrmaps": 1,
+        "corrcsvs": 1,
+        "regrcsvs": 1,
+        "fcstgraphs": 1,
+        "trainingraphs": 1
+    },
+    "colors": {
+        "class0": "#ffffff",
+        "class1": "#d2b48c",
+        "class2": "#fbff03",
+        "class3": "#0bfffb",
+        "class4": "#1601fc"
+    }
+}

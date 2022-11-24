@@ -1,0 +1,57 @@
+{
+    "Version": "3.1.1",
+    "outDir": "/work/data/sarcof",
+    "fcstvector": {
+        "file": "/work/data/sarcof/sadc_OND_zones_test.geojson",
+        "ID": 1,
+        "attr": [
+            "ID",
+            "OND2022"
+        ]
+    },
+    "fcstattrib": "",
+    "predictand": {
+        "file": "/work/data/sarcof/data.nc",
+        "ID": 0,
+        "attr": [
+            "rain"
+        ]
+    },
+    "fcstPeriodLength": "season",
+    "trainStartYear": 1981,
+    "trainEndYear": 2010,
+    "inputFormat": "NetCDF",
+    "composition": "Sum",
+    "fcstyear": 2022,
+    "period": {
+        "season": [
+            "JFM",
+            "FMA",
+            "MAM",
+            "AMJ",
+            "MJJ",
+            "JJA",
+            "JAS",
+            "ASO",
+            "SON",
+            "OND",
+            "NDJ",
+            "DJF"
+        ],
+        "month": [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec"
+        ],
+        "indx": 9
+    }
+}

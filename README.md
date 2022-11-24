@@ -8,13 +8,27 @@ The Climate Forecasting Toolbox is a Python based tool for statistical climate f
 
 CREDITS
 =======
-Developer: Thembani Moitlhobogi
+Oringinal developers (2017-2022):
+Programmer: Thembani Moitlhobogi
 Climatologist: Mduduzi Sunshine Gamedze
+
+Contributor (after Nov 2022):
+Piotr Wolski (wolski@csag.uct.ac.za)
+
+
+Development history
+=======
+This software has been developed during 2017-2010 under funding from SADC CSC project SARCIS-DR
+
+In November 2022, the software has been ported from the original personal github repo https://github.com/taxmanyana/cft
+to this "institutional" repo.
 
 
 SOURCE CODE
 ------------
-The CFT code is maintained at:  https://github.com/sadc-csc/cft.git
+From version 4.0.0, the CFT code is maintained at:  https://github.com/sadc-csc/cft.git
+prior to that - it was maintained at https://github.com/taxmanyana/cft
+
 
 INSTALLATION ON WINDOWS
 --------------------

@@ -1,25 +1,23 @@
 {
-    "Version": "3.1.1",
-    "outDir": "/work/data/sarcof",
+    "Version": "4.0.0",
+    "outDir": "/work/data/sarcof/verification",
     "fcstvector": {
-        "file": "/work/data/sarcof/sadc_OND_zones_test.geojson",
+        "file": "/work/data/sarcof/verification/sadc_OND_zones_forecast2022.geojson",
         "ID": 1,
         "attr": [
             "ID",
-            "OND2022"
+            "OND_2022"
         ]
     },
-    "fcstattrib": "",
-    "predictand": {
-        "file": "/work/data/sarcof/data.nc",
+    "observed": {
+        "file": "/work/data/sarcof/verification/pr_CHIRPS-v2.0-p25_africa_198101-202210.nc",
         "ID": 0,
         "attr": [
-            "rain"
+            "pr"
         ]
     },
-    "fcstPeriodLength": "season",
-    "trainStartYear": 1981,
-    "trainEndYear": 2010,
+    "climStartYear": 1981,
+    "climEndYear": 2010,
     "inputFormat": "NetCDF",
     "composition": "Sum",
     "fcstyear": 2022,
@@ -36,15 +34,19 @@
             "SON",
             "OND",
             "NDJ",
-            "DJF"
-        ],
-        "month": [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
+            "DJF",
+            "JF",
+            "FM",
+            "MA",
+            "AM",
+            "MJ",
+            "JJ",
+            "JA",
+            "AS",
+            "SO",
+            "ON",
+            "ND",
+            "DJ",
             "Jul",
             "Aug",
             "Sep",
@@ -52,6 +54,16 @@
             "Nov",
             "Dec"
         ],
-        "indx": 9
-    }
+        "indx": 27
+    },
+    "quantanom": true,
+    "heidke": true,
+    "ignorance": true,
+    "intrate": true,
+    "cemhit": true,
+    "obscemcat": true,
+    "obsrelanom": true,
+    "obsvalue": true,
+    "rpss": true,
+    "obsDsetCode": "CHIRPS"
 }

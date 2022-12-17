@@ -2,20 +2,20 @@
     "Version": "3.1.1",
     "outDir": "/work/data/sarcof/forecast",
     "predictorList": [
-        "/work/data/sarcof/cft_input/elnino_mon_194901-202210.txt"
+        "/work/data/sarcof/cft_input/sst_mon-Oct_ERSSTv5_1960-2022.nc"
     ],
     "predictandList": [
-        "/work/data/sarcof/cft_input/pr_chirps_BWA_198101-202210.csv"
+        "/work/data/sarcof/sarcof-data-comoros.csv"
     ],
     "predictandMissingValue": -9999,
     "predictandattr": "",
-    "fcstPeriodStartMonth": "Nov",
+    "fcstPeriodStartMonth": "Dec",
     "fcstPeriodLength": "3month",
-    "trainStartYear": 1981,
-    "trainEndYear": 2000,
-    "predictorMonth": "Dec",
-    "PValue": 0.05,
-    "stepwisePvalue": 0.3,
+    "trainStartYear": 1982,
+    "trainEndYear": 2011,
+    "predictorMonth": "Oct",
+    "PValue": 0.01,
+    "stepwisePvalue": 0.05,
     "minHSscore": 50,
     "PODfilter": 1,
     "inputFormat": "CSV",
@@ -29,7 +29,7 @@
     },
     "fcstyear": 2022,
     "algorithms": [
-        "LR"
+        "MLP"
     ],
     "basinbounds": {
         "minlat": -90.0,

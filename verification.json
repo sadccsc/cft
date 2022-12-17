@@ -1,27 +1,36 @@
 {
-    "Version": "4.0.0",
+    "Version": "4.1.0",
     "outDir": "/work/data/sarcof/verification",
-    "fcstvector": {
+    "fcstFile": {
         "file": "/work/data/sarcof/verification/sadc_OND_zones_forecast2022.geojson",
-        "ID": 1,
-        "attr": [
+        "ID": 0,
+        "variable": [
             "ID",
             "OND_2022"
         ]
     },
-    "observed": {
-        "file": "/work/data/sarcof/verification/pr_CHIRPS-v2.0-p25_africa_198101-202210.nc",
+    "zonesFile": {
+        "file": "/work/data/sarcof/verification/sadc_OND_zones_forecast2022.geojson",
         "ID": 0,
-        "attr": [
-            "pr"
+        "variable": [
+            "ID",
+            "OND_2022"
         ]
     },
+    "obsFile": {
+        "file": "pr_mon_cpc-gauge_197901-202210.nc",
+        "ID": 0,
+        "variable": [
+            "rain"
+        ]
+    },
+    "obsFileFormat": "NetCDF",
+    "obsFileCode": "tst",
     "climStartYear": 1981,
     "climEndYear": 2010,
-    "inputFormat": "NetCDF",
-    "composition": "Sum",
-    "fcstyear": 2022,
-    "period": {
+    "verifAggregation": "Sum",
+    "verifYear": 2022,
+    "verifPeriod": {
         "season": [
             "JFM",
             "FMA",
@@ -47,6 +56,12 @@
             "ON",
             "ND",
             "DJ",
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
             "Jul",
             "Aug",
             "Sep",
@@ -54,16 +69,16 @@
             "Nov",
             "Dec"
         ],
-        "indx": 27
+        "indx": 20
     },
-    "quantanom": true,
-    "heidke": true,
-    "ignorance": true,
-    "intrate": true,
-    "cemhit": true,
-    "obscemcat": true,
-    "obsrelanom": true,
-    "obsvalue": true,
-    "rpss": true,
-    "obsDsetCode": "CHIRPS"
+    "outputQuantanom": true,
+    "outputHeidke": false,
+    "outptIgnorance": false,
+    "outputIntrate": true,
+    "outputCemhit": false,
+    "outputObscemcat": true,
+    "outputObsrelanom": false,
+    "outputObsvalue": false,
+    "outputRpss": false,
+    "outputIgnorance": false
 }

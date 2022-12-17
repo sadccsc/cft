@@ -358,6 +358,7 @@ def plot_map(_data,_cmap,_levels,_vmin,_vmax, _title, _cbar_label,_ticklabels, _
 #    geometryfile="maps/sadc_continental_boundary.geojson"
 #    sadc = geopandas.read_file(geometryfile)
     regions = geopandas.read_file(_geometryfile)
+    regions=geopandas.read_file("/work/data/sarcof/gis/maps/SADC/GeoJSON/sadc_countries.geojson")
     fig=plt.figure(figsize=(5,4))
     pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
     if _mask is not None:
@@ -368,7 +369,7 @@ def plot_map(_data,_cmap,_levels,_vmin,_vmax, _title, _cbar_label,_ticklabels, _
             _data=_data.where(_data>_val)
     m=_data.plot(cmap=_cmap, vmin=_vmin,vmax=_vmax, add_colorbar=False)
     
-    regions.boundary.plot(ax=pl, linewidth=0.3, color="0.1")    
+    regions.boundary.plot(ax=pl, linewidth=1, color="0.1")    
     plt.title(_title, fontsize=10)
     ax=fig.add_axes([0.82,0.25,0.02,0.5])
     if _levels is None:
@@ -643,6 +644,7 @@ def execVerification():
     #this creates dataArray from dataset
     obs=ds[obsVar]
     obs=obs.rio.write_crs("epsg:4326") #adding crs
+
     if "units" in obs.attrs:
         obsunits=obs.attrs["units"]    
         showMessage("found units: {}".format(obsunits))
@@ -663,9 +665,13 @@ def execVerification():
         return
 
     zonenames=fcstVector["ID"]
-    
+ 
     showMessage("clipping obs to forecast extent")
-    obs=obs.rio.clip(fcstVector.geometry.values, "epsg:4326") #clipping to fcst geojson
+    try:
+        obs=obs.rio.clip(fcstVector.geometry.values, "epsg:4326") #clipping to fcst geojson
+    except:
+        showMessage("variable {} appears not to have spatial coordinates. Did you chose correct variable to process?".format(obsVar))
+        return
     obs=obs.chunk("auto")#.chunk(dict(time=-1)
     #print(obs.shape)
     #print(obs.chunksizes)

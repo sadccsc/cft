@@ -1,16 +1,16 @@
 {
     "Version": "4.1.0",
-    "outDir": "/work/data/sarcof/verification",
+    "outDir": "/work/data/verification/output",
     "fcstFile": {
-        "file": "/work/data/sarcof/verification/sadc_OND_zones_forecast2022.geojson",
-        "ID": 0,
+        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "ID": 1,
         "variable": [
             "ID",
             "OND_2022"
         ]
     },
-    "zonesFile": {
-        "file": "/work/data/sarcof/verification/sadc_OND_zones_forecast2022.geojson",
+    "summaryzonesFile": {
+        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
         "ID": 0,
         "variable": [
             "ID",
@@ -18,17 +18,17 @@
         ]
     },
     "obsFile": {
-        "file": "pr_mon_cpc-gauge_197901-202210.nc",
+        "file": "/work/data/verification/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_sadc.nc",
         "ID": 0,
         "variable": [
-            "rain"
+            "PRCPTOT"
         ]
     },
-    "obsFileFormat": "NetCDF",
-    "obsFileCode": "tst",
+    "obsFileFormat": "netcdf",
+    "obsDsetCode": "CHIRPS v2.0",
     "climStartYear": 1981,
     "climEndYear": 2010,
-    "verifAggregation": "Sum",
+    "verifAggregation": "sum",
     "verifYear": 2022,
     "verifPeriod": {
         "season": [
@@ -69,16 +69,16 @@
             "Nov",
             "Dec"
         ],
-        "indx": 20
+        "indx": 9
     },
     "outputQuantanom": true,
-    "outputHeidke": false,
+    "outputHeidke": true,
     "outptIgnorance": false,
     "outputIntrate": true,
-    "outputCemhit": false,
+    "outputCemhit": true,
     "outputObscemcat": true,
-    "outputObsrelanom": false,
-    "outputObsvalue": false,
-    "outputRpss": false,
-    "outputIgnorance": false
+    "outputObsrelanom": true,
+    "outputObsvalue": true,
+    "outputRpss": true,
+    "outputIgnorance": true
 }

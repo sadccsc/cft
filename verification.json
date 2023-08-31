@@ -10,26 +10,27 @@
         ]
     },
     "summaryzonesFile": {
-        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "file": "/work/projects/intraACP/sarcof/data/gis/sadc_countries.geojson",
         "ID": 0,
         "variable": [
-            "ID",
-            "OND_2022"
+            "ADM0_NAME",
+            "Shape_Leng",
+            "Shape_Area"
         ]
     },
     "obsFile": {
-        "file": "/work/data/verification/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_sadc.nc",
+        "file": "/work/data/verification/pr_CHIRPS-v2.0-p25_africa_198101-202210.nc",
         "ID": 0,
         "variable": [
-            "PRCPTOT"
+            "pr"
         ]
     },
     "obsFileFormat": "netcdf",
-    "obsDsetCode": "CHIRPS v2.0",
+    "obsDsetCode": "chirps",
     "climStartYear": 1981,
-    "climEndYear": 2010,
+    "climEndYear": 1989,
     "verifAggregation": "sum",
-    "verifYear": 2022,
+    "verifYear": 2021,
     "verifPeriod": {
         "season": [
             "JFM",
@@ -71,14 +72,14 @@
         ],
         "indx": 9
     },
-    "outputQuantanom": true,
-    "outputHeidke": true,
+    "outputQuantanom": false,
+    "outputHeidke": false,
     "outptIgnorance": false,
-    "outputIntrate": true,
+    "outputIntrate": false,
     "outputCemhit": true,
-    "outputObscemcat": true,
-    "outputObsrelanom": true,
-    "outputObsvalue": true,
-    "outputRpss": true,
-    "outputIgnorance": true
+    "outputObscemcat": false,
+    "outputObsrelanom": false,
+    "outputObsvalue": false,
+    "outputRpss": false,
+    "outputIgnorance": false
 }

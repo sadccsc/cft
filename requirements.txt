@@ -13,3 +13,9 @@ shapely>=1.7.0
 descartes>=1.1.0
 pyqt5>=5.14
 pyqt5-sip>=12.9.0
+xarray>=2022.10.0
+geocube>=0.3.0
+geopandas>=0.12.0
+cartopy>=0.21.0
+webbrowser
+rasterstats>=0.18.0

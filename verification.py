@@ -23,7 +23,7 @@
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
          Aug 2023 - implemented threading and CSV format of csv files
 """
-version="4.1.0"
+version="4.2.0"
 
 
 import os, sys, time

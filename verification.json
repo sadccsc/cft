@@ -19,16 +19,16 @@
         ]
     },
     "obsFile": {
-        "file": "/work/data/verification/pr_CHIRPS-v2.0-p25_africa_198101-202210.nc",
+        "file": "/work/data/verification/pr_chirps_SADC_198101-202210.csv",
         "ID": 0,
         "variable": [
             "pr"
         ]
     },
-    "obsFileFormat": "netcdf",
-    "obsDsetCode": "chirps",
+    "obsFileFormat": "csv",
+    "obsDsetCode": "gague2",
     "climStartYear": 1981,
-    "climEndYear": 1989,
+    "climEndYear": 2010,
     "verifAggregation": "sum",
     "verifYear": 2021,
     "verifPeriod": {
@@ -70,16 +70,16 @@
             "Nov",
             "Dec"
         ],
-        "indx": 9
+        "indx": 11
     },
-    "outputQuantanom": false,
-    "outputHeidke": false,
+    "outputQuantanom": true,
+    "outputHeidke": true,
     "outptIgnorance": false,
-    "outputIntrate": false,
+    "outputIntrate": true,
     "outputCemhit": true,
-    "outputObscemcat": false,
-    "outputObsrelanom": false,
-    "outputObsvalue": false,
-    "outputRpss": false,
-    "outputIgnorance": false
+    "outputObscemcat": true,
+    "outputObsrelanom": true,
+    "outputObsvalue": true,
+    "outputRpss": true,
+    "outputIgnorance": true
 }

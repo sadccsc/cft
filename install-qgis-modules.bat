@@ -185,6 +185,53 @@ if %errorlevel% equ 0 (
 )
 echo.
 
+echo upgrading xarray...
+python -m pip install --upgrade xarray
+if %errorlevel% equ 0 (
+ echo xarray upgraded successfully
+)
+echo.
+
+echo upgrading geocube...
+python -m pip install --upgrade geocube
+if %errorlevel% equ 0 (
+ echo geocube upgraded successfully
+)
+echo.
+
+echo upgrading geopandas...
+python -m pip install --upgrade geopandas
+if %errorlevel% equ 0 (
+ echo geopandas upgraded successfully
+)
+echo.
+
+echo upgrading cartopy...
+python -m pip install --upgrade cartopy
+if %errorlevel% equ 0 (
+ echo cartopy upgraded successfully
+)
+echo.
+
+echo upgrading rasterstats...
+python -m pip install --upgrade rasterstats
+if %errorlevel% equ 0 (
+ echo rasterstats upgraded successfully
+)
+echo.
+
+echo upgrading webbrowser...
+python -m pip install --upgrade webbrowser
+if %errorlevel% equ 0 (
+ echo webbrowser upgraded successfully
+)
+echo.
+
+
+
+
+
+
 rem create desktop launcher
 set mypath=%mypath:'=''%
 set TARGET='%mypath%\startup.bat'

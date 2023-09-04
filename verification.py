@@ -23,7 +23,7 @@
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
          Aug 2023 - implemented threading and CSV format of csv files
 """
-version="4.2.0"
+version="4.1.2"
 
 
 import os, sys, time
@@ -159,7 +159,7 @@ def skill_single(_fprob,_obs_terc,_index):
 
 def get_heidke_hit(_x):
     mxs=(_x==np.max(_x[0:3])).astype(int)
-    #_x[3] is in 1,2,3    
+    #_x[3] is in 1,2,3
     mxs=mxs[int(_x[3]-1)]*1/np.sum(mxs)
     return mxs
 
@@ -268,10 +268,17 @@ def zonal_mean(_src,_summaryzonesVector,_summaryzonesName,_summaryzonesVar,_obsF
         crossed=_src.overlay(_summaryzonesVector, how="intersection")
         for val in _summaryzonesName:
             sel=crossed[_summaryzonesVar]==val
-            meanval=np.nanmean(crossed[sel][0])
-            minval=np.nanmin(crossed[sel][0])
-            maxval=np.nanmax(crossed[sel][0])
-            countval=len(crossed[sel][0])
+            vals=crossed[sel][0]
+            if len(vals)>0:
+                meanval=np.nanmean(vals)
+                minval=np.nanmin(vals)
+                maxval=np.nanmax(vals)
+                countval=len(vals)
+            else:
+                meanval=np.nan
+                minval=np.nan
+                maxval=np.nan
+                countval=0                
             alldata=alldata+[[minval,maxval,meanval,countval]]
         zonalscore = pd.DataFrame(alldata, columns=["min","max","mean","count"])
     return(zonalscore)
@@ -308,11 +315,11 @@ def get_cmap(_data, _cmap, _vmin,_vmax,_ncat,_centre):
     return({"cmap":_cmap, "levels":_levels, "vmin":_vmin, "vmax":_vmax,"ticklabels":None})
 
 
-def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar):
+def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar):
     if _plotvar=="obs_quantanom":
-        title="Percentile anomaly \n{}-{}".format(obsSeason,obsYear)
+        title="Observed percentile anomaly \n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/obs_percentile-anomaly_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYear,obsDsetCode)
+        filename="{}/obs_percentile-anomaly_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         seq=[10]*10+[20]*10+[30]*13+[50]*34+[70]*13+[80]*10+[90]*10
         levels = [0,10,20,30,70,80,90,100]
         cmap=colors.ListedColormap([plt.cm.get_cmap('BrBG', 100)(x) for x in seq])
@@ -323,9 +330,9 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]="percentile of distribution"
 
     if _plotvar=="obs_relanom":
-        title="Relative anomaly \n {}-{}".format(obsSeason,obsYear)
+        title="Observed relative anomaly \n {}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/obs_relative-anomaly_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYear,obsDsetCode)        
+        filename="{}/obs_relative-anomaly_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)        
         seq=[10,20,30,40,50,50,60,70,80,90]
         levels = [-100,-80,-60,-40,-20,0,20,40,60,80,100]
         collist=[plt.cm.get_cmap('BrBG', 100)(x) for x in seq]
@@ -337,17 +344,17 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]="% of long-term mean"
         
     if _plotvar=="obs_season":
-        title="Observed rainfall \n {}-{}".format(obsSeason,obsYear)
+        title="Observed rainfall \n {}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data".format(obsDsetCode)
-        filename="{}/obs_values_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYear,obsDsetCode)
+        filename="{}/obs_values_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         cmapdict=get_cmap(_data,"YlGnBu",0,"auto",10,None)
         cmapdict["mask"]=None
         cmapdict["cbar_label"]="mm"
 
     if _plotvar=="obs_cemcat":
-        title="Observed rainfall categories \n{}-{}".format(obsSeason,obsYear)
+        title="Observed rainfall categories \n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/obs_CEM-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYear, obsDsetCode)
+        filename="{}/obs_CEM-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYearExpr, obsDsetCode)
         ticklabels=['BN', 'N-BN','N-AN','AN']
         levels=np.array([1,2,3,4])*5/4 - 0.6
         cmap=colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue'])
@@ -358,9 +365,9 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]="category"
         
     if _plotvar== "obs_terc":
-        title="Observed tercile categories\n{}-{}".format(obsSeason,obsYear)
+        title="Observed tercile categories\n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/obs_tercile-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYear,obsDsetCode)
+        filename="{}/obs_tercile-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         ticklabels=['BN', 'N', 'AN']
         levels=np.array([1,2,3,])*5/4 - 0.6
         cmap=colors.ListedColormap(['#d2b48c', 'white','#0bfffb'])
@@ -379,9 +386,9 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]="mm"
         
     if _plotvar=="fcst_cemcat":
-        title="Category forecast for {}".format(fcstVar)
+        title="Category forecast (CEM definition)\n{}-{}".format(obsSeason,obsYearExpr)
         annot=""
-        filename="{}/fcst_CEM-category_{}.jpg".format(currentoutDir, fcstCode)
+        filename="{}/fcst_CEM-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYearExpr,obsDsetCode)
         ticklabels=['BN', 'N-BN','N-AN','AN']
         levels=np.array([1,2,3,4])*5/4 - 0.6
         cmap=colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue'])
@@ -394,9 +401,9 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]="category"
         
     if _plotvar=="fcst_cemhit":
-        title="Hit/miss (CEM definition) \n {} forecast vs. {}-{} observations".format(fcstVar,obsSeason,obsYear)
+        title="Hit/miss (for CEM categories) \n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/fcst_CEM-hit_{}_{}-{}_{}.jpg".format(currentoutDir, fcstCode, obsSeason, obsYear,obsDsetCode)
+        filename="{}/fcst_CEM-hit_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         ticklabels=['error', 'half-miss','half-hit','hit']
         levels=np.array([0.5,1.5,2.5,3.5])
         cmap=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
@@ -407,25 +414,25 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]=""
         
     if _plotvar=="fcst_intrate":
-        title="Interest rate score\n {} forecast vs. {}-{} observations".format(fcstCode, obsSeason,obsYear)
+        title="Interest rate score (for terciles)\n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/fcst_interest-rate_{}_{}-{}_{}.jpg".format(currentoutDir, fcstCode, obsSeason,obsYear,obsDsetCode)
+        filename="{}/fcst_interest-rate_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYearExpr,obsDsetCode)
         cmapdict=get_cmap(_data,"BrBG",-100,100,10,None)
         cmapdict["mask"]=None
         cmapdict["cbar_label"]="%"
         
     if _plotvar=="fcst_ignorance":
-        title="Ignorance score \n{} forecast vs. {}-{} observations".format(fcstVar,obsSeason,obsYear)
+        title="Ignorance score (for terciles)\n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/fcst_ignorance_{}_{}-{}_{}.jpg".format(currentoutDir, fcstCode, obsSeason,obsYear,obsDsetCode)
+        filename="{}/fcst_ignorance_{}-{}_{}.jpg".format(currentoutDir,obsSeason,obsYearExpr,obsDsetCode)
         cmapdict=get_cmap(_data,"Greys",0,10,10,None)
         cmapdict["mask"]=None
         cmapdict["cbar_label"]="score"
         
     if _plotvar=="fcst_hhit":
-        title="Heidke hit score \n{} forecast vs. {}-{} observations".format(fcstVar,obsSeason,obsYear)
+        title="Heidke hit score (for terciles)\n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/fcst_heidke-hit_{}_{}-{}_{}.jpg".format(currentoutDir, fcstCode,obsSeason,obsYear, obsDsetCode)
+        filename="{}/fcst_heidke-hit_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYearExpr, obsDsetCode)
         ticklabels=['miss', 'hit']
         levels=np.array([0.5,1.5])
         cmap=colors.ListedColormap([plt.cm.get_cmap('BrBG', 10)(x) for x in [3,6]])
@@ -437,9 +444,9 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYear,obsDsetCode,cl
         cmapdict["cbar_label"]="score"
         
     if _plotvar=="fcst_rpss":
-        title="Ranked probabilty skill score (RPSS) \n{} forecast vs. {}-{} observations".format(fcstVar,obsSeason,obsYear)
+        title="Ranked probabilty skill score (RPSS) (for terciles)\n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
-        filename="{}/fcst_rpss_{}_{}-{}_{}.jpg".format(currentoutDir, fcstCode, obsSeason, obsYear, obsDsetCode)
+        filename="{}/fcst_rpss_{}-{}_{}.jpg".format(currentoutDir,obsSeason, obsYearExpr, obsDsetCode)
         vmin=-1
         vmax=1
         cmapdict=get_cmap(_data,"BrBG",vmin,vmax,10,None)
@@ -617,7 +624,8 @@ def changeFormatType():
     window.obsFilePath.clear()
     window.obsFileVariable.clear()
     config['obsFile'] = {"file": '', "ID": 0, "variable": []}
-    
+    window.obsDsetCode.clear()    
+    config['obsDsetCode'] = ""   
 
 
     
@@ -805,17 +813,17 @@ class Worker(QObject):
 
             outDir=Path(config.get('outDir'))
 
-            obsYear = int(config.get('verifYear'))
             climStartYr = int(config.get('climStartYear'))
             climEndYr = int(config.get('climEndYear'))
+            
+            obsYear = int(config.get('verifYear')) #year of the first month of the season
             obsSeason = config.get('verifPeriod').get('season')[config.get('verifPeriod').get('indx')]
-
+            
+#            indx=config.get('verifPeriod').get("indx")
+            
             obsDsetCode=config.get('obsDsetCode')
             
             obsFileFormat=config.get('obsFileFormat')
-                        
-            indx=config.get('verifPeriod').get("indx")
-            seas=config.get('verifPeriod').get("season")[indx]
 
             outputQuantanom = config.get('outputQuantanom')
             outputHeidke = config.get('outputHeidke')
@@ -842,11 +850,22 @@ class Worker(QObject):
             if outputRpss:
                 outputObscemcat=True
 
+            
+            seasDuration,seasLastMon=seasonParam[obsSeason]
+            
+            if seasLastMon-seasDuration<=0:
+                obsLastYear=obsYear+1
+                obsYearExpr="{}-{}".format(obsYear,obsYear+1)
+            else:
+                obsLastYear=obsYear
+                obsYearExpr=obsYear
+                
             #output files will use this code
-            fcstCode=obsSeason+str(obsYear)
-
+            fcstCode="{}-{}".format(obsSeason,obsYearExpr) 
+                
+                
             #checking and creating output directory
-            currentoutDir="{}/verification_{}-{}".format(outDir,seas,obsYear)
+            currentoutDir="{}/verification_{}-{}".format(outDir,obsSeason,obsYearExpr)
 
             if not os.path.exists(currentoutDir):
                 self.progress.emit(("Creating {}".format(currentoutDir), "INFO"))
@@ -938,13 +957,16 @@ class Worker(QObject):
                     obsunits=obs.attrs["units"]
                     self.progress.emit(("Found units: {}".format(obsunits),"RUNTIME"))
                 else:
-                    self.progress.emit(("Observed data does not have units attribute. Setting that attribute to default (mm/month). If that is a problem - please add units attribute to the netcdf file using nco or similar software", "NONCRITICAL"))
                     obsunits="mm"
                     
                 firstdate=obs.time.values[0]
                 lastdate=obs.time.values[-1]
                 
                 self.progress.emit(("Observed file covers period of: {} to {}".format(firstdate,lastdate),"RUNTIME"))
+                
+                #check against the forecast date
+                
+                
                 
                 self.progress.emit(("Successfuly read observations from {}".format(obsFile), "INFO"))
                 
@@ -982,8 +1004,8 @@ class Worker(QObject):
                 cont=True
 
                 self.progress.emit(("Successfuly read observations from {}".format(obsFile), "INFO"))
-                self.progress.emit(("Observed data does not have units attribute. Setting that attribute to unknown.", "NONCRITICAL"))
-                obsunits="mm/month"
+                
+                obsunits="mm"
             #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< this is where code is different for csv and netcdf formats
 
 
@@ -1078,16 +1100,27 @@ class Worker(QObject):
             self.progress.emit(('\nComputing observed rainfall for target season...',"RUNTIME"))
 
             #there is no need to differentiate between gridded and stations here!
-            seasDuration,seasLastMon=seasonParam[seas]
+
 
             # compute season totals for current year
             if config.get('verifAggregation') == "sum":
                 obsroll = obs.rolling(time=seasDuration, center=False).sum()
             else:
                 obsroll = obs.rolling(time=seasDuration, center=False).mean()
-
-            seltime=str(obsYear)+"-"+months[seasLastMon-1]
-
+            
+            #have to remove time steps for which rolling generates nans
+            if obsFileFormat=="netcdf":
+                nancount=np.isnan(obsroll).sum(["latitude","longitude"])
+            else:
+                nancount=np.isnan(obsroll).sum(["geometry"])
+                
+            sel=nancount<np.prod(obsroll[0,:].shape)
+            obsroll=obsroll[sel,:]
+            
+            #check if the target period in obs data
+            
+            seltime=str(obsLastYear)+"-"+months[seasLastMon-1]
+                        
             try:
                 obs_season=obsroll.sel(time=seltime)
             except:
@@ -1097,7 +1130,7 @@ class Worker(QObject):
             obs_season.attrs=""
             
             #saving into output dataset
-            outputds["obs_value"]=obs_season
+            outputds["obs_value"]=np.round(obs_season,1)
             
             
             #-------------------------------------------------------------------------------------------------           
@@ -1105,7 +1138,7 @@ class Worker(QObject):
             
             self.progress.emit(('Plotting (always!)',"RUNTIME"))
             
-            pars=get_plotparams(obs_season,"obs_season",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+            pars=get_plotparams(obs_season,"obs_season",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
             
             
             temp=obs_season.copy()
@@ -1172,7 +1205,7 @@ class Worker(QObject):
                     
             self.progress.emit(('Plotting (always!)',"RUNTIME"))
             
-            pars=get_plotparams(fcst_cemcat,"fcst_cemcat",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+            pars=get_plotparams(fcst_cemcat,"fcst_cemcat",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
             
             temp=fcst_cemcat.copy()
             #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1200,7 +1233,7 @@ class Worker(QObject):
             clim_mean = obs_clim.mean("time")
 
             clim_mean.attrs=""   
-            outputds["obs_clim"]=clim_mean
+            outputds["obs_clim"]=np.round(clim_mean,2)
 
             
             #-------------------------------------------------------------------------------------------------
@@ -1210,7 +1243,7 @@ class Worker(QObject):
 
             #add obsunits to plotconfig
             #obsunits="mm/day"
-            pars=get_plotparams(clim_mean,"clim_mean",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+            pars=get_plotparams(clim_mean,"clim_mean",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 #            pars["cbar_label"]=obsunits
             
             temp=clim_mean.copy()
@@ -1247,7 +1280,7 @@ class Worker(QObject):
                 obs_relanom=(obs_season-clim_mean)/clim_mean*100
                 
                 self.progress.emit(("Plotting","RUNTIME"))
-                pars=get_plotparams(obs_relanom,"obs_relanom",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                pars=get_plotparams(obs_relanom,"obs_relanom",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
                 
                 temp=obs_relanom.copy()
                 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1263,7 +1296,7 @@ class Worker(QObject):
 
                     
                 obs_relanom.attrs=""   
-                outputds["obs_relanom"]=obs_relanom
+                outputds["obs_relanom"]=np.round(obs_relanom)
             else:
                 self.progress.emit(("\nSkipping relative anomaly","RUNTIME"))
 
@@ -1289,9 +1322,6 @@ class Worker(QObject):
             else:
                 obs_terc=temp.transpose("time","geometry")
             #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-                
-                
                 
             #-------------------------------------------------------------------------------------------------
             #calculating forecast tercileprobability
@@ -1349,7 +1379,7 @@ class Worker(QObject):
                     
                     
                 self.progress.emit(("Plotting","RUNTIME"))
-                pars=get_plotparams(obs_cemcat,"obs_cemcat",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                pars=get_plotparams(obs_cemcat,"obs_cemcat",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 
                 temp=obs_cemcat.copy()
                 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1364,7 +1394,7 @@ class Worker(QObject):
                      pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                                     
                 obs_cemcat.attrs=""   
-                outputds["obs_class"]=obs_cemcat
+                outputds["obs_cemcat"]=obs_cemcat
 
             else:
                 self.progress.emit(("\nSkipping observed CEM categories","RUNTIME"))
@@ -1397,7 +1427,7 @@ class Worker(QObject):
                 
                 self.progress.emit(("Plotting","RUNTIME"))
                 
-                pars=get_plotparams(obs_quantanom,"obs_quantanom",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                pars=get_plotparams(obs_quantanom,"obs_quantanom",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 
                 temp=obs_quantanom.copy()*100
                 
@@ -1414,7 +1444,7 @@ class Worker(QObject):
                 
                     
                 obs_quantanom.attrs=""   
-                outputds["obs_quantanom"]=obs_quantanom
+                outputds["obs_quantanom"]=np.round(obs_quantanom,3)
 
             else:
                 self.progress.emit(("\nSkipping quantile anomalies","RUNTIME"))
@@ -1425,11 +1455,11 @@ class Worker(QObject):
             #calculating heidke hits
             
             if outputHeidke:
-                self.progress.emit(("\nCalclating Heidke hit scores...","RUNTIME"))
-                fcst_hhit=None
-                zonal_hhit=None
+                    self.progress.emit(("\nCalclating Heidke hit scores...","RUNTIME"))
+                    fcst_hhit=None
+                    zonal_hhit=None
                 
-                try:
+#                try:
                     temp=xr.apply_ufunc(
                         skill_single,
                         fcst_tercprob,
@@ -1451,10 +1481,10 @@ class Worker(QObject):
                     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                         
                     fcst_hhit.attrs=""
-                    outputds["fcst_heidke"]=fcst_hhit
+                    outputds["fcst_heidkehit"]=fcst_hhit
 
                     self.progress.emit(("Plotting","RUNTIME"))
-                    pars=get_plotparams(fcst_hhit,"fcst_hhit",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                    pars=get_plotparams(fcst_hhit,"fcst_hhit",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 
                     
                     temp=fcst_hhit.copy()
@@ -1474,20 +1504,20 @@ class Worker(QObject):
                     self.progress.emit(("Plotting Heidke hit scores zonal summary","RUNTIME"))
                     zonal_hhit=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
                     self.plotzonalHistogram(zonal_hhit["mean"], 
-                                             "Heidke skill score (most probable category)", 
-                                             "{}/{}_{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_heidke",fcstVar,obsSeason,obsYear,obsDsetCode),
+                                             "Heidke skill score (HSS) for most probable tercile category\n{} {}".format(obsSeason,obsYearExpr), 
+                                             "{}/{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_heidke",obsSeason,obsYearExpr,obsDsetCode),
                                              "HHS [-]", 
                                              0,
                                              1,
-                                             "no-skill forecast=0, perfect forecast=1",
+                                             "HSS values: no-skill forecast=0, perfect forecast=1",
                                              summaryzonesVector,
                                              summaryzonesName,
                                              summaryzonesVar
                                                )                        
-                except Exception as e: 
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    errortxt="ERROR: {} {}\nin line:{}".format(e,exc_type, exc_tb.tb_lineno)
-                    self.progress.emit(("\nNot able to calculate Heidke hits \n{}\n".format(errortxt),"NONCRITICAL"))
+#                except Exception as e: 
+#                    exc_type, exc_obj, exc_tb = sys.exc_info()
+#                    errortxt="ERROR: {} {}\nin line:{}".format(e,exc_type, exc_tb.tb_lineno)
+#                    self.progress.emit(("\nNot able to calculate Heidke hits \n{}\n".format(errortxt),"NONCRITICAL"))
 
             else:
                 self.progress.emit(("\nSkipping Heidke hit scores","RUNTIME"))
@@ -1525,7 +1555,7 @@ class Worker(QObject):
                         
                                             
                     self.progress.emit(("Plotting","RUNTIME"))
-                    pars=get_plotparams(fcst_intrate,"fcst_intrate",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                    pars=get_plotparams(fcst_intrate,"fcst_intrate",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 
                     intratemax=max(abs(fcst_intrate.min().data), abs(fcst_intrate.max().data))*2
 
@@ -1543,17 +1573,17 @@ class Worker(QObject):
                          pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
     
                     fcst_intrate.attrs=""
-                    outputds["fcst_intrate"]=fcst_intrate
+                    outputds["fcst_intrate"]=np.round(fcst_intrate,1)
 
                     self.progress.emit(("Plotting interest rate zonal summary","RUNTIME"))
                     zonal_intrate=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
                     self.plotzonalHistogram(zonal_intrate["mean"], 
-                            "Average interest rate", 
-                            "{}/{}_{}_{}_{}_{}.jpg".format(currentoutDir, "zonal_intrate",fcstVar,obsSeason,obsYear,obsDsetCode),
+                            "Average interest rate (for terciles)\n{} {}".format(obsSeason,obsYearExpr), 
+                            "{}/{}_{}_{}_{}.jpg".format(currentoutDir, "zonal_intrate",obsSeason,obsYearExpr,obsDsetCode),
                             "interest rate [%]",
                             0,
                             100,
-                            "climatological forecast=0%, perfect forecast = 100%",
+                            "Interest rate values: climatological forecast=0%, perfect forecast = 200%",
                             summaryzonesVector,
                             summaryzonesName,
                             summaryzonesVar
@@ -1602,7 +1632,7 @@ class Worker(QObject):
                     ignorancemax=max(abs(fcst_ignorance.min().data), abs(fcst_ignorance.max().data))*2
 
                     self.progress.emit(("Plotting","RUNTIME"))
-                    pars=get_plotparams(fcst_ignorance,"fcst_ignorance",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                    pars=get_plotparams(fcst_ignorance,"fcst_ignorance",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 #                    pars["vmax"]=ignorancemax
 
                     temp=fcst_ignorance.copy()
@@ -1619,18 +1649,18 @@ class Worker(QObject):
 
 
                     fcst_ignorance.attrs=""        
-                    outputds["fcst_ignorance"]=fcst_ignorance
+                    outputds["fcst_ignorance"]=np.round(fcst_ignorance,2)
 
                     self.progress.emit(("Plotting ignorance zonal summary","RUNTIME"))
                     
                     zonal_ignorance=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
                     self.plotzonalHistogram(zonal_ignorance["mean"], 
-                                         "Ignorance score", 
-                                         "{}/{}_{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_ignorance",fcstVar,obsSeason,obsYear,obsDsetCode),
+                                         "Ignorance score (for terciles)\n{} {}".format(obsSeason,obsYearExpr), 
+                                         "{}/{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_ignorance",obsSeason,obsYearExpr,obsDsetCode),
                                          "Ignorance [-]", 
                                          1.58,
                                             0,
-                                         "climatological forecast=1,58, perfect forecast=0 (lower values better)",
+                                         "Ignorance score values: climatological forecast=1,58, perfect forecast=0 (lower values better)",
                                          summaryzonesVector,
                                          summaryzonesName,
                                          summaryzonesVar
@@ -1674,7 +1704,7 @@ class Worker(QObject):
                     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                         
                     self.progress.emit(("Plotting","RUNTIME"))
-                    pars=get_plotparams(fcst_rpss,"fcst_rpss",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                    pars=get_plotparams(fcst_rpss,"fcst_rpss",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 
                     
                     temp=fcst_rpss.copy()
@@ -1690,7 +1720,7 @@ class Worker(QObject):
                     self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
                          pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                     fcst_rpss.attrs=""                
-                    outputds["fcst_rpss"]=fcst_rpss
+                    outputds["fcst_rpss"]=np.round(fcst_rpss,2)
 
 
                     self.progress.emit(("Plotting RPSS zonal summary","RUNTIME"))
@@ -1698,11 +1728,11 @@ class Worker(QObject):
                     zonal_rpss=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
                     
                     self.plotzonalHistogram(zonal_rpss["mean"],
-                                     "RPSS",
-                                     "{}/{}_{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_rpss",fcstVar,obsSeason,obsYear,obsDsetCode),"[-]", 
+                                     "Ranked probability skill score (RPSS) (for terciles)\n{} {}".format(obsSeason,obsYearExpr),
+                                     "{}/{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_rpss",obsSeason,obsYearExpr,obsDsetCode),"[-]", 
                                      0,
                                      1,
-                                     "climatological forecast=0 perfect forecast=1",
+                                     "RPSS values: climatological forecast=0 perfect forecast=1",
                                      summaryzonesVector,
                                      summaryzonesName,
                                      summaryzonesVar)
@@ -1723,11 +1753,11 @@ class Worker(QObject):
             #cem hits
             
             if outputCemhit:
-                self.progress.emit(("\nCalculating CEM hit scores...","RUNTIME"))
-                fcst_cemhit=None
-                zonal_cemhit=None
+                    self.progress.emit(("\nCalculating CEM hit scores...","RUNTIME"))
+                    fcst_cemhit=None
+                    zonal_cemhit=None
                 
-                try:
+#                try:
                     temp=xr.apply_ufunc(
                         get_cem_hit,
                         fcst_cemcat,
@@ -1748,7 +1778,7 @@ class Worker(QObject):
                         
 
                     self.progress.emit(("Plotting","RUNTIME"))
-                    pars=get_plotparams(fcst_cemhit,"fcst_cemhit",currentoutDir,obsSeason,obsYear,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+                    pars=get_plotparams(fcst_cemhit,"fcst_cemhit",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
 
                     temp=fcst_cemhit.copy()
                     #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1763,18 +1793,18 @@ class Worker(QObject):
                          pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                         
                     fcst_cemhit.attrs=""
-                    outputds["fcst_classhit"]=fcst_cemhit
+                    outputds["fcst_cemhit"]=fcst_cemhit
 
-                    filename="{}/histogram_cemhitmiss_{}_{}.jpg".format(currentoutDir, fcstCode, obsDsetCode)
-                    title="hits/misses in zones \n{} forecast vs. {}-{} observations ({})".format(fcstVar,obsSeason,obsYear,obsDsetCode)
+                    filename="{}/zonal_cemhitmiss_{}_{}.jpg".format(currentoutDir, fcstCode, obsDsetCode)
+                    title="Hits/misses (CEM categories) in zones \n{} {}".format(obsSeason,obsYearExpr,obsDsetCode)
                     
                     self.plotzonalCemhit(summaryzonesVector,summaryzonesName,summaryzonesVar,temp,filename,title,obsFileFormat)
                                         
                         
-                except Exception as e: 
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    errortxt="ERROR: {} {}\nin line:{}".format(e,exc_type, exc_tb.tb_lineno)
-                    self.progress.emit(("\nNot able to calculate cem hit/miss rate \n{}\n".format(errortxt),"NONCRITICAL"))
+#                except Exception as e: 
+#                    exc_type, exc_obj, exc_tb = sys.exc_info()
+#                    errortxt="ERROR: {} {}\nin line:{}".format(e,exc_type, exc_tb.tb_lineno)
+#                    self.progress.emit(("\nNot able to calculate cem hit/miss rate \n{}\n".format(errortxt),"NONCRITICAL"))
                     
             else:
                 self.progress.emit(("\nSkipping CEM hit scores","RUNTIME"))
@@ -1788,10 +1818,21 @@ class Worker(QObject):
             
             #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             if obsFileFormat=="netcdf":            
-                outputfile="{}/maps_verification_{}_{}-{}_{}.nc".format(currentoutDir,fcstVar,obsSeason,obsYear,obsDsetCode)        
+                outputfile="{}/maps_verification_{}-{}_{}.nc".format(currentoutDir,obsSeason,obsYearExpr,obsDsetCode)        
                 outputds.to_netcdf(outputfile)    
                 self.progress.emit(("Created {}".format(outputfile), "INFO"))
             else:
+                outputfile="{}/maps_verification_{}-{}_{}.csv".format(currentoutDir,obsSeason,obsYearExpr,obsDsetCode)        
+                geom=outputds.geometry
+                outputds=outputds.drop(["geometry","time"])
+                outputdf=[]
+                for var in outputds.variables:
+                    df=pd.DataFrame(outputds[var].data.reshape(1,-1).T)
+                    df.index=geom
+                    df.columns=[var]
+                    outputdf=outputdf+[df]
+                outputdf=pd.concat(outputdf, axis=1)
+                outputdf.to_csv(outputfile)
                 cont=True
             #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             
@@ -1842,7 +1883,7 @@ class Worker(QObject):
             if regannotate:
                 regions["labelcoords"]=regions['geometry'].apply(lambda x: x.representative_point().coords[:])
                 for idx, row in regions.iterrows():
-                    mm.annotate(text=row[_geometryVar][:3], xy=row['labelcoords'][0],
+                    mm.annotate(text=str(row[_geometryVar])[:3], xy=row['labelcoords'][0],
                                  horizontalalignment='center', zorder=10000)
     
             plt.title(_title, fontsize=10)
@@ -1883,7 +1924,7 @@ class Worker(QObject):
             if regannotate:
                 regions["labelcoords"]=regions['geometry'].apply(lambda x: x.representative_point().coords[:])
                 for idx, row in regions.iterrows():
-                    m.annotate(text=row[_geometryVar][:3], xy=row['labelcoords'][0],
+                    m.annotate(text=str(row[_geometryVar])[:3], xy=row['labelcoords'][0],
                                  horizontalalignment='center', zorder=10000, fontsize=5)
             
             plt.title(_title, fontsize=10)
@@ -1913,7 +1954,9 @@ class Worker(QObject):
 
         pl.axhline(_hline1, linestyle="--",color="0.7")
         pl.axhline(_hline2, linestyle="--",color="0.7")
-        pl.text(0.1,0.97,_annotation,fontsize=6, transform=pl.transAxes)
+        
+        pl.text(0.1,0.02,_annotation,fontsize=6, transform=plt.gcf().transFigure)
+        
 #        pl.text(0.02,0.98,_text, ha='left', va='top', transform=pl.transAxes)
         pl.set_xlabel("zone")
         pl.set_ylabel(_ylabel)
@@ -1921,7 +1964,7 @@ class Worker(QObject):
 
         ymin=np.min([-0.05*yrange, np.nanmin(_data)])
         pl.set_ylim(ymin,None)
-        pl.set_xticklabels([x[:3] for x in _summaryzonesName])
+        pl.set_xticklabels([str(x)[:3] for x in _summaryzonesName])
         
         
         #plotting small inlay with regions map
@@ -1932,12 +1975,12 @@ class Worker(QObject):
         
         regions["labelcoords"]=regions['geometry'].apply(lambda x: x.representative_point().coords[:])
         for idx, row in regions.iterrows():
-            m.annotate(text=row[_summaryzonesVar][:3], xy=row['labelcoords'][0],
+            m.annotate(text=str(row[_summaryzonesVar])[:3], xy=row['labelcoords'][0],
                          horizontalalignment='center', zorder=10000, fontsize=5, color="0.5")
     
         ax2.spines['geo'].set_edgecolor('0.7')
         
-        plt.subplots_adjust(bottom=0.15,top=0.9, right=0.75,left=0.15)
+        plt.subplots_adjust(bottom=0.25,top=0.85, right=0.75,left=0.15)
         plt.savefig(_filename, dpi=300)
         self.progress.emit(("Created {}".format(_filename), "INFO"))
         plt.close()
@@ -1967,7 +2010,7 @@ class Worker(QObject):
                 sel=crossed[summaryzonesVar]==val
                 clipped=crossed[sel][0]
                 alldata=alldata+[clipped[~np.isnan(clipped)]]
-            
+                
         bins=[-0.5,0.5,1.5,2.5,3.5]
         labels=["error","half-miss","half-hit","hit"]
         cols=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
@@ -1985,13 +2028,13 @@ class Worker(QObject):
             else:
                 pl.pie([1], colors=["white"])
                 pl.text(0.5,0.5,"no data", ha='center', va='center', transform=pl.transAxes, color="0.8")
-            pl.set_title("{}".format(summaryzonesName[i][0:3]))
+            pl.set_title("{}".format(str(summaryzonesName[i])[0:3]))
             
         #positioning the legend
         fig.legend(labels, loc="lower right", bbox_to_anchor=(1,0))
         
         #plotting small inlay with regions
-        ax2=fig.add_axes([0.8,0.59,0.2,0.4],projection=ccrs.PlateCarree())
+        ax2=fig.add_axes([0.79,0.59,0.2,0.4],projection=ccrs.PlateCarree())
 #        ax2=fig.add_axes([0.8,0.59,0.2,0.4])
         
         regions=summaryzonesVector.copy()
@@ -1999,7 +2042,7 @@ class Worker(QObject):
         
         regions["labelcoords"]=regions['geometry'].apply(lambda x: x.representative_point().coords[:])
         for idx, row in regions.iterrows():
-            m.annotate(text=row[summaryzonesVar][:3], xy=row['labelcoords'][0],
+            m.annotate(text=str(row[summaryzonesVar])[:3], xy=row['labelcoords'][0],
                          horizontalalignment='center', zorder=10000, fontsize=5, color="0.5")
     
         ax2.spines['geo'].set_edgecolor('0.7')
@@ -2150,6 +2193,8 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         _message=_tuple[0]
         _type=_tuple[1]
         _color=msgColors[_type]
+        if _type in ["ERROR","NONCRITICAL"]:
+            _message="{}: {}".format(_type,_message)
         _message = "<pre><font color={}>{}</font></pre>".format(_color, _message)
         window.logWindow.appendHtml(_message)
     #    window.logWindow.update()
@@ -2220,10 +2265,6 @@ if __name__ == "__main__":
     
     # --- verification is run when user has pressed run button, so nothing else to do here...
     sys.exit(app.exec_())
-
-
-# In[ ]:
-
 
 
 # In[ ]:

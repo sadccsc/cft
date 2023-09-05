@@ -2023,7 +2023,7 @@ class Worker(QObject):
         for i,zdata in enumerate(alldata):
             pl=fig.add_subplot(ny,nx,i+1)   
             if len(zdata)>0:
-                vals,b=np.histogram(zdata, bins=bins, normed=True)
+                vals,b=np.histogram(zdata, bins=bins, density=True)
                 pie=pl.pie(vals, colors=cols)
             else:
                 pl.pie([1], colors=["white"])

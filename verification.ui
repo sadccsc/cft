@@ -11,7 +11,7 @@
     <x>0</x>
     <y>0</y>
     <width>957</width>
-    <height>695</height>
+    <height>728</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -49,7 +49,7 @@
       <x>0</x>
       <y>0</y>
       <width>951</width>
-      <height>671</height>
+      <height>701</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -127,8 +127,8 @@
     <widget class="QPushButton" name="runButton">
      <property name="geometry">
       <rect>
-       <x>410</x>
-       <y>625</y>
+       <x>420</x>
+       <y>660</y>
        <width>120</width>
        <height>30</height>
       </rect>
@@ -513,7 +513,7 @@
        <x>10</x>
        <y>480</y>
        <width>261</width>
-       <height>131</height>
+       <height>111</height>
       </rect>
      </property>
      <property name="title">
@@ -593,20 +593,20 @@
     <widget class="QGroupBox" name="outputsGroup2">
      <property name="geometry">
       <rect>
-       <x>280</x>
+       <x>290</x>
        <y>480</y>
        <width>251</width>
-       <height>131</height>
+       <height>171</height>
       </rect>
      </property>
      <property name="title">
-      <string>Output (other skill measures)</string>
+      <string>Outputs (evaluation)</string>
      </property>
      <widget class="QCheckBox" name="outputObscemcat">
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>20</y>
+        <y>80</y>
         <width>241</width>
         <height>21</height>
        </rect>
@@ -621,50 +621,12 @@
        <string>observed CEM category</string>
       </property>
      </widget>
-     <widget class="QCheckBox" name="outputRpss">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>60</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>RPSS</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputCemhit">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>40</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>CEM hits and misses</string>
-      </property>
-     </widget>
      <widget class="QCheckBox" name="outputObsrelanom">
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>80</y>
-        <width>241</width>
+        <y>60</y>
+        <width>231</width>
         <height>21</height>
        </rect>
       </property>
@@ -682,7 +644,7 @@
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>100</y>
+        <y>20</y>
         <width>241</width>
         <height>21</height>
        </rect>
@@ -697,12 +659,88 @@
        <string>observed rainfall</string>
       </property>
      </widget>
+     <widget class="QCheckBox" name="outputObstercile">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>100</y>
+        <width>241</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>observed tercile category</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="outputFcstcemcat">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>120</y>
+        <width>241</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>forecast CEM category</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="outputFcsttercile">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>140</y>
+        <width>193</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>forecast tercile category</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="outputObsclim">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>40</y>
+        <width>241</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>observed rainfall climatology</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QPushButton" name="exitButton">
      <property name="geometry">
       <rect>
-       <x>260</x>
-       <y>625</y>
+       <x>290</x>
+       <y>660</y>
        <width>120</width>
        <height>30</height>
       </rect>
@@ -717,8 +755,8 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>625</y>
+       <x>780</x>
+       <y>660</y>
        <width>120</width>
        <height>30</height>
       </rect>
@@ -819,7 +857,7 @@
        <x>550</x>
        <y>0</y>
        <width>390</width>
-       <height>611</height>
+       <height>651</height>
       </rect>
      </property>
      <property name="title">
@@ -831,7 +869,7 @@
         <x>0</x>
         <y>20</y>
         <width>390</width>
-        <height>591</height>
+        <height>631</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -983,8 +1021,8 @@
     <widget class="QPushButton" name="clearLogButton">
      <property name="geometry">
       <rect>
-       <x>680</x>
-       <y>625</y>
+       <x>580</x>
+       <y>660</y>
        <width>120</width>
        <height>30</height>
       </rect>
@@ -992,6 +1030,57 @@
      <property name="text">
       <string>Clear Log</string>
      </property>
+    </widget>
+    <widget class="QGroupBox" name="outputsGroup3">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>590</y>
+       <width>261</width>
+       <height>61</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Outputs (other skill measures)</string>
+     </property>
+     <widget class="QCheckBox" name="outputRpss">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>40</y>
+        <width>241</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>RPSS</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="outputCemhit">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>20</y>
+        <width>241</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>CEM hits and misses</string>
+      </property>
+     </widget>
     </widget>
     <zorder>runButton</zorder>
     <zorder>outDirGroup</zorder>
@@ -1006,6 +1095,7 @@
     <zorder>logGroup</zorder>
     <zorder>verifGroup</zorder>
     <zorder>clearLogButton</zorder>
+    <zorder>outputsGroup3</zorder>
    </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar">

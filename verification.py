@@ -23,7 +23,7 @@
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
          Aug 2023 - implemented threading and CSV format of csv files
 """
-version="4.1.2"
+version="4.2.4"
 
 
 import os, sys, time
@@ -170,6 +170,12 @@ def cemcat_to_tercprob(_cat):
     return _probs
 
 
+def cemcat_to_terc(_cat):
+    _tercarray=np.array([1,2,2,3])
+    _terc=np.array([_tercarray[int(x-1)] if not np.isnan(x) else np.array([np.nan]) for x in _cat])
+    return _terc 
+
+
 def val_to_cemcat(_val,_obs):
     _out=np.copy(_val)
     if np.sum(np.isnan(_val))==0:
@@ -183,18 +189,13 @@ def val_to_cemcat(_val,_obs):
 def val_to_terc(_val,_obs):
     _out=np.copy(_val)
     if np.sum(np.invert(np.isnan(_val)))>0:
-        _q1,_q2=np.quantile(_obs,[0.33,0.66])
+        _q1,_q2=np.nanquantile(_obs,[0.33,0.66])
         _out[_val<=_q1]=1
         _out[(_val>_q1) & (_val<=_q2)]=2
         _out[_val>_q2]=3
     else:
         _out[:]=np.nan
     return(_out.astype(float))
-
-def cemcat_to_tercprob(_cat):
-    _cem_probs=np.array([[40,35,25],[35,40,25],[25,40,35],[25,35,40]])/100
-    _probs=np.array([_cem_probs[int(x-1)] if not np.isnan(x) else np.array([np.nan,np.nan,np.nan]) for x in _cat])
-    return _probs 
 
 def get_interest_rate(_x):
     #_x[3] is in 1,2,3
@@ -368,6 +369,19 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         title="Observed tercile categories\n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
         filename="{}/obs_tercile-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
+        ticklabels=['BN', 'N', 'AN']
+        levels=np.array([1,2,3,])*5/4 - 0.6
+        cmap=colors.ListedColormap(['#d2b48c', '0.8','#0bfffb'])
+        vmin=0
+        vmax=4
+        cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
+        cmapdict["mask"]=None
+        cmapdict["cbar_label"]="category"
+        
+    if _plotvar== "fcst_terc":
+        title="Forecast tercile categories\n{}-{}".format(obsSeason,obsYearExpr)
+        annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
+        filename="{}/fcst_tercile-category_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         ticklabels=['BN', 'N', 'AN']
         levels=np.array([1,2,3,])*5/4 - 0.6
         cmap=colors.ListedColormap(['#d2b48c', 'white','#0bfffb'])
@@ -661,8 +675,12 @@ def setConfigDefaults():
     config["outputIntrate"] = True
     config["outputCemhit"] = False
     config["outputObscemcat"] = True
+    config["outputFcstcemcat"] = False
+    config["outputFcsttercile"] = False
+    config["outputObstercile"] = False
     config["outputObsrelanom"] = False
     config["outputObsvalue"] = False
+    config["outputObsclim"] = False    
     config["outputRpss"] = False
     return config    
 
@@ -729,9 +747,13 @@ def populateUI():
     window.outputIgnorance.setChecked(bool(config.get('outputIgnorance')))
     window.outputIntrate.setChecked(bool(config.get('outputIntrate')))
     window.outputCemhit.setChecked(bool(config.get('outputCemhit')))
+    window.outputFcstcemcat.setChecked(bool(config.get('outputFcstcemcat')))
+    window.outputFcsttercile.setChecked(bool(config.get('outputFcsttercile')))
     window.outputObscemcat.setChecked(bool(config.get('outputObscemcat')))
+    window.outputObstercile.setChecked(bool(config.get('outputObstercile')))
     window.outputObsrelanom.setChecked(bool(config.get('outputObsrelanom')))
     window.outputObsvalue.setChecked(bool(config.get('outputObsvalue')))
+    window.outputObsclim.setChecked(bool(config.get('outputObsclim')))
     window.outputRpss.setChecked(bool(config.get('outputRpss')))
 
     ## attaching signals
@@ -831,8 +853,12 @@ class Worker(QObject):
             outputIntrate = config.get('outputIntrate')
             outputCemhit = config.get('outputCemhit')
             outputObscemcat = config.get('outputObscemcat')
+            outputObstercile = config.get('outputObstercile')
+            outputFcstcemcat = config.get('outputFcstcemcat')
+            outputFcsttercile = config.get('outputFcsttercile')
             outputObsrelanom = config.get('outputObsrelanom')
             outputObsvalue = config.get('outputObsvalue')
+            outputObsclim = config.get('outputObsclim')
             outputRpss = config.get('outputRpss')
             
             #checks on input
@@ -843,7 +869,8 @@ class Worker(QObject):
 
             if climEndYr-climStartYr<20:
                 self.progress.emit(("Climatological period starting in {} and ending in {} is only {} years long. That is rather short. Please reconsider.".format(climStartYr,climEndYr,climEndYr-climStartYr+1), "NONCRITICAL"))
-            
+
+                
             #checking dependencies
             if outputCemhit:
                 outputObscemcat=True
@@ -863,14 +890,13 @@ class Worker(QObject):
             #output files will use this code
             fcstCode="{}-{}".format(obsSeason,obsYearExpr) 
                 
-                
             #checking and creating output directory
-            currentoutDir="{}/verification_{}-{}".format(outDir,obsSeason,obsYearExpr)
+            currentoutDir="{}/verification_{}-{}/{}".format(outDir,obsSeason,obsYearExpr,obsDsetCode)
 
             if not os.path.exists(currentoutDir):
                 self.progress.emit(("Creating {}".format(currentoutDir), "INFO"))
                 try:
-                    os.mkdir(currentoutDir)
+                    os.makedirs(currentoutDir)
                 except:
                     self.progress.emit(("Could not create {}. Stopping...".format(currentoutDir), "ERROR"))
                     return
@@ -888,7 +914,7 @@ class Worker(QObject):
             try:
                 fcstVector = gpd.read_file(fcstFile)
             except:
-                self.progress.emit(("File {} cannot be read. please check if the file is properly formatted".format(fcstFile), "ERROR","RUNTIME"))
+                self.progress.emit(("File {} cannot be read. please check if the file is properly formatted".format(fcstFile), "ERROR"))
                 return
 
             #check for forecast categories here
@@ -965,7 +991,11 @@ class Worker(QObject):
                 self.progress.emit(("Observed file covers period of: {} to {}".format(firstdate,lastdate),"RUNTIME"))
                 
                 #check against the forecast date
+                firstobsyear=obs.time[0].dt.year.values
+                lastobsyear=obs.time[-1].dt.year.values
                 
+                if climEndYr>lastobsyear or climStartYr<firstobsyear:
+                    self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstdate,lastdate), "NONCRITICAL"))
                 
                 
                 self.progress.emit(("Successfuly read observations from {}".format(obsFile), "INFO"))
@@ -998,8 +1028,13 @@ class Worker(QObject):
                     lastdate=obspd.index.values[-1]
                     self.progress.emit(("Observed file covers period of: {} to {}".format(firstdate,lastdate),"INFO"))
                     
+                    firstobsyear=obspd.index[0].year
+                    lastobsyear=obspd.index[-1].year
+                    
+                    if climEndYr>lastobsyear or climStartYr<firstobsyear:
+                        self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstdate,lastdate), "NONCRITICAL"))
                 else:
-                    self.progress.emit(("File should be in CFT format. This does not seem to be the case. Please check if {} file is properly formatted".format(obsFile), "ERROR"))                    
+                    self.progress.emit(("File should be in CFT format. This does not seem to be the case. Please check if {} file is properly formatted".format(obsFile), "NONCRITICAL"))                    
                     return
                 cont=True
 
@@ -1045,7 +1080,7 @@ class Worker(QObject):
                     return
 
                 #chunking obs, in case it is a large file
-                obs=obs.chunk("auto")
+#                obs=obs.chunk("auto")
 
                 #this filters observations, and it's OK for rainfall, but if it ever is used for a different variable - then this needs to be changed
                 obs=obs.where(obs>=0)
@@ -1094,7 +1129,7 @@ class Worker(QObject):
 
             
             #-------------------------------------------------------------------------------------------------           
-            # compute observed season's rainfall 
+            # compute observed season's rainfall  - always
             
             #this has to be done first, because season time expression is needed to convert forecast vector to gridded/station format
             self.progress.emit(('\nComputing observed rainfall for target season...',"RUNTIME"))
@@ -1129,29 +1164,33 @@ class Worker(QObject):
 
             obs_season.attrs=""
             
-            #saving into output dataset
-            outputds["obs_value"]=np.round(obs_season,1)
             
             
             #-------------------------------------------------------------------------------------------------           
             # plotting observed rainfall
-            
-            self.progress.emit(('Plotting (always!)',"RUNTIME"))
-            
-            pars=get_plotparams(obs_season,"obs_season",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
-            
-            
-            temp=obs_season.copy()
-            #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-            if obsFileFormat=="netcdf":            
-                cont=True
+            if outputObsvalue:
+                
+                #saving into output dataset
+                outputds["obs_value"]=np.round(obs_season,1)
+                
+                self.progress.emit(('Plotting',"RUNTIME"))
+
+                pars=get_plotparams(obs_season,"obs_season",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+
+
+                temp=obs_season.copy()
+                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                if obsFileFormat=="netcdf":            
+                    cont=True
+                else:
+                    temp=pd.DataFrame(temp.data.T, index=temp.geometry)
+                    temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
+                #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+                self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
-                temp=pd.DataFrame(temp.data.T, index=temp.geometry)
-                temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
-            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-            
-            self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                 pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                self.progress.emit(("\nSkipping outputting observed value","RUNTIME"))                
 
 
 
@@ -1196,28 +1235,32 @@ class Worker(QObject):
                 
             #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             
-            fcst_cemcat.attrs=""   
-            outputds["fcst_cemcat"] = fcst_cemcat
 
             
             #-------------------------------------------------------------------------------------------------
             # plotting forecast CEM categories map
-                    
-            self.progress.emit(('Plotting (always!)',"RUNTIME"))
-            
-            pars=get_plotparams(fcst_cemcat,"fcst_cemcat",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
-            
-            temp=fcst_cemcat.copy()
-            #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-            if obsFileFormat=="netcdf":            
-                cont=True
+            if outputFcstcemcat:
+                
+                fcst_cemcat.attrs=""   
+                outputds["fcst_cemcat"] = fcst_cemcat
+                
+                self.progress.emit(('Plotting',"RUNTIME"))
+
+                pars=get_plotparams(fcst_cemcat,"fcst_cemcat",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+
+                temp=fcst_cemcat.copy()
+                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                if obsFileFormat=="netcdf":            
+                    cont=True
+                else:
+                    temp=pd.DataFrame(temp.data.T, index=temp.geometry)
+                    temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
+                #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+                self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
-                temp=pd.DataFrame(temp.data.T, index=temp.geometry)
-                temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
-            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-            
-            self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                 pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                self.progress.emit(("\nSkipping outputting observed value","RUNTIME"))                
             
             
                     
@@ -1232,31 +1275,35 @@ class Worker(QObject):
             #climatological mean
             clim_mean = obs_clim.mean("time")
 
-            clim_mean.attrs=""   
-            outputds["obs_clim"]=np.round(clim_mean,2)
 
             
             #-------------------------------------------------------------------------------------------------
             # plotting climatology
+            if outputObsclim:
 
-            self.progress.emit(("Plotting (always!)","RUNTIME"))
+                clim_mean.attrs=""   
+                outputds["obs_clim"]=np.round(clim_mean,2)
+                
+                self.progress.emit(("Plotting","RUNTIME"))
 
-            #add obsunits to plotconfig
-            #obsunits="mm/day"
-            pars=get_plotparams(clim_mean,"clim_mean",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
-#            pars["cbar_label"]=obsunits
-            
-            temp=clim_mean.copy()
-            #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-            if obsFileFormat=="netcdf":            
-                cont=True
+                #add obsunits to plotconfig
+                #obsunits="mm/day"
+                pars=get_plotparams(clim_mean,"clim_mean",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+    #            pars["cbar_label"]=obsunits
+
+                temp=clim_mean.copy()
+                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                if obsFileFormat=="netcdf":            
+                    cont=True
+                else:
+                    temp=pd.DataFrame(temp.data.T, index=temp.geometry)
+                    temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
+                #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+                self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
-                temp=pd.DataFrame(temp.data.T, index=temp.geometry)
-                temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
-            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-            
-            self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                 pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                self.progress.emit(("\nSkipping outputting observed climatology","RUNTIME"))                
             
                 
 
@@ -1274,6 +1321,7 @@ class Worker(QObject):
             #calculating relative anomaly
                             
             if outputObsrelanom:
+                
                 
                 self.progress.emit(("\nCalculating relative anomaly...","RUNTIME"))
 
@@ -1294,9 +1342,9 @@ class Worker(QObject):
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
                      pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
 
-                    
                 obs_relanom.attrs=""   
                 outputds["obs_relanom"]=np.round(obs_relanom)
+                    
             else:
                 self.progress.emit(("\nSkipping relative anomaly","RUNTIME"))
 
@@ -1322,7 +1370,87 @@ class Worker(QObject):
             else:
                 obs_terc=temp.transpose("time","geometry")
             #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            
+            if outputObstercile:
                 
+                obs_terc.attrs=""   
+                outputds["obs_terc"]=obs_terc
+                
+                self.progress.emit(("Plotting","RUNTIME"))
+
+                pars=get_plotparams(obs_terc,"obs_terc",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+
+                temp=obs_terc.copy()
+                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                if obsFileFormat=="netcdf":            
+                    cont=True
+                else:
+                    temp=pd.DataFrame(temp.data.T, index=temp.geometry)
+                    temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
+                #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+                self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+            else:
+                self.progress.emit(("\nSkipping outputting observed tercile category","RUNTIME"))                
+            
+                
+                
+            
+            
+
+            #-------------------------------------------------------------------------------------------------
+            #calculating forecast tercile
+            
+            self.progress.emit(("\nConverting CEM categories to tercile categories...","RUNTIME"))
+            
+            temp=xr.apply_ufunc(
+                cemcat_to_terc, 
+                fcst_cemcat,
+                input_core_dims=[["time"]],
+                output_core_dims=[["time"]],
+                vectorize=True
+            )
+
+            #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            if obsFileFormat=="netcdf":            
+                fcst_terc=temp.transpose("time","latitude","longitude")
+                fcst_terc.name="tercile"
+            else:
+                cont=True
+                fcst_terc=temp.transpose("time","geometry")
+                fcst_terc.name="tercile"
+            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+            
+
+            if outputFcsttercile:
+                
+                fcst_terc.attrs=""   
+                outputds["fcst_terc"]=fcst_terc
+                
+                self.progress.emit(("Plotting","RUNTIME"))
+
+                pars=get_plotparams(fcst_terc,"fcst_terc",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
+
+                temp=fcst_terc.copy()
+                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                if obsFileFormat=="netcdf":            
+                    cont=True
+                else:
+                    temp=pd.DataFrame(temp.data.T, index=temp.geometry)
+                    temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
+                #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+                self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+            else:
+                self.progress.emit(("\nSkipping outputting forecast tercile category","RUNTIME"))                
+
+                
+                
+            
             #-------------------------------------------------------------------------------------------------
             #calculating forecast tercileprobability
             
@@ -1458,7 +1586,7 @@ class Worker(QObject):
                     self.progress.emit(("\nCalclating Heidke hit scores...","RUNTIME"))
                     fcst_hhit=None
                     zonal_hhit=None
-                
+
 #                try:
                     temp=xr.apply_ufunc(
                         skill_single,
@@ -1633,7 +1761,6 @@ class Worker(QObject):
 
                     self.progress.emit(("Plotting","RUNTIME"))
                     pars=get_plotparams(fcst_ignorance,"fcst_ignorance",currentoutDir,obsSeason,obsYearExpr,obsDsetCode,climStartYr,climEndYr,fcstCode,fcstVar)
-#                    pars["vmax"]=ignorancemax
 
                     temp=fcst_ignorance.copy()
                     #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -2162,8 +2289,13 @@ class Worker(QObject):
         config['outputIntrate'] = window.outputIntrate.isChecked()
         config['outputCemhit'] = window.outputCemhit.isChecked()
         config['outputObscemcat'] = window.outputObscemcat.isChecked()
+        config['outputObstercile'] = window.outputObstercile.isChecked()
+        config['outputFcstcemcat'] = window.outputFcstcemcat.isChecked()
+        config['outputFcsttercile'] = window.outputFcsttercile.isChecked()
         config['outputObsrelanom'] = window.outputObsrelanom.isChecked()
         config['outputObsvalue'] = window.outputObsvalue.isChecked()
+        config['outputObsclim'] = window.outputObsclim.isChecked()
+        
         config['outputRpss'] = window.outputRpss.isChecked()
 
         # Write configuration to settings file
@@ -2199,10 +2331,11 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         window.logWindow.appendHtml(_message)
     #    window.logWindow.update()
         window.logWindow.ensureCursorVisible()
-        if _type=="ERROR":
-            self.thread.terminate()
-            self.thread.wait()
-            window.runButton.setEnabled(True)
+#        if _type=="ERROR":
+#            raise Exception('Received request to halt')            
+#            self.thread.terminate()
+#            self.thread.wait()
+#            window.runButton.setEnabled(True)
             
     
     def threadVerification(self):

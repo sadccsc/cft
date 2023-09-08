@@ -10,12 +10,11 @@
         ]
     },
     "summaryzonesFile": {
-        "file": "/work/data/verification/sadc_countries.geojson",
+        "file": "/work/data/verification/SADC_DJF_2022_Consensus.geojson",
         "ID": 0,
         "variable": [
-            "ADM0_NAME",
-            "Shape_Leng",
-            "Shape_Area"
+            "ID",
+            "DJF_2022"
         ]
     },
     "obsFile": {
@@ -26,11 +25,11 @@
         ]
     },
     "obsFileFormat": "netcdf",
-    "obsDsetCode": "CHIRPS",
+    "obsDsetCode": "chirps",
     "climStartYear": 1981,
-    "climEndYear": 2010,
+    "climEndYear": 2023,
     "verifAggregation": "sum",
-    "verifYear": 2022,
+    "verifYear": 2021,
     "verifPeriod": {
         "season": [
             "JFM",

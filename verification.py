@@ -841,8 +841,6 @@ class Worker(QObject):
             obsYear = int(config.get('verifYear')) #year of the first month of the season
             obsSeason = config.get('verifPeriod').get('season')[config.get('verifPeriod').get('indx')]
             
-#            indx=config.get('verifPeriod').get("indx")
-            
             obsDsetCode=config.get('obsDsetCode')
             
             obsFileFormat=config.get('obsFileFormat')
@@ -880,7 +878,7 @@ class Worker(QObject):
             
             seasDuration,seasLastMon=seasonParam[obsSeason]
             
-            if seasLastMon-seasDuration<=0:
+            if seasLastMon-seasDuration<0:
                 obsLastYear=obsYear+1
                 obsYearExpr="{}-{}".format(obsYear,obsYear+1)
             else:
@@ -985,17 +983,19 @@ class Worker(QObject):
                 else:
                     obsunits="mm"
                     
-                firstdate=obs.time.values[0]
-                lastdate=obs.time.values[-1]
+                obsdates=pd.to_datetime(obs.time)
+                firstobsdate=obsdates.strftime('%Y-%m-%d')[0]
+                lastobsdate=obsdates.strftime('%Y-%m-%d')[-1]
                 
-                self.progress.emit(("Observed file covers period of: {} to {}".format(firstdate,lastdate),"RUNTIME"))
+                self.progress.emit(("Observed file covers period of: {} to {}".format(firstobsdate,lastobsdate),"RUNTIME"))
                 
                 #check against the forecast date
-                firstobsyear=obs.time[0].dt.year.values
-                lastobsyear=obs.time[-1].dt.year.values
+                firstobsyear=obsdates.year[0]
+                lastobsyear=obsdates.year[-1]
                 
                 if climEndYr>lastobsyear or climStartYr<firstobsyear:
-                    self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstdate,lastdate), "NONCRITICAL"))
+                    self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstobsyear,lastobsyear), "ERROR"))
+                    return
                 
                 
                 self.progress.emit(("Successfuly read observations from {}".format(obsFile), "INFO"))
@@ -1024,17 +1024,22 @@ class Worker(QObject):
                     #creating geodataframe with all data
                     obsgpd=gpd.GeoDataFrame(obspd.T.reset_index(), geometry=gpd.points_from_xy(lons, lats), crs="EPSG:4326")
 
-                    firstdate=obspd.index.values[0]
-                    lastdate=obspd.index.values[-1]
-                    self.progress.emit(("Observed file covers period of: {} to {}".format(firstdate,lastdate),"INFO"))
-                    
-                    firstobsyear=obspd.index[0].year
-                    lastobsyear=obspd.index[-1].year
+                    obsdates=obspd.index
+                    firstobsdate=obsdates.strftime('%Y-%m-%d')[0]
+                    lastobsdate=obsdates.strftime('%Y-%m-%d')[-1]
+
+                    self.progress.emit(("Observed file covers period of: {} to {}".format(firstobsdate,lastobsdate),"RUNTIME"))
+
+                    #check against the forecast date
+                    firstobsyear=obsdates.year[0]
+                    lastobsyear=obsdates.year[-1]
+                
                     
                     if climEndYr>lastobsyear or climStartYr<firstobsyear:
-                        self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstdate,lastdate), "NONCRITICAL"))
+                        self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstobsyear,lastobsyear), "ERROR"))
+                        return
                 else:
-                    self.progress.emit(("File should be in CFT format. This does not seem to be the case. Please check if {} file is properly formatted".format(obsFile), "NONCRITICAL"))                    
+                    self.progress.emit(("File should be in CFT format. This does not seem to be the case. Please check if {} file is properly formatted".format(obsFile), "ERROR"))                    
                     return
                 cont=True
 
@@ -1155,7 +1160,6 @@ class Worker(QObject):
             #check if the target period in obs data
             
             seltime=str(obsLastYear)+"-"+months[seasLastMon-1]
-                        
             try:
                 obs_season=obsroll.sel(time=seltime)
             except:
@@ -2076,15 +2080,17 @@ class Worker(QObject):
         fig=plt.figure(figsize=(6,3))
         pl=fig.add_subplot(1,1,1)
         plt.title(_title, fontsize=10)
+        bars=_data.plot.bar()
 
-        _data.plot.bar()
-
+        for i,x in enumerate(np.isnan(_data)):
+            if x:
+                pl.text((float(i)+0.5)/len(_data),0.1,"no data", rotation=90, ha='center', va='bottom', transform=pl.transAxes, color="0.8")
+                
         pl.axhline(_hline1, linestyle="--",color="0.7")
         pl.axhline(_hline2, linestyle="--",color="0.7")
         
         pl.text(0.1,0.02,_annotation,fontsize=6, transform=plt.gcf().transFigure)
         
-#        pl.text(0.02,0.98,_text, ha='left', va='top', transform=pl.transAxes)
         pl.set_xlabel("zone")
         pl.set_ylabel(_ylabel)
         yrange=np.abs(_hline1-_hline2)
@@ -2133,7 +2139,7 @@ class Worker(QObject):
                 alldata=alldata+[clipped[~np.isnan(clipped)]]
         else:
             crossed=fcst_cemhit.overlay(summaryzonesVector, how="intersection")
-            for val in summaryzonesName:
+            for i,val in enumerate(summaryzonesName):
                 sel=crossed[summaryzonesVar]==val
                 clipped=crossed[sel][0]
                 alldata=alldata+[clipped[~np.isnan(clipped)]]
@@ -2331,11 +2337,10 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         window.logWindow.appendHtml(_message)
     #    window.logWindow.update()
         window.logWindow.ensureCursorVisible()
-#        if _type=="ERROR":
-#            raise Exception('Received request to halt')            
-#            self.thread.terminate()
-#            self.thread.wait()
-#            window.runButton.setEnabled(True)
+        if _type=="ERROR":
+            self.thread.terminate()
+            self.thread.wait()
+            window.runButton.setEnabled(True)
             
     
     def threadVerification(self):

@@ -2,19 +2,23 @@
     "Version": "4.1.0",
     "outDir": "/work/data/verification/output",
     "fcstFile": {
-        "file": "/work/data/verification/SADC_DJF_2022_Consensus.geojson",
-        "ID": 1,
+        "file": "/work/projects/intraACP/cft_bugs/DJF.geojson",
+        "ID": 3,
         "variable": [
-            "ID",
-            "DJF_2022"
+            "id",
+            "div",
+            "norm",
+            "Frcst_2018",
+            "probobs201"
         ]
     },
     "summaryzonesFile": {
-        "file": "/work/data/verification/SADC_DJF_2022_Consensus.geojson",
-        "ID": 0,
+        "file": "/work/projects/intraACP/cft_bugs/MDG_23_region.geojson",
+        "ID": 2,
         "variable": [
-            "ID",
-            "DJF_2022"
+            "Districts",
+            "layer",
+            "R\u00e9gion"
         ]
     },
     "obsFile": {
@@ -29,7 +33,7 @@
     "climStartYear": 1981,
     "climEndYear": 2023,
     "verifAggregation": "sum",
-    "verifYear": 2021,
+    "verifYear": 2022,
     "verifPeriod": {
         "season": [
             "JFM",

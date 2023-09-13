@@ -10,7 +10,7 @@
     ],
     "predictandMissingValue": -9999,
     "predictandattr": "",
-    "fcstPeriodStartMonth": "Dec",
+    "fcstPeriodStartMonth": "Oct",
     "fcstPeriodLength": "3month",
     "trainStartYear": 1982,
     "trainEndYear": 2011,
@@ -20,10 +20,10 @@
     "minHSscore": 50,
     "PODfilter": 1,
     "inputFormat": "CSV",
-    "composition": "Sum",
+    "composition": "Average",
     "zonevector": {
         "file": "/work/projects/intraACP/cft_bugs/MDG_23_region.geojson",
-        "ID": 0,
+        "ID": 2,
         "attr": [
             "Districts",
             "layer",

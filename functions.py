@@ -291,47 +291,52 @@ def season_cumulation(dfm, year, season):
     nyear = year + 1
     try:
         if season == 'JFM':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Jan':'Mar']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Jan':'Mar'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Jan':'Mar']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Jan':'Mar'].sum(axis=1).astype(float), 1)
         if season == 'FMA':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Feb':'Apr']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Feb':'Apr'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Feb':'Apr']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Feb':'Apr'].sum(axis=1).astype(float), 1)
         if season == 'MAM':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Mar':'May']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Mar':'May'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Mar':'May']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Mar':'May'].sum(axis=1).astype(float), 1)
         if season == 'AMJ':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Apr':'Jun']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Apr':'Jun'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Apr':'Jun']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Apr':'Jun'].sum(axis=1).astype(float), 1)
         if season == 'MJJ':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'May':'Jul']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'May':'Jul'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'May':'Jul']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'May':'Jul'].sum(axis=1).astype(float), 1)
         if season == 'JJA':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Jun':'Aug']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Jun':'Aug'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Jun':'Aug']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Jun':'Aug'].sum(axis=1).astype(float), 1)
         if season == 'JAS':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Jul':'Sep']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Jul':'Sep'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Jul':'Sep']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Jul':'Sep'].sum(axis=1).astype(float), 1)
         if season == 'ASO':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Aug':'Oct']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Aug':'Oct'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Aug':'Oct']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Aug':'Oct'].sum(axis=1).values, 1)
         if season == 'SON':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Sep':'Nov']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Sep':'Nov'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Sep':'Nov']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Sep':'Nov'].sum(axis=1).astype(float), 1)
         if season == 'OND':
-            if ~np.isnan(np.ravel(dfm.loc[[year], 'Oct':'Dec']).astype(float)).any(): return float(round(
-                dfm.loc[[year], 'Oct':'Dec'].sum(axis=1), 1))
+            if ~np.isnan(np.ravel(dfm.loc[[year], 'Oct':'Dec']).astype(float)).any(): return np.round(
+                dfm.loc[[year], 'Oct':'Dec'].sum(axis=1).astype(float), 1)
         if season == 'NDJ':
             p1 = ~np.isnan(np.ravel(dfm.loc[[year], 'Nov':'Dec']).astype(float)).any()
             p2 = ~np.isnan(np.ravel(dfm.loc[[nyear], 'Jan']).astype(float)).any()
-            if p1 and p2: return round(float(dfm.loc[[year], 'Nov':'Dec'].sum(axis=1)) + float(dfm.loc[[nyear], 'Jan']),
-                                       1)
+            
+            if p1 and p2: 
+                aggr=np.round(dfm.loc[[nyear], 'Jan'].values + dfm.loc[[year], 'Nov':'Dec'].sum(axis=1).values,1)
+                return aggr 
+
         if season == 'DJF':
             p1 = ~np.isnan(np.ravel(dfm.loc[[year], 'Dec']).astype(float)).any()
             p2 = ~np.isnan(np.ravel(dfm.loc[[nyear], 'Jan':'Feb']).astype(float)).any()
-            if p1 and p2: return round(float(dfm.loc[[year], 'Dec']) + float(dfm.loc[[nyear], 'Jan':'Feb'].sum(axis=1)),
-                                       1)
+            if p1 and p2: 
+                aggr=np.round(dfm.loc[[year], 'Dec'].values + dfm.loc[[nyear], 'Jan':'Feb'].sum(axis=1).values,1)
+                return aggr 
         return
     except:
+        print("could not calculate season accumulation", year, season)
         return
 
 
@@ -378,33 +383,33 @@ def season_average(dfm,year,season):
   nyear=year+1
   try:
     if season=='JFM':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Jan':'Mar']).astype(float)).any(): return float(round(dfm.loc[[year],'Jan':'Mar'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Jan':'Mar']).astype(float)).any(): return np.round(dfm.loc[[year],'Jan':'Mar'].mean(axis=1),1)
     if season=='FMA':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Feb':'Apr']).astype(float)).any(): return float(round(dfm.loc[[year],'Feb':'Apr'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Feb':'Apr']).astype(float)).any(): return np.round(dfm.loc[[year],'Feb':'Apr'].mean(axis=1),1)
     if season=='MAM':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Mar':'May']).astype(float)).any(): return float(round(dfm.loc[[year],'Mar':'May'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Mar':'May']).astype(float)).any(): return np.round(dfm.loc[[year],'Mar':'May'].mean(axis=1),1)
     if season=='AMJ':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Apr':'Jun']).astype(float)).any(): return float(round(dfm.loc[[year],'Apr':'Jun'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Apr':'Jun']).astype(float)).any(): return np.round(dfm.loc[[year],'Apr':'Jun'].mean(axis=1),1)
     if season=='MJJ':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'May':'Jul']).astype(float)).any(): return float(round(dfm.loc[[year],'May':'Jul'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'May':'Jul']).astype(float)).any(): return np.round(dfm.loc[[year],'May':'Jul'].mean(axis=1),1)
     if season=='JJA':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Jun':'Aug']).astype(float)).any(): return float(round(dfm.loc[[year],'Jun':'Aug'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Jun':'Aug']).astype(float)).any(): return np.round(dfm.loc[[year],'Jun':'Aug'].mean(axis=1),1)
     if season=='JAS':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Jul':'Sep']).astype(float)).any(): return float(round(dfm.loc[[year],'Jul':'Sep'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Jul':'Sep']).astype(float)).any(): return np.round(dfm.loc[[year],'Jul':'Sep'].mean(axis=1),1)
     if season=='ASO':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Aug':'Oct']).astype(float)).any(): return float(round(dfm.loc[[year],'Aug':'Oct'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Aug':'Oct']).astype(float)).any(): return np.round(dfm.loc[[year],'Aug':'Oct'].mean(axis=1),1)
     if season=='SON':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Sep':'Nov']).astype(float)).any(): return float(round(dfm.loc[[year],'Sep':'Nov'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Sep':'Nov']).astype(float)).any(): return np.round(dfm.loc[[year],'Sep':'Nov'].mean(axis=1),1)
     if season=='OND':
-      if ~np.isnan(np.ravel(dfm.loc[[year],'Oct':'Dec']).astype(float)).any(): return float(round(dfm.loc[[year],'Oct':'Dec'].mean(axis=1),1))
+      if ~np.isnan(np.ravel(dfm.loc[[year],'Oct':'Dec']).astype(float)).any(): return np.round(dfm.loc[[year],'Oct':'Dec'].mean(axis=1),1)
     if season=='NDJ':
         p1=~np.isnan(np.ravel(dfm.loc[[year],'Nov':'Dec']).astype(float)).any()
         p2=~np.isnan(np.ravel(dfm.loc[[nyear],'Jan']).astype(float)).any()
-        if p1 and p2: return round((float(dfm.loc[[year],'Nov':'Dec'].sum(axis=1))+float(dfm.loc[[nyear],'Jan']))/3.,1)
+        if p1 and p2: return np.round((dfm.loc[[year],'Nov':'Dec'].sum(axis=1).values+dfm.loc[[nyear],'Jan'].values)/3.,1)
     if season=='DJF':
         p1=~np.isnan(np.ravel(dfm.loc[[year],'Dec']).astype(float)).any()
         p2=~np.isnan(np.ravel(dfm.loc[[nyear],'Jan':'Feb']).astype(float)).any()
-        if p1 and p2: return round((float(dfm.loc[[year],'Dec'])+float(dfm.loc[[nyear],'Jan':'Feb'].sum(axis=1)))/3.,1)
+        if p1 and p2: return np.round((dfm.loc[[year],'Dec'].values+dfm.loc[[nyear],'Jan':'Feb'].sum(axis=1).values)/3.,1)
     return
   except:
     return
@@ -1541,7 +1546,6 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
             nyearssst, nrowssst, ncolssst = sst_arr.shape
         except ValueError:
             nyearssst, nrowssst, ncolssst = len(sst_arr), 0, 0
-            
         yearspredictand = [yr for yr in range(trainStartYear, (trainStartYear + nyearssst))]
         station_data = station_data_all.loc[:,
                        ('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')]
@@ -1554,7 +1558,8 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
         for year in yearspredictand:
             if config.get('fcstPeriodLength', '3month') == '3month':
                 if config['composition'] == "Sum":
-                    seasonal_precip.loc[[year], fcstPeriod] = season_cumulation(station_data, year, fcstPeriod)
+                    temp=season_cumulation(station_data, year, fcstPeriod)
+                    seasonal_precip.loc[[year], fcstPeriod] = temp
                 else:
                     seasonal_precip.loc[[year], fcstPeriod] = season_average(station_data, year, fcstPeriod)
             else:
@@ -1562,15 +1567,17 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
                     seasonal_precip.loc[[year], fcstPeriod] = round(float(station_data.loc[[year], fcstPeriod]), 1)
                 except KeyError:
                     seasonal_precip.loc[[year], fcstPeriod] = np.nan
-
-        predictand = np.asarray(seasonal_precip, dtype=float).reshape(-1, )
+                    
+        predictand = np.asarray(seasonal_precip, dtype=float).reshape(-1,)
         training_actual = predictand[:len(trainingYears)]
         test_actual = predictand[len(trainingYears):]
         test_notnull = np.isfinite(test_actual)
         name = re.sub('[^a-zA-Z0-9]', '', prefixParam["station"])
         prefix = prefixParam["Predictor"] + '_' + prefixParam["Param"] + '_' + prefixParam["PredictorMonth"] + '_' + \
                  str(prefixParam["startyr"]) + '-' + str(prefixParam["endyr"]) + '_' + name
+        
         if (len(training_actual[np.isfinite(training_actual)]) < 6) or (len(test_actual[np.isfinite(test_actual)]) < 2):
+            #print("not enough data to train")      
             continue
 
         # compute basins
@@ -1709,7 +1716,7 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
         X_test = scaler.transform(testing_Xmatrix)
         regoutdir = outdir + os.sep + "Regression"
         os.makedirs(regoutdir, exist_ok=True)
-
+        
         for algorithm in config.get('algorithms'):
 
             if algorithm == 'MLP':
@@ -1831,6 +1838,7 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
                 try:
                     m, n = pearsonr(np.array(lr_fcstdf['LRfcst'])[test_notnull], list(np.ravel(test_actual)[test_notnull]))
                 except:
+#                    print(station,"failed correlation")
                     continue
                 r2score = m ** 2
                 lrdirout = regoutdir + os.sep + 'LR'
@@ -1884,7 +1892,11 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
         graphpng = fcstoutdir + os.sep + 'forecast_graphs_' + station + '.png'
         plot_Station_forecast(stationYF_df, fcstPeriod, graphpng, station, q1, q2, q3)
     # return station forecast
-    if isinstance(forecastdf, pd.DataFrame):
-        return forecastdf
-    else:
+    try:
+        if isinstance(forecastdf, pd.DataFrame):
+            return forecastdf
+        else:
+            return None
+    except:
+
         return None

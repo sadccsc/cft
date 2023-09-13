@@ -23,7 +23,7 @@
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
          Aug 2023 - implemented threading and CSV format of csv files
 """
-version="4.2.4"
+version="4.2.5"
 
 
 import os, sys, time
@@ -911,13 +911,16 @@ class Worker(QObject):
             #reading geojson file
             try:
                 fcstVector = gpd.read_file(fcstFile)
+                #making sure values are integers and not string
+                fcstVector[fcstVar]=fcstVector[fcstVar].astype(int)
             except:
                 self.progress.emit(("File {} cannot be read. please check if the file is properly formatted".format(fcstFile), "ERROR"))
                 return
 
             #check for forecast categories here
             test=np.unique(fcstVector[fcstVar])
-            test=[x not in [1,2,3,4] for x in test]
+            #int has to be there,because categories can be saved as string
+            test=[int(x) not in [1,2,3,4] for x in test]
             if np.sum(test)>0:
                 self.progress.emit(("Forecast variable should have four values (1,2,3,4) denoting four CEM forecast categories. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(fcstFile,fcstVar), "ERROR"))
                 return
@@ -1208,7 +1211,6 @@ class Worker(QObject):
             #this is where code is different for csv and netcdf formats
             if obsFileFormat=="netcdf":
                 self.progress.emit(('Rasterizing forecast vector file...',"RUNTIME"))
-                
                 fcst_ds = make_geocube(vector_data=fcstVector, like=obs) #gridding/rasterizing forecast
                 fcst_cemcat=fcst_ds[fcstVar]
                 fcsttime=obs_season.time.data
@@ -2398,6 +2400,7 @@ if __name__ == "__main__":
         config=setConfigDefaults()
         showMessage("Default settings loaded.", "INFO")
                 
+
     # --- Load values from config file into the UI ---
     populateUI()
     

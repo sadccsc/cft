@@ -220,13 +220,6 @@ if %errorlevel% equ 0 (
 )
 echo.
 
-echo upgrading webbrowser...
-python -m pip install --upgrade webbrowser
-if %errorlevel% equ 0 (
- echo webbrowser upgraded successfully
-)
-echo.
-
 
 
 

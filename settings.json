@@ -1,11 +1,12 @@
 {
     "Version": "3.1.1",
-    "outDir": "/work/data/sarcof/forecast",
+    "outDir": "/work/projects/intraACP/cft_bugs/cftoutput",
     "predictorList": [
-        "/work/data/sarcof/cft_input/sst_mon-Oct_ERSSTv5_1960-2022.nc"
+        "/work/projects/intraACP/cft_bugs/sst_aug_1960-2023.nc",
+        "/work/projects/intraACP/cft_bugs/enso.txt"
     ],
     "predictandList": [
-        "/work/data/sarcof/sarcof-data-comoros.csv"
+        "/work/projects/intraACP/cft_bugs/data_rr_MDG_1981_2022_region.csv"
     ],
     "predictandMissingValue": -9999,
     "predictandattr": "",
@@ -13,7 +14,7 @@
     "fcstPeriodLength": "3month",
     "trainStartYear": 1982,
     "trainEndYear": 2011,
-    "predictorMonth": "Oct",
+    "predictorMonth": "Aug",
     "PValue": 0.01,
     "stepwisePvalue": 0.05,
     "minHSscore": 50,
@@ -21,15 +22,17 @@
     "inputFormat": "CSV",
     "composition": "Sum",
     "zonevector": {
-        "file": "/work/data/sarcof/gis/sadc_NDJ_zones.geojson",
+        "file": "/work/projects/intraACP/cft_bugs/MDG_23_region.geojson",
         "ID": 0,
         "attr": [
-            "ID"
+            "Districts",
+            "layer",
+            "R\u00e9gion"
         ]
     },
-    "fcstyear": 2022,
+    "fcstyear": 2023,
     "algorithms": [
-        "MLP"
+        "LR"
     ],
     "basinbounds": {
         "minlat": -90.0,

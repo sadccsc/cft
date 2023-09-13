@@ -504,7 +504,6 @@ if __name__ == "__main__":
             if (completed >= len(processes)): break
             window.statusbar.showMessage(status)
             time.sleep(0.3)
-
         outs = list(rs)
         outputs = []
         for out in outs:

@@ -1,7 +1,7 @@
 @echo off
 
 echo.
-echo Zoning Startup Script
+echo Verification module startup Script
 echo.
 echo ______________________________
 chcp 437

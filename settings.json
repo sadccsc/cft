@@ -2,11 +2,10 @@
     "Version": "3.1.1",
     "outDir": "/work/projects/intraACP/cft_bugs/cftoutput",
     "predictorList": [
-        "/work/projects/intraACP/cft_bugs/sst_aug_1960-2023.nc",
-        "/work/projects/intraACP/cft_bugs/enso.txt"
+        "/work/projects/intraACP/cft_bugs/sst_aug_1960-2023.nc"
     ],
     "predictandList": [
-        "/work/projects/intraACP/cft_bugs/data_rr_MDG_1981_2022_region.csv"
+        "/work/data/forecast/station_data/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_cft_stations_SADC.csv"
     ],
     "predictandMissingValue": -9999,
     "predictandattr": "",
@@ -20,14 +19,13 @@
     "minHSscore": 50,
     "PODfilter": 1,
     "inputFormat": "CSV",
-    "composition": "Average",
+    "composition": "Sum",
     "zonevector": {
-        "file": "/work/projects/intraACP/cft_bugs/MDG_23_region.geojson",
-        "ID": 2,
+        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "ID": 0,
         "attr": [
-            "Districts",
-            "layer",
-            "R\u00e9gion"
+            "ID",
+            "OND_2022"
         ]
     },
     "fcstyear": 2023,

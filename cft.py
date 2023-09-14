@@ -41,6 +41,7 @@ def concat_csvs(csvs, missing):
         dfs_files.append(pd.read_csv(file, encoding = 'ISO-8859-9'))
     dfs_files = pd.concat((dfs_files), axis=0)
     dfs_files = dfs_files.replace(str(missing), np.nan)
+    dfs_files = dfs_files.replace(missing, np.nan)
     dfs_files = dfs_files.dropna(how='all')
     dfs_files['ID'] = dfs_files['ID'].apply(rename)
     return dfs_files

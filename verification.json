@@ -2,34 +2,30 @@
     "Version": "4.1.0",
     "outDir": "/work/data/verification/output",
     "fcstFile": {
-        "file": "/work/projects/intraACP/cft_bugs/DJF.geojson",
-        "ID": 3,
+        "file": "/work/projects/intraACP/cft_bugs/OND2022.geojson",
+        "ID": 1,
         "variable": [
-            "id",
-            "div",
-            "norm",
-            "Frcst_2018",
-            "probobs201"
+            "ID_0",
+            "OND2022"
         ]
     },
     "summaryzonesFile": {
-        "file": "/work/projects/intraACP/cft_bugs/MDG_23_region.geojson",
-        "ID": 2,
+        "file": "/work/projects/intraACP/cft_bugs/OND2022.geojson",
+        "ID": 1,
         "variable": [
-            "Districts",
-            "layer",
-            "R\u00e9gion"
+            "ID_0",
+            "OND2022"
         ]
     },
     "obsFile": {
-        "file": "/work/data/verification/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_19810101-20230831.nc",
+        "file": "/work/projects/intraACP/cft_bugs/Seychelles_PPT2023_edited.csv",
         "ID": 0,
         "variable": [
-            "PRCPTOT"
+            "pr"
         ]
     },
-    "obsFileFormat": "netcdf",
-    "obsDsetCode": "chirps",
+    "obsFileFormat": "csv",
+    "obsDsetCode": "station",
     "climStartYear": 1981,
     "climEndYear": 2023,
     "verifAggregation": "sum",
@@ -73,7 +69,7 @@
             "Nov",
             "Dec"
         ],
-        "indx": 11
+        "indx": 9
     },
     "outputQuantanom": true,
     "outputHeidke": true,

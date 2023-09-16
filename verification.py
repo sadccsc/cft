@@ -23,7 +23,7 @@
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
          Aug 2023 - implemented threading and CSV format of csv files
 """
-version="4.2.5"
+version="4.2.4"
 
 
 import os, sys, time
@@ -796,7 +796,8 @@ class Worker(QObject):
     progress = pyqtSignal(tuple)
     
     ################################################################################################################
-    #workhorse function    
+    #workhorse function
+    
     
     def execVerification(self):
 #        self.exception=None
@@ -1008,7 +1009,13 @@ class Worker(QObject):
                 #for the time being only CFT format
                 #ID,Lat,Lon,Year,Jan...Dec
                 if "ID" in ds.keys():
-                    locs=np.unique(ds.ID)
+                    nans=pd.isnull(ds.ID)
+                    if nans.any():
+                        badrows=np.where(nans)[0]+1
+                        badrows=",".join(list(badrows.astype(str)))
+                        self.progress.emit(("CSV file contains rows {} with no data. Please edit the {} file with text editor (NOT Excel!) to remove these rows".format(badrows, obsFile), "ERROR"))
+                        return                        
+                    locs=np.unique(ds.ID.astype(str))
                     alldata=[]
                     lats=[]
                     lons=[]
@@ -1018,11 +1025,27 @@ class Worker(QObject):
                         lons=lons+[np.unique(ds[sel].Lon.values)[0]]
                         years=np.unique(ds[sel].Year.values)
                         firstyear,lastyear=(np.min(years),np.max(years))
-                        data=ds[sel].iloc[:,4:].values.flatten()
-                        data=pd.DataFrame(data.reshape(-1,1), index=pd.date_range("{}-01-01".format(firstyear),"{}-12-31".format(lastyear),freq="M"),columns=[name])
+                        data=ds[sel].iloc[:,4:]
+                        #check if data contains strings
+                        data=data.applymap(self.tofloat)
+                        data=data.values.flatten()
+                        try:
+                            data=data.astype(float)
+                        except:
+                            self.progress.emit(("CSV file contains entries that are of string (character) type which cannot be converted to numerical values. There should be no characters in the data. Please use the Please edit the {} file so that it is formatted correctly".format(obsFile), "ERROR"))
+                            return                        
+                            
+                        data=pd.DataFrame(data.reshape(-1,1), index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="M"),columns=[name])
                         alldata=alldata+[data]
                     #obs is pandas dataframe
                     obspd=pd.concat(alldata, axis=1)
+                    
+                    obspd[obspd<0]=np.nan
+                    
+                    nancount=np.sum(np.isnan(obspd)).sum()
+                    if nancount>0:
+                        nanperc=np.int(nancount/np.product(obspd.shape)*100)
+                        self.progress.emit(("There are {} missing data points, which is approx {}% of all data points in this dataset. Check if this is what is expected".format(nancount,nanperc), "NONCRITICAL"))                    
                     
                     #creating geodataframe with all data
                     obsgpd=gpd.GeoDataFrame(obspd.T.reset_index(), geometry=gpd.points_from_xy(lons, lats), crs="EPSG:4326")
@@ -2207,7 +2230,7 @@ class Worker(QObject):
         obsFile=Path(config.get('obsFile').get('file'))
 
         if not obsFile.exists():    
-            self.progress.emit(("Observed data file {} does not exist".format(obsFile)))
+            self.progress.emit(("Observed data file {} does not exist".format(obsFile), "ERROR"))
             return
 
         if config['fcstFile']['file']=="":
@@ -2312,6 +2335,12 @@ class Worker(QObject):
 
         return True
 
+    def tofloat(self,x):
+        try:
+            x=np.float(x)
+        except:
+            x=np.nan
+        return x
     
 
 

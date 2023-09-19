@@ -2,30 +2,30 @@
     "Version": "4.1.0",
     "outDir": "/work/data/verification/output",
     "fcstFile": {
-        "file": "/work/projects/intraACP/cft_bugs/OND2022.geojson",
+        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
         "ID": 1,
         "variable": [
-            "ID_0",
-            "OND2022"
+            "ID",
+            "OND_2022"
         ]
     },
     "summaryzonesFile": {
-        "file": "/work/projects/intraACP/cft_bugs/OND2022.geojson",
-        "ID": 1,
+        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "ID": 0,
         "variable": [
-            "ID_0",
-            "OND2022"
+            "ID",
+            "OND_2022"
         ]
     },
     "obsFile": {
-        "file": "/work/projects/intraACP/cft_bugs/Seychelles_PPT2023_edited.csv",
+        "file": "/work/projects/intraACP/cft_bugs/TZA_Rainfall_data_1961_2023.csv",
         "ID": 0,
         "variable": [
             "pr"
         ]
     },
     "obsFileFormat": "csv",
-    "obsDsetCode": "station",
+    "obsDsetCode": "station2",
     "climStartYear": 1981,
     "climEndYear": 2023,
     "verifAggregation": "sum",

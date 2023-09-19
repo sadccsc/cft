@@ -1028,7 +1028,7 @@ class Worker(QObject):
                         data=ds[sel].iloc[:,4:]
                         #check if data contains strings
                         data=data.applymap(self.tofloat)
-                        data=data.values.flatten()
+#                        data=data.values.flatten()
                         try:
                             data=data.astype(float)
                         except:
@@ -1044,7 +1044,7 @@ class Worker(QObject):
                     
                     nancount=np.sum(np.isnan(obspd)).sum()
                     if nancount>0:
-                        nanperc=np.int(nancount/np.product(obspd.shape)*100)
+                        nanperc=np.int32(nancount/np.product(obspd.shape)*100)
                         self.progress.emit(("There are {} missing data points, which is approx {}% of all data points in this dataset. Check if this is what is expected".format(nancount,nanperc), "NONCRITICAL"))                    
                     
                     #creating geodataframe with all data

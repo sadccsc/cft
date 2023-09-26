@@ -4,6 +4,12 @@
 # In[ ]:
 
 
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
 ##!/usr/bin/env python
 ## coding: utf-8
 
@@ -159,7 +165,6 @@ def skill_single(_fprob,_obs_terc,_index):
 
 def get_heidke_hit(_x):
     mxs=(_x==np.max(_x[0:3])).astype(int)
-    #_x[3] is in 1,2,3
     mxs=mxs[int(_x[3]-1)]*1/np.sum(mxs)
     return mxs
 
@@ -178,6 +183,7 @@ def cemcat_to_terc(_cat):
 
 def val_to_cemcat(_val,_obs):
     _out=np.copy(_val)
+    _out[:]=np.nan
     if np.sum(np.isnan(_val))==0:
         _q1,_q2,_q3=np.nanquantile(_obs,[0.33,0.5,0.66])
         _out[_val<=_q1]=1
@@ -188,13 +194,12 @@ def val_to_cemcat(_val,_obs):
 
 def val_to_terc(_val,_obs):
     _out=np.copy(_val)
-    if np.sum(np.invert(np.isnan(_val)))>0:
+    _out[:]=np.nan
+    if np.invert(np.isnan(_val))>0:
         _q1,_q2=np.nanquantile(_obs,[0.33,0.66])
         _out[_val<=_q1]=1
         _out[(_val>_q1) & (_val<=_q2)]=2
         _out[_val>_q2]=3
-    else:
-        _out[:]=np.nan
     return(_out.astype(float))
 
 def get_interest_rate(_x):
@@ -211,16 +216,16 @@ def get_ignorance(_x):
         return _ign
     
 def get_cem_hit(_f,_o):
+    print(_f,_o)
     #_f and _o are cemcat of forecast and observations
-    if np.sum(np.invert(np.isnan(_f)))>0:
-        _temp=np.copy(_f)
+    _temp=np.copy(_f).astype(float)
+    _temp[:]=np.nan
+    if not np.isnan(_f).any() and not np.isnan(_o).any():
         _temp[:]=0
         _temp[_f==_o]=3 #hit
         _temp[np.abs((_f-_o))==1]=2
         _temp[np.abs((_f-_o))==2]=1
-    else:
-        _temp=np.copy(_f)
-        _temp[:]=np.nan
+    print(_temp)
     return _temp
 
 
@@ -328,6 +333,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         vmax=100     
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":None}
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="percentile of distribution"
 
     if _plotvar=="obs_relanom":
@@ -342,6 +348,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         cmap=colors.ListedColormap(collist)
         cmapdict={"cmap":cmap, "levels":levels, "vmin":-100, "vmax":100, "ticklabels":None}
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="% of long-term mean"
         
     if _plotvar=="obs_season":
@@ -350,6 +357,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/obs_values_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         cmapdict=get_cmap(_data,"YlGnBu",0,"auto",10,None)
         cmapdict["mask"]=None
+        cmapdict["extend"]="max"
         cmapdict["cbar_label"]="mm"
 
     if _plotvar=="obs_cemcat":
@@ -363,6 +371,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         vmax=5
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="category"
         
     if _plotvar== "obs_terc":
@@ -376,6 +385,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         vmax=4
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="category"
         
     if _plotvar== "fcst_terc":
@@ -389,6 +399,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         vmax=4
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="category"
         
     if _plotvar=="clim_mean":
@@ -397,6 +408,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/obs_longterm-mean_{}_{}.jpg".format(currentoutDir, obsSeason, obsDsetCode)
         cmapdict=get_cmap(_data,"YlGnBu",0,"auto",10,None)
         cmapdict["mask"]=None
+        cmapdict["extend"]="max"
         cmapdict["cbar_label"]="mm"
         
     if _plotvar=="fcst_cemcat":
@@ -412,19 +424,21 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         cmapdict["title"]=title
         cmapdict["filename"]=filename
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="category"
         
     if _plotvar=="fcst_cemhit":
         title="Hit/miss (for CEM categories) \n{}-{}".format(obsSeason,obsYearExpr)
         annot="based on {} data and {}-{} normals".format(obsDsetCode, climStartYr,climEndYr)
         filename="{}/fcst_CEM-hit_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
-        ticklabels=['error', 'half-miss','half-hit','hit']
+        ticklabels=['miss', 'half-miss','half-hit','hit']
         levels=np.array([0.5,1.5,2.5,3.5])
         cmap=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
         vmin=0
         vmax=4
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]=""
         
     if _plotvar=="fcst_intrate":
@@ -433,6 +447,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/fcst_interest-rate_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYearExpr,obsDsetCode)
         cmapdict=get_cmap(_data,"BrBG",-100,100,10,None)
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="%"
         
     if _plotvar=="fcst_ignorance":
@@ -441,6 +456,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/fcst_ignorance_{}-{}_{}.jpg".format(currentoutDir,obsSeason,obsYearExpr,obsDsetCode)
         cmapdict=get_cmap(_data,"Greys",0,10,10,None)
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="score"
         
     if _plotvar=="fcst_hhit":
@@ -455,6 +471,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
 
         cmapdict["mask"]=None
+        cmapdict["extend"]=None
         cmapdict["cbar_label"]="score"
         
     if _plotvar=="fcst_rpss":
@@ -466,6 +483,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         cmapdict=get_cmap(_data,"BrBG",vmin,vmax,10,None)
         cmapdict["mask"]=None
         cmapdict["cbar_label"]="score"
+        cmapdict["extend"]=None
                 
     cmapdict["title"]=title
     cmapdict["annot"]=annot
@@ -798,10 +816,16 @@ class Worker(QObject):
     ################################################################################################################
     #workhorse function
     
+
+    def execVerificationWrapper(self):
+        result = self.execVerification()
+        if not result:
+            print("Error occurred!")
+        self.finished.emit()
+#            window.runButton.setEnabled(True)
     
     def execVerification(self):
 #        self.exception=None
-#        try:
             #clearLog()
             global config
 
@@ -898,7 +922,7 @@ class Worker(QObject):
                     os.makedirs(currentoutDir)
                 except:
                     self.progress.emit(("Could not create {}. Stopping...".format(currentoutDir), "ERROR"))
-                    return
+                    return False
 
                 
                 
@@ -916,7 +940,7 @@ class Worker(QObject):
                 fcstVector[fcstVar]=fcstVector[fcstVar].astype(int)
             except:
                 self.progress.emit(("File {} cannot be read. please check if the file is properly formatted".format(fcstFile), "ERROR"))
-                return
+                return False
 
             #check for forecast categories here
             test=np.unique(fcstVector[fcstVar])
@@ -924,7 +948,7 @@ class Worker(QObject):
             test=[int(x) not in [1,2,3,4] for x in test]
             if np.sum(test)>0:
                 self.progress.emit(("Forecast variable should have four values (1,2,3,4) denoting four CEM forecast categories. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(fcstFile,fcstVar), "ERROR"))
-                return
+                return False
 
             self.progress.emit(("Successfuly read forecast data from {}".format(fcstFile), "INFO"))
 
@@ -944,7 +968,7 @@ class Worker(QObject):
                     ds = xr.open_dataset(obsFile, decode_times=False)
                 except:
                     self.progress.emit(("File cannot be read. please check if the file is properly formatted", "ERROR"))
-                    return
+                    return False
 
                 #aligning coordinate names    
                 if "T" in ds.coords.keys():
@@ -976,7 +1000,7 @@ class Worker(QObject):
                 test=[x not in obs.coords.keys() for x in ["latitude","longitude","time"]]
                 if np.sum(test)>0:
                     self.progress.emit(("Observed variable should have time,latitude and longitude coordinates. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(obsFile,obsVar), "ERROR"))
-                    return    
+                    return False
 
                 #processing obs data further
                 obs=obs.rio.write_crs("epsg:4326") #adding crs
@@ -999,7 +1023,7 @@ class Worker(QObject):
                 
                 if climEndYr>lastobsyear or climStartYr<firstobsyear:
                     self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstobsyear,lastobsyear), "ERROR"))
-                    return
+                    return False
                 
                 
                 self.progress.emit(("Successfuly read observations from {}".format(obsFile), "INFO"))
@@ -1008,65 +1032,78 @@ class Worker(QObject):
                 ds=pd.read_csv(obsFile)
                 #for the time being only CFT format
                 #ID,Lat,Lon,Year,Jan...Dec
-                if "ID" in ds.keys():
-                    nans=pd.isnull(ds.ID)
-                    if nans.any():
-                        badrows=np.where(nans)[0]+1
-                        badrows=",".join(list(badrows.astype(str)))
-                        self.progress.emit(("CSV file contains rows {} with no data. Please edit the {} file with text editor (NOT Excel!) to remove these rows".format(badrows, obsFile), "ERROR"))
-                        return                        
-                    locs=np.unique(ds.ID.astype(str))
-                    alldata=[]
-                    lats=[]
-                    lons=[]
-                    for name in locs:
-                        sel=ds.ID==name
-                        lats=lats+[np.unique(ds[sel].Lat.values)[0]]
-                        lons=lons+[np.unique(ds[sel].Lon.values)[0]]
-                        years=np.unique(ds[sel].Year.values)
-                        firstyear,lastyear=(np.min(years),np.max(years))
-                        data=ds[sel].iloc[:,4:]
-                        #check if data contains strings
-                        data=data.applymap(self.tofloat)
-#                        data=data.values.flatten()
-                        try:
-                            data=data.astype(float)
-                        except:
-                            self.progress.emit(("CSV file contains entries that are of string (character) type which cannot be converted to numerical values. There should be no characters in the data. Please use the Please edit the {} file so that it is formatted correctly".format(obsFile), "ERROR"))
-                            return                        
-                            
-                        data=pd.DataFrame(data.reshape(-1,1), index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="M"),columns=[name])
-                        alldata=alldata+[data]
-                    #obs is pandas dataframe
-                    obspd=pd.concat(alldata, axis=1)
-                    
-                    obspd[obspd<0]=np.nan
-                    
-                    nancount=np.sum(np.isnan(obspd)).sum()
-                    if nancount>0:
-                        nanperc=np.int32(nancount/np.product(obspd.shape)*100)
-                        self.progress.emit(("There are {} missing data points, which is approx {}% of all data points in this dataset. Check if this is what is expected".format(nancount,nanperc), "NONCRITICAL"))                    
-                    
-                    #creating geodataframe with all data
-                    obsgpd=gpd.GeoDataFrame(obspd.T.reset_index(), geometry=gpd.points_from_xy(lons, lats), crs="EPSG:4326")
-
-                    obsdates=obspd.index
-                    firstobsdate=obsdates.strftime('%Y-%m-%d')[0]
-                    lastobsdate=obsdates.strftime('%Y-%m-%d')[-1]
-
-                    self.progress.emit(("Observed file covers period of: {} to {}".format(firstobsdate,lastobsdate),"RUNTIME"))
-
-                    #check against the forecast date
-                    firstobsyear=obsdates.year[0]
-                    lastobsyear=obsdates.year[-1]
+                if ("Year" not in ds.keys()):
+                    msg="Data should contain column named Year. Data file {} does not. Please inspect the data file.".format(obsFile)
+                    self.progress.emit((msg, "ERROR"))
+                    return False                     
+                if "ID" not in ds.keys():
+                    msg="Data should contain column named ID. Data file {} does not.Please inspect the data file.".format(obsFile)
+                    self.progress.emit((msg, "ERROR"))
+                    return False
                 
+                nans=pd.isnull(ds.ID)
+                if nans.any():
+                    badrows=np.where(nans)[0]+1
+                    badrows=",".join(list(badrows.astype(str)))
+                    self.progress.emit(("CSV file contains rows {} with no data. Please edit the {} file with text editor (NOT Excel!) to remove these rows".format(badrows, obsFile), "ERROR"))
+                    return False                        
+                locs=np.unique(ds.ID.astype(str))
+                alldata=[]
+                lats=[]
+                lons=[]
+                for name in locs:
+                    sel=ds.ID==name
+                    lats=lats+[np.unique(ds[sel].Lat.values)[0]]
+                    lons=lons+[np.unique(ds[sel].Lon.values)[0]]
+                    years=np.unique(ds[sel].Year.values)
+                    firstyear,lastyear=(np.min(years),np.max(years))
+                    data=ds[sel].iloc[:,4:]
+                    #check if data contains strings
+#                        data=data.applymap(self.tofloat)
+                    data=data.values.flatten()
+                    try:
+                        data=data.astype(float)
+                    except:
+                        self.progress.emit(("Data for {} contains entries that are of string (character) type which cannot be converted to numerical values. There should be no non-numeric characters in the data. Please edit the {} file so that it is formatted correctly".format(name, obsFile), "ERROR"))
+                        return False                        
+                    index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="M")
+                    try:
+                        data=pd.DataFrame(data.reshape(-1,1), index=index,columns=[name])
+                    except:
+                        msg="data for {} contains {} months, expected {} months - data should cover continuous period from Jan {} to Dec {} with entries for every month in that period".format(name, len(index),len(data), firstyear, lastyear)
+                        self.progress.emit((msg, "ERROR"))
+                        return False                 
+
+                    alldata=alldata+[data]
                     
-                    if climEndYr>lastobsyear or climStartYr<firstobsyear:
-                        self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstobsyear,lastobsyear), "ERROR"))
-                        return
-                else:
-                    self.progress.emit(("File should be in CFT format. This does not seem to be the case. Please check if {} file is properly formatted".format(obsFile), "ERROR"))                    
-                    return
+                #obs is pandas dataframe
+                obspd=pd.concat(alldata, axis=1)
+
+                obspd[obspd<0]=np.nan
+
+                nancount=np.sum(np.isnan(obspd)).sum()
+                if nancount>0:
+                    nanperc=np.int32(nancount/np.product(obspd.shape)*100)
+                    self.progress.emit(("There are {} missing data points, which is approx {}% of all data points in this dataset. Check if this is what is expected".format(nancount,nanperc), "NONCRITICAL"))                    
+
+                #creating geodataframe with all data
+                obsgpd=gpd.GeoDataFrame(obspd.T.reset_index(), geometry=gpd.points_from_xy(lons, lats), crs="EPSG:4326")
+
+                obsdates=obspd.index
+                firstobsdate=obsdates.strftime('%Y-%m-%d')[0]
+                lastobsdate=obsdates.strftime('%Y-%m-%d')[-1]
+
+                self.progress.emit(("Observed file covers period of: {} to {}".format(firstobsdate,lastobsdate),"RUNTIME"))
+
+                #check against the forecast date
+                firstobsyear=obsdates.year[0]
+                lastobsyear=obsdates.year[-1]
+
+
+                if climEndYr>lastobsyear or climStartYr<firstobsyear:
+                    self.progress.emit(("Climatological period {}-{} extends beyond period covered by data {}-{}".format(climStartYr,climEndYr,firstobsyear,lastobsyear), "ERROR"))
+                    return False
+
                 cont=True
 
                 self.progress.emit(("Successfuly read observations from {}".format(obsFile), "INFO"))
@@ -1087,7 +1124,7 @@ class Worker(QObject):
                 summaryzonesVector = gpd.read_file(summaryzonesFile)
             except:
                 self.progress.emit(("Summary zones file {} cannot be read. please check if the file is properly formatted".format(summaryzonesFile), "ERROR"))
-                return
+                return False
             self.progress.emit(("Successfuly read zones from {}".format(summaryzonesFile), "INFO"))
 
             #this will be an array of id and values from the zonesVar column 
@@ -1108,7 +1145,7 @@ class Worker(QObject):
                     obs=obs.rio.clip(fcstVector.geometry.values, "epsg:4326") #clipping to fcst geojson
                 except:
                     self.progress.emit(("Variable {} in the observed file {} appears not to have spatial coordinates. Did you chose correct variable to process?".format(obsVar, obsFile), "ERROR"))
-                    return
+                    return False
 
                 #chunking obs, in case it is a large file
 #                obs=obs.chunk("auto")
@@ -1190,7 +1227,7 @@ class Worker(QObject):
                 obs_season=obsroll.sel(time=seltime)
             except:
                 self.progress.emit(("Observed data does not cover {}. Please check your data, or adjust verification period so that it falls within the period covered by observed data.".format(seltime), "ERROR"))
-                return
+                return False
 
             obs_season.attrs=""
             
@@ -1216,9 +1253,17 @@ class Worker(QObject):
                     temp=pd.DataFrame(temp.data.T, index=temp.geometry)
                     temp=gpd.GeoDataFrame(temp.copy(), geometry=fcstPoint.geometry, crs="EPSG:4326")
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
+                
+                
+#                test=pd.DataFrame(temp).drop(columns="geometry")
+#                if np.isnan(test.values).any():
+#                    nancount=np.isnan(test.values).sum()
+#                    allcount=len(test)
+#                    nanperc=int(nancount/allcount*100)
+#                    self.progress.emit(('Data for the target period is missng at {} locations. That is {}% of all {} locations. Check if this is what is expected. Note that stations with missing value will not appear in some output maps.'.format(nancount,nanperc,allcount),"NONCRITICAL"))
+                    
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
                 self.progress.emit(("\nSkipping outputting observed value","RUNTIME"))                
 
@@ -1287,7 +1332,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
                 self.progress.emit(("\nSkipping outputting observed value","RUNTIME"))                
             
@@ -1330,7 +1375,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
                 self.progress.emit(("\nSkipping outputting observed climatology","RUNTIME"))                
             
@@ -1369,7 +1414,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
 
                 obs_relanom.attrs=""   
                 outputds["obs_relanom"]=np.round(obs_relanom)
@@ -1420,7 +1465,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
                 self.progress.emit(("\nSkipping outputting observed tercile category","RUNTIME"))                
             
@@ -1473,7 +1518,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
             else:
                 self.progress.emit(("\nSkipping outputting forecast tercile category","RUNTIME"))                
 
@@ -1548,7 +1593,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                                     
                 obs_cemcat.attrs=""   
                 outputds["obs_cemcat"]=obs_cemcat
@@ -1597,7 +1642,7 @@ class Worker(QObject):
                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                                 
                 self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                     pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                 
                     
                 obs_quantanom.attrs=""   
@@ -1654,7 +1699,7 @@ class Worker(QObject):
                     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                     self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                     
                     
                     #CHECK
@@ -1689,7 +1734,6 @@ class Worker(QObject):
                 self.progress.emit(("\nCalculating interest rate...","RUNTIME"))
                 fcst_intrate=None
                 zonal_intrate=None
-                
                 try:
                     temp=xr.apply_ufunc(
                         skill_single,
@@ -1727,7 +1771,7 @@ class Worker(QObject):
                     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                     self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
     
                     fcst_intrate.attrs=""
                     outputds["fcst_intrate"]=np.round(fcst_intrate,1)
@@ -1801,7 +1845,7 @@ class Worker(QObject):
                     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
                     self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
 
 
                     fcst_ignorance.attrs=""        
@@ -1874,7 +1918,7 @@ class Worker(QObject):
 
                     
                     self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                     fcst_rpss.attrs=""                
                     outputds["fcst_rpss"]=np.round(fcst_rpss,2)
 
@@ -1946,7 +1990,7 @@ class Worker(QObject):
                     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             
                     self.plotMap(temp,pars["cmap"],pars["levels"],pars["vmin"],pars["vmax"],pars["title"],
-                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
+                         pars["cbar_label"],pars["ticklabels"], pars["mask"], pars["filename"],pars["extend"],pars["annot"],summaryzonesFile,summaryzonesVar,obsFileFormat)
                         
                     fcst_cemhit.attrs=""
                     outputds["fcst_cemhit"]=fcst_cemhit
@@ -2012,12 +2056,12 @@ class Worker(QObject):
                summarydata=summarydata+[fcst_ignorance.mean().data]
 
             self.progress.emit(('\nFinished running verification. Check output directory {} for output'.format(currentoutDir), "SUCCESS"))
-            self.finished.emit()
-                
+#            self.finished.emit()
+            return True               
                 
             
 
-    def plotMap(self,_data,_cmap,_levels,_vmin,_vmax, _title, _cbar_label,_ticklabels, _mask, _filename,_annotation,_geometryfile, _geometryVar,_obsFileFormat="netcdf"):
+    def plotMap(self,_data,_cmap,_levels,_vmin,_vmax, _title, _cbar_label,_ticklabels, _mask, _filename,_extend,_annotation,_geometryfile, _geometryVar,_obsFileFormat="netcdf"):
         
         regannotate=True
         
@@ -2046,9 +2090,9 @@ class Worker(QObject):
             pl.text(0,-0.03,_annotation,fontsize=6, transform=pl.transAxes)
             ax=fig.add_axes([0.82,0.25,0.02,0.5])
             if _levels is None:
-                cbar = fig.colorbar(m, cax=ax, label=_cbar_label)
+                cbar = fig.colorbar(m, cax=ax, label=_cbar_label,extend=_extend)
             else:
-                cbar = fig.colorbar(m, cax=ax,ticks=_levels, label=_cbar_label)
+                cbar = fig.colorbar(m, cax=ax,ticks=_levels, label=_cbar_label, extend=_extend)
             if _ticklabels is not None:
                 cbar.ax.set_yticklabels(_ticklabels)
             plt.subplots_adjust(bottom=0.05,top=0.9,right=0.8,left=0.05)
@@ -2090,16 +2134,17 @@ class Worker(QObject):
             # fake up the array of the scalar mappable. Urgh...
             sm._A = []
             if _levels is None:
-                cbar = fig.colorbar(sm, cax=ax, label=_cbar_label)
+                cbar = fig.colorbar(sm, cax=ax, label=_cbar_label,extend=_extend)
             else:
-                cbar = fig.colorbar(sm, cax=ax,ticks=_levels, label=_cbar_label)
+                cbar = fig.colorbar(sm, cax=ax,ticks=_levels, label=_cbar_label,extend=_extend)
             if _ticklabels is not None:
                 cbar.ax.set_yticklabels(_ticklabels)
             plt.subplots_adjust(bottom=0.05,top=0.9,right=0.8,left=0.05)
             plt.savefig(_filename, dpi=300)
             self.progress.emit(("Created {}".format(_filename), "INFO"))
             plt.close()
-        
+            
+                
     def plotzonalHistogram(self, _data, _title, _filename, _ylabel, _hline1, _hline2, _annotation,_summaryzonesVector,_summaryzonesName,_summaryzonesVar):
         
         fig=plt.figure(figsize=(6,3))
@@ -2170,7 +2215,7 @@ class Worker(QObject):
                 alldata=alldata+[clipped[~np.isnan(clipped)]]
                 
         bins=[-0.5,0.5,1.5,2.5,3.5]
-        labels=["error","half-miss","half-hit","hit"]
+        labels=["main","half-miss","half-hit","hit"]
         cols=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
         cols=[cols(i) for i in range(4)]
 
@@ -2335,13 +2380,13 @@ class Worker(QObject):
 
         return True
 
-    def tofloat(self,x):
-        try:
-            x=np.float(x)
-        except:
-            x=np.nan
-        return x
     
+    
+            
+            
+            
+            
+            
 
 
 #reading UI - has to be done before UI class is implemented
@@ -2356,6 +2401,7 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
         
+        
     def reportProgress(self, _tuple):
         #this print messages to log window, which are generated in the threaded function
         global window
@@ -2366,12 +2412,7 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
             _message="{}: {}".format(_type,_message)
         _message = "<pre><font color={}>{}</font></pre>".format(_color, _message)
         window.logWindow.appendHtml(_message)
-    #    window.logWindow.update()
         window.logWindow.ensureCursorVisible()
-        if _type=="ERROR":
-            self.thread.terminate()
-            self.thread.wait()
-            window.runButton.setEnabled(True)
             
     
     def threadVerification(self):
@@ -2382,19 +2423,20 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         # Step 4: Move worker to the thread
         self.worker.moveToThread(self.thread)
         # Step 5: Connect signals and slots
-        self.thread.started.connect(self.worker.execVerification)
+        self.thread.started.connect(self.worker.execVerificationWrapper)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(
+            lambda: window.runButton.setEnabled(True)
+        )
         self.worker.progress.connect(self.reportProgress)
+        
         # Step 6: Start the thread
         self.thread.start()
 
         # Final resets
         window.runButton.setEnabled(False)
-        self.thread.finished.connect(
-            lambda: window.runButton.setEnabled(True)
-        )
 
 
         
@@ -2434,7 +2476,15 @@ if __name__ == "__main__":
     populateUI()
     
     # --- verification is run when user has pressed run button, so nothing else to do here...
+    
     sys.exit(app.exec_())
+
+
+# In[ ]:
+
+
+
+
 
 
 # In[ ]:

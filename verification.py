@@ -1027,21 +1027,15 @@ class Worker(QObject):
                         firstyear,lastyear=(np.min(years),np.max(years))
                         data=ds[sel].iloc[:,4:]
                         #check if data contains strings
-                        #data=data.applymap(self.tofloat)
-                        data=data.values.flatten()
+                        data=data.applymap(self.tofloat)
+#                        data=data.values.flatten()
                         try:
                             data=data.astype(float)
                         except:
                             self.progress.emit(("CSV file contains entries that are of string (character) type which cannot be converted to numerical values. There should be no characters in the data. Please use the Please edit the {} file so that it is formatted correctly".format(obsFile), "ERROR"))
-                            return        
-
-                        index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="M")
-                        try:
-                            data=pd.DataFrame(data.reshape(-1,1), index=index,columns=[name])
-                        except:
-                            self.progress.emit(("data for {} contains {} months, expected {} months - should be continuous period from Jan {} to Dec {}".format(name, len(index),len(data), firstyear, lastyear), "ERROR"))
-                            return   
-
+                            return                        
+                            
+                        data=pd.DataFrame(data.reshape(-1,1), index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="M"),columns=[name])
                         alldata=alldata+[data]
                     #obs is pandas dataframe
                     obspd=pd.concat(alldata, axis=1)

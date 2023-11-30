@@ -18,14 +18,14 @@
         ]
     },
     "obsFile": {
-        "file": "/work/projects/intraACP/verification_training/sample_data/input/pr_mon_chirps-v2.0_198101-202308.nc",
+        "file": "/work/projects/intraACP/verification_training/sample_data/input/pr_chirps_SADC_198101-202208.csv",
         "ID": 0,
         "variable": [
-            "PRCPTOT"
+            "pr"
         ]
     },
-    "obsFileFormat": "netcdf",
-    "obsDsetCode": "CHIRPS",
+    "obsFileFormat": "csv",
+    "obsDsetCode": "station",
     "climStartYear": 1991,
     "climEndYear": 2020,
     "verifAggregation": "sum",

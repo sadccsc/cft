@@ -1,33 +1,33 @@
 {
     "Version": "4.1.0",
-    "outDir": "/work/data/verification/output",
+    "outDir": "/work/projects/intraACP/verification_training/sample_data",
     "fcstFile": {
-        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "file": "/work/projects/intraACP/verification_training/sample_data/input/SADC_MAM_2022_Consensus.geojson",
         "ID": 1,
         "variable": [
             "ID",
-            "OND_2022"
+            "MAM_2023"
         ]
     },
     "summaryzonesFile": {
-        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "file": "/work/projects/intraACP/verification_training/sample_data/input/SADC_MAM_2022_Consensus.geojson",
         "ID": 0,
         "variable": [
             "ID",
-            "OND_2022"
+            "MAM_2023"
         ]
     },
     "obsFile": {
-        "file": "/work/projects/intraACP/cft_bugs/TZA_Rainfall_data_1961_2023.csv",
+        "file": "/work/projects/intraACP/verification_training/sample_data/input/pr_mon_chirps-v2.0_198101-202308.nc",
         "ID": 0,
         "variable": [
-            "pr"
+            "PRCPTOT"
         ]
     },
-    "obsFileFormat": "csv",
-    "obsDsetCode": "station2",
-    "climStartYear": 1981,
-    "climEndYear": 2023,
+    "obsFileFormat": "netcdf",
+    "obsDsetCode": "CHIRPS",
+    "climStartYear": 1991,
+    "climEndYear": 2020,
     "verifAggregation": "sum",
     "verifYear": 2022,
     "verifPeriod": {
@@ -69,7 +69,7 @@
             "Nov",
             "Dec"
         ],
-        "indx": 9
+        "indx": 2
     },
     "outputQuantanom": true,
     "outputHeidke": true,

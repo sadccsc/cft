@@ -216,7 +216,6 @@ def get_ignorance(_x):
         return _ign
     
 def get_cem_hit(_f,_o):
-    print(_f,_o)
     #_f and _o are cemcat of forecast and observations
     _temp=np.copy(_f).astype(float)
     _temp[:]=np.nan
@@ -225,7 +224,6 @@ def get_cem_hit(_f,_o):
         _temp[_f==_o]=3 #hit
         _temp[np.abs((_f-_o))==1]=2
         _temp[np.abs((_f-_o))==2]=1
-    print(_temp)
     return _temp
 
 
@@ -2215,7 +2213,7 @@ class Worker(QObject):
                 alldata=alldata+[clipped[~np.isnan(clipped)]]
                 
         bins=[-0.5,0.5,1.5,2.5,3.5]
-        labels=["main","half-miss","half-hit","hit"]
+        labels=["miss","half-miss","half-hit","hit"]
         cols=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
         cols=[cols(i) for i in range(4)]
 

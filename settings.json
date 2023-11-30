@@ -1,11 +1,13 @@
 {
     "Version": "3.1.1",
-    "outDir": "/work/projects/intraACP/cft_bugs/cftoutput",
+    "outDir": "/work/projects/intraACP/sarcof/sarcof_26_msr/cft_forecast",
     "predictorList": [
-        "/work/projects/intraACP/cft_bugs/sst_aug_1960-2023.nc"
+        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/sst_mon-Oct_ERSSTv5_1960-2022.nc",
+        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/iod_mon_195001-202210.txt",
+        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/elnino_mon_194901-202210.txt"
     ],
     "predictandList": [
-        "/work/data/forecast/station_data/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_cft_stations_SADC.csv"
+        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/pr_chirps_BWA_198101-202210.csv"
     ],
     "predictandMissingValue": -9999,
     "predictandattr": "",
@@ -13,7 +15,7 @@
     "fcstPeriodLength": "3month",
     "trainStartYear": 1982,
     "trainEndYear": 2011,
-    "predictorMonth": "Aug",
+    "predictorMonth": "Oct",
     "PValue": 0.01,
     "stepwisePvalue": 0.05,
     "minHSscore": 50,
@@ -28,9 +30,10 @@
             "OND_2022"
         ]
     },
-    "fcstyear": 2023,
+    "fcstyear": 2022,
     "algorithms": [
-        "LR"
+        "LR",
+        "MLP"
     ],
     "basinbounds": {
         "minlat": -90.0,

@@ -234,6 +234,10 @@ def resetZones():
     window.zoneCode.clear()
     jsonfile=config['zonesFilereference']
     zonesVariable=window.zonesFileVariable.currentText()
+    print(zonesVariable)
+    config['zonesVariable']=zonesVariable
+    config["zoneData"]={}
+
     codes=[]
     for feature in jsonfile['features']:
         print(feature["properties"])
@@ -253,6 +257,7 @@ def resetZones():
 def writeOutput():
     cont=True
     #checking if all populated
+    print(config['zoneData'])
     for zone in config['zoneData'].keys():
         for var in config['zoneData'][zone].keys():
             if config['zoneData'][zone][var]=="":

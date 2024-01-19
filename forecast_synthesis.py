@@ -303,7 +303,7 @@ def writeOutput():
         
         geojsondict['features'][i]["properties"]["finalcode_{}-{}".format(fcstYear,fcstPeriod)]=fcstCategoryCode    
         geojsondict['features'][i]["properties"]["finalcategory_{}-{}".format(fcstYear,fcstPeriod)]=fcstCategory    
-        geojsondict['features'][i]["properties"]["finalconfidence_{}-{}".format(fcstYear,fcstPeriod)]=confLevel
+        geojsondict['features'][i]["properties"]["finalconfidence".format(fcstYear,fcstPeriod)]=confLevel
         geojsondict['features'][i]["properties"]["agreement_{}-{}".format(fcstYear,fcstPeriod)]=signalAgree
         geojsondict['features'][i]["properties"]["skill_{}-{}".format(fcstYear,fcstPeriod)]=skillLevel
             

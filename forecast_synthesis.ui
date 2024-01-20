@@ -30,7 +30,7 @@
    <enum>Qt::DefaultContextMenu</enum>
   </property>
   <property name="windowTitle">
-   <string>CFT Verification Tool</string>
+   <string>CFT Forecast Synthesis Tool</string>
   </property>
   <property name="windowIcon">
    <iconset>

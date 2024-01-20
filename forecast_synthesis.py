@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-  This script generates verification maps:
-      Inputs:
-          Forecast vector file (geojson format)
-          Predictand data covering the training period
-      Outputs:
-          Verification netCDF file
-
 @author: thembani - original version
 @author: pwolski - revised to the level that hardly anything of the original is left currently
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
@@ -41,6 +34,7 @@ import xarray as xr
 import geopandas as gpd
 import matplotlib.colors as colors
 import cartopy.crs as ccrs
+from matplotlib.patches import Patch
 
 #defining fixed things
 version="1.0"
@@ -111,7 +105,17 @@ msgColors={"ERROR": "red",
            "SUCCESS":"green"
           }
 
+confidence_hatches={"low":"",
+          "moderate":"/",
+          "high":"//",
+          "very high":"///"}
 
+category_colors={"below normal":'#d2b48c',
+      "normal to below":'yellow',
+      "normal to above":'#0bfffb',
+      "above normal":'blue'}
+
+cmap=colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue'])
 
 # program flow functions
 ################################################################################################################
@@ -318,13 +322,47 @@ def writeOutput():
     showMessage("written {}".format(outputfile), "RUNTIME")
     
     #need to finish this one still
-    #plotforecast(geojsondict)
+    plotforecast(outputfile)
 
         
-def plotforecast(_geojsondict):
-    cont=True
-    #to be done    
+def plotforecast(_outputfile):
+
+    poly = gpd.read_file(_outputfile)
+    code="finalcode_{}-{}".format(config['fcstYear'],window.fcstPeriod.currentText())
     
+    edgecolor="0.7"
+    
+    fig=plt.figure(figsize=(7,5))
+    pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
+    for conf in confidence_hatches.keys():
+        selpoly=poly[poly["finalconfidence"]==conf]
+        if selpoly.shape[0]>0:
+            selpoly.plot(column=code,hatch=confidence_hatches[conf], ax=pl, cmap=cmap, vmin=1, vmax=5, edgecolor="0.6",lw=0.5)
+            #selpoly.boundary.plot(ax=pl, color="", lw=0.5)
+
+            
+    legend_conf = []
+    for conf in confidence_hatches.keys():
+        legend_entry=Patch(facecolor='white', edgecolor=edgecolor, hatch=confidence_hatches[conf],label=conf)
+        legend_conf.append(legend_entry)
+
+        
+    legend_cat = []
+    for x in category_colors.keys():
+        legend_entry=Patch(facecolor=category_colors[x], edgecolor=edgecolor, label=x)
+        legend_cat.append(legend_entry)
+        
+
+    legend1=pl.legend(handles=legend_conf, loc=(1.01,0), title="Forecast confidence",handleheight=2, handlelength=3)
+    legend2=pl.legend(handles=legend_cat, loc=(1.01,0.5), title="Forecast category",handleheight=2, handlelength=3)
+    plt.gca().add_artist(legend1)
+
+    plt.subplots_adjust(right=0.7)
+    figurefile="{}/forecast_{}-{}.jpg".format(config['outDir'],config['fcstYear'],window.fcstPeriod.currentText())
+
+    plt.savefig(figurefile)
+    showMessage("saved {}".format(figurefile), "RUNTIME")
+        
     
 def getOutDir():
     global config

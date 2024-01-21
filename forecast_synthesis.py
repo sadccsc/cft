@@ -359,7 +359,7 @@ def plotforecast(_outputfile):
 
     plt.subplots_adjust(right=0.7)
     figurefile="{}/forecast_{}-{}.jpg".format(config['outDir'],config['fcstYear'],window.fcstPeriod.currentText())
-
+    pl.set_title("Forecast for {} {}".format(config['fcstYear'],window.fcstPeriod.currentText()))
     plt.savefig(figurefile)
     showMessage("saved {}".format(figurefile), "RUNTIME")
         

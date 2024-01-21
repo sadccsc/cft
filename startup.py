@@ -44,6 +44,11 @@ if __name__ == "__main__":
         if retval != 0:
             window.statusbar.showMessage('failed to start start_verification.bat')
        
+     def runsynthesis():
+        retval = os.system('START /B start_synthesis.bat')
+        if retval != 0:
+            window.statusbar.showMessage('failed to start start_synthesis.bat')
+       
     
     # --- Load values into the UI ---
     
@@ -52,6 +57,7 @@ if __name__ == "__main__":
     window.zoningButton.clicked.connect(runzoning)
     window.fcstButton.clicked.connect(runforecasting)
     window.verButton.clicked.connect(runverification)
+    window.synthesisButton.clicked.connect(runsynthesis)
 
     # window.stopButton.clicked.connect(closeapp)
     sys.exit(app.exec_())

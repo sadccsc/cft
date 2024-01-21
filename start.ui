@@ -78,6 +78,22 @@
      <string>Verification</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="synthesisButton">
+    <property name="geometry">
+     <rect>
+      <x>390</x>
+      <y>0</y>
+      <width>130</width>
+      <height>60</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string extracomment="Verification"/>
+    </property>
+    <property name="text">
+     <string>Synthesis</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionExit">

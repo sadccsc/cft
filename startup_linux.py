@@ -43,6 +43,11 @@ if __name__ == "__main__":
         retval = os.system('bash start_linux.sh verification.py')
         if retval != 0:
             window.statusbar.showMessage('failed to start verification tool')
+ 
+    def runsynthesis():
+        retval = os.system('bash start_linux.sh forecast_synthesis.py')
+        if retval != 0:
+            window.statusbar.showMessage('failed to start synthesis tool')
        
     
     # --- Load values into the UI ---
@@ -52,6 +57,7 @@ if __name__ == "__main__":
     window.zoningButton.clicked.connect(runzoning)
     window.fcstButton.clicked.connect(runforecasting)
     window.verButton.clicked.connect(runverification)
+    window.synthesisButton.clicked.connect(runsynthesis)
 
     # window.stopButton.clicked.connect(closeapp)
     sys.exit(app.exec_())

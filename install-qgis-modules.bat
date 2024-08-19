@@ -130,9 +130,9 @@ if %errorlevel% equ 0 (
  echo numpy upgraded successfully
 )
 echo.
-echo upgrading netCDF4...
-python -m pip install netCDF4==1.5.7
-if %errorlevel% equ 0 (
+echo upgrading netCDF4...python -m pip install netCDF4==1.5.7
+python -m pip install netCDF4
+echo ==1.5.7
  echo netCDF4 upgraded successfully
 )
 echo.
@@ -236,3 +236,6 @@ set PWS=powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfil
 START /B %PWS% -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut(%SHORTCUT%); $S.TargetPath = %TARGET%; $S.IconLocation = %ICON%; $S.WorkingDirectory = %WD%; $S.Save()"
 
 pause
+
+rem netCDF4, geojson
+

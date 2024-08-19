@@ -44,7 +44,7 @@ if __name__ == "__main__":
         if retval != 0:
             window.statusbar.showMessage('failed to start start_verification.bat')
        
-     def runsynthesis():
+    def runsynthesis():
         retval = os.system('START /B start_synthesis.bat')
         if retval != 0:
             window.statusbar.showMessage('failed to start start_synthesis.bat')

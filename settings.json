@@ -1,21 +1,20 @@
 {
     "Version": "3.1.1",
-    "outDir": "/work/projects/intraACP/sarcof/sarcof_26_msr/cft_forecast",
+    "outDir": "/work/models/cft/test/harivao",
     "predictorList": [
-        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/sst_mon-Oct_ERSSTv5_1960-2022.nc",
-        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/iod_mon_195001-202210.txt",
-        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/elnino_mon_194901-202210.txt"
+        "/work/models/cft/sadc_cft_current/harivao/SST_Jan_1961-2024.nc",
+        "/work/models/cft/sadc_cft_current/harivao/MSLP_Jan_1961-2024.nc"
     ],
     "predictandList": [
-        "/work/projects/intraACP/sarcof/sarcof_26_msr/data/cft_inputs/pr_chirps_BWA_198101-202210.csv"
+        "/work/models/cft/sadc_cft_current/harivao/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_cft_stations_MDG.csv"
     ],
     "predictandMissingValue": -9999,
     "predictandattr": "",
-    "fcstPeriodStartMonth": "Oct",
-    "fcstPeriodLength": "3month",
-    "trainStartYear": 1982,
-    "trainEndYear": 2011,
-    "predictorMonth": "Oct",
+    "fcstPeriodStartMonth": "May",
+    "fcstPeriodLength": "1month",
+    "trainStartYear": 1991,
+    "trainEndYear": 2020,
+    "predictorMonth": "Dec",
     "PValue": 0.01,
     "stepwisePvalue": 0.05,
     "minHSscore": 50,
@@ -23,17 +22,16 @@
     "inputFormat": "CSV",
     "composition": "Sum",
     "zonevector": {
-        "file": "/work/data/verification/sadc_OND_zones_forecast2022.geojson",
+        "file": "/work/models/cft/test/madagascar/madagascar_ond.geojson",
         "ID": 0,
         "attr": [
             "ID",
-            "OND_2022"
+            "Forecast"
         ]
     },
-    "fcstyear": 2022,
+    "fcstyear": 2024,
     "algorithms": [
-        "LR",
-        "MLP"
+        "LR"
     ],
     "basinbounds": {
         "minlat": -90.0,

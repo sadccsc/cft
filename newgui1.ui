@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Split Window GUI</string>
+  </property>
+  
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <item>
+    
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+
+      <!-- LEFT SIDE: Tab Widget with scrollable tabs -->
+      <widget class="QTabWidget" name="tabWidget">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+
+       <!-- TAB 1 -->
+       <widget class="QWidget" name="tab1">
+        <attribute name="title">
+         <string>Download predictors</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="tab1Layout">
+         <item>
+          <widget class="QScrollArea" name="scrollArea1">
+           <property name="widgetResizable">
+            <bool>true</bool>
+           </property>
+           <widget class="QWidget" name="scrollAreaWidgetContents1">
+            <layout class="QVBoxLayout" name="scrollAreaLayout1">
+             <item>
+              <widget class="QLabel" name="label1">
+               <property name="text">
+                <string>Input 1:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="lineEdit1"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton1">
+               <property name="text">
+                <string>Submit Tab 1</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer1">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+
+       <!-- TAB 2 -->
+       <widget class="QWidget" name="tab2">
+        <attribute name="title">
+         <string>Tab 2</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="tab2Layout">
+         <item>
+          <widget class="QScrollArea" name="scrollArea2">
+           <property name="widgetResizable">
+            <bool>true</bool>
+           </property>
+           <widget class="QWidget" name="scrollAreaWidgetContents2">
+            <layout class="QVBoxLayout" name="scrollAreaLayout2">
+             <item>
+              <widget class="QLabel" name="label2">
+               <property name="text">
+                <string>Input 2:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="lineEdit2"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton2">
+               <property name="text">
+                <string>Submit Tab 2</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer2">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <!-- end of tab2-->
+
+       <!-- TAB 3 -->
+       <widget class="QWidget" name="tab3">
+        <attribute name="title">
+         <string>Tab 3</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="tab3Layout">
+         <item>
+          <widget class="QScrollArea" name="scrollArea3">
+           <property name="widgetResizable">
+            <bool>true</bool>
+           </property>
+           <widget class="QWidget" name="scrollAreaWidgetContents3">
+            <layout class="QVBoxLayout" name="scrollAreaLayout3">
+             <item>
+              <widget class="QLabel" name="label3">
+               <property name="text">
+                <string>Input 3:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="lineEdit3"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton3">
+               <property name="text">
+                <string>Submit Tab 3</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer3">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <!-- end of tab3-->
+
+
+      </widget>
+
+      <!-- RIGHT SIDE: Output Text Box -->
+      <widget class="QTextEdit" name="outputTextEdit">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="placeholderText">
+        <string>Output will appear here...</string>
+       </property>
+      </widget>
+     </widget>
+     
+    </item>
+   </layout>
+   
+   
+  </widget>
+  <widget class="QMenuBar" name="menubar"/>
+  <widget class="QStatusBar" name="statusbar"/>
+  
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
+

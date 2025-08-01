@@ -812,7 +812,6 @@ def writeout(prefix, p_matrix, corgrp_matrix, corr_df, lats, lons, outdir, confi
         basins[:] = corgrp_matrix
         pvalues[:] = p_matrix
         output.close()
-    # print correlation csv
     if int(config.get('plots', {}).get('corrcsvs', 1)) == 1:
         csv = outdir + os.sep + prefix + '_correlation-basin-avgs.csv'
         corr_df.reset_index()
@@ -1523,19 +1522,25 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
     stationYF_dfs = []
     output[station] = {}
     input_data = predictanddict['data']
+    #station here is station name
+    print("station",station)
     indx = predictanddict['stations'].index(station)
     lat = predictanddict['lats'][indx]
     lon = predictanddict['lons'][indx]
     station_data_all =  input_data.loc[input_data['ID'] == station]
+    #these are predictand years
     trainStartYear = int(config['trainStartYear'])
     trainEndYear = int(config['trainEndYear'])
     fcstYear = int(config['fcstyear'])
+
     trainingYears = [yr for yr in range(trainStartYear, trainEndYear + 1)]
     nyears = len(trainingYears)
+
     #forecastdf = pd.DataFrame(columns=['Predictor', 'Algorithm', 'ID', 'Lat', 'Lon', 't1', 't2', 't3',
     #                                   'median', 'fcst', 'class', 'r2score', 'HS', 'Prob'])
     for predictorName in predictordict:
         output[station][predictorName] = {}
+        #this is the actual year of predictor
         predictorStartYr = predictordict[predictorName]['predictorStartYr']
         sst_arr = predictordict[predictorName]['data']
         prefixParam = {"Predictor": predictorName, "Param": predictordict[predictorName]['param'],
@@ -1546,49 +1551,104 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
             nyearssst, nrowssst, ncolssst = sst_arr.shape
         except ValueError:
             nyearssst, nrowssst, ncolssst = len(sst_arr), 0, 0
+
+        #that is flabbergasting - nyearsst is years in predictor data that include year for which forecast is done!!!
+
         yearspredictand = [yr for yr in range(trainStartYear, (trainStartYear + nyearssst))]
-        print(station,nyearssst, yearspredictand)
+
+        #print(station,nyearssst, yearspredictand)
+
         station_data = station_data_all.loc[:,
                        ('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')]
         station_data.drop_duplicates('Year', inplace=True)
         station_data = station_data.apply(pd.to_numeric, errors='coerce')
-        seasonal_precip = pd.DataFrame(columns=['Year',fcstPeriod])
-        seasonal_precip['Year'] = yearspredictand
-        seasonal_precip.set_index('Year', inplace=True)
-        station_data.set_index('Year', inplace=True)
-        for year in yearspredictand:
-            if config.get('fcstPeriodLength', '3month') == '3month':
-                if config['composition'] == "Sum":
-                    temp=season_cumulation(station_data, year, fcstPeriod)
-                    seasonal_precip.loc[[year], fcstPeriod] = temp
-                else:
-                    seasonal_precip.loc[[year], fcstPeriod] = season_average(station_data, year, fcstPeriod)
+        years=station_data["Year"].values
+        
+        dates=pd.date_range("{}-01-01".format(yearspredictand[0]), "{}-12-31".format(yearspredictand[-1]), freq="MS")
+        #print(yearspredictand)
+        #print(dates) 
+        da=np.zeros([len(dates),1])
+        da[:]=np.nan
+
+        station_datadf = pd.DataFrame(da, index=dates, columns=[fcstPeriod])
+        for year in years:
+            if year in yearspredictand:
+                #print(year)
+                sel=station_data["Year"]==year
+                #print(sel)
+                #print(station_data[sel].values[:,1:].T)
+                
+                station_datadf[station_datadf.index.year==year]=station_data[station_data["Year"]==year].values[:,1:].T
+            
+
+#        seasonal_precip = pd.DataFrame(columns=['Year',fcstPeriod])
+#        seasonal_precip['Year'] = yearspredictand
+#        seasonal_precip.set_index('Year', inplace=True)
+#        station_data.set_index('Year', inplace=True)
+        #print("station",station)
+        #print("station_data",station_data)
+        #exit()
+#        print("yearspredictand",yearspredictand)
+#        print("seasonalprecip",seasonal_precip)
+#        print("fcstPeriod",fcstPeriod)
+
+        if config.get('fcstPeriodLength', '3month') == '3month':
+            #calendar month
+            m=seasons.index(fcstPeriod)
+            month=months[m]
+            print("stationdatadf", station_datadf)
+            if config['composition'] == "Sum":
+                data=station_datadf.resample("QS-{}".format(month)).mean()*3
             else:
-                try:
-                    seasonal_precip.loc[[year], fcstPeriod] = round(float(station_data.loc[[year], fcstPeriod]), 1)
-                except KeyError:
-                    seasonal_precip.loc[[year], fcstPeriod] = np.nan
-                    
+                data=station_datadf.resample("QS-{}".format(month)).mean()
+            seasonal_precip=data[data.index.month==m+1]
+            seasonal_precip=seasonal_precip[str(trainStartYear):]
+        else:
+            m=months.index(fcstPeriod)
+            month=months[m]
+            seasonal_precip=station_datadf[station_datadf.index.month==m+1]
+        print("seasonal_precip",seasonal_precip)
+        seasonal_precip.index=seasonal_precip.index.year
+#        for year in yearspredictand:
+#            if config.get('fcstPeriodLength', '3month') == '3month':
+#                if config['composition'] == "Sum":
+#                    temp=season_cumulation(station_data, year, fcstPeriod)
+#                    seasonal_precip.loc[[year], fcstPeriod] = temp
+#                else:
+#                    seasonal_precip.loc[[year], fcstPeriod] = season_average(station_data, year, fcstPeriod)
+#            else:
+#                try:
+#                    seasonal_precip.loc[[year], fcstPeriod] = round(float(station_data.loc[[year], fcstPeriod]), 1)
+#                except KeyError:
+#                    seasonal_precip.loc[[year], fcstPeriod] = np.nan
+
+        #print("seasonal_precip",seasonal_precip)
+
+        #return                   
         predictand = np.asarray(seasonal_precip, dtype=float).reshape(-1,)
         training_actual = predictand[:len(trainingYears)]
         test_actual = predictand[len(trainingYears):]
         test_notnull = np.isfinite(test_actual)
+
         name = re.sub('[^a-zA-Z0-9]', '', prefixParam["station"])
         prefix = prefixParam["Predictor"] + '_' + prefixParam["Param"] + '_' + prefixParam["PredictorMonth"] + '_' + \
                  str(prefixParam["startyr"]) + '-' + str(prefixParam["endyr"]) + '_' + name
         
+        
         if (len(training_actual[np.isfinite(training_actual)]) < 6) or (len(test_actual[np.isfinite(test_actual)]) < 2):
-            #print("not enough data to train")      
+            print("not enough data to train")
             continue
-
+            #return
+       
+        # by now, predictand and sst_arr have to be aligned, i.e. it should not matter which year data are from
         # compute basins
         trainPredictand = predictand[:nyears]
         trainSST = sst_arr[:nyears]
         pnotnull = np.isfinite(trainPredictand)
-        yearssst = [yr for yr in range(predictorStartYr, (predictorStartYr + nyearssst))]
-        print("s",station,yearssst)
-        #yearssst = [yr for yr in range(trainStartYear, (trainStartYear + nyearssst))]
-        print(station, yearspredictand,yearssst,len(yearspredictand),len(yearssst))
+        #yearssst = [yr for yr in range(predictorStartYr, (predictorStartYr + nyearssst))]
+        #the one below is esstintally wrong because predictors might be sourced from different year than the training period
+        yearssst = [yr for yr in range(trainStartYear, (trainStartYear + nyearssst))]
+        #print(station, yearspredictand,yearssst,len(yearspredictand),len(yearssst))
         if (nrowssst, ncolssst) != (0, 0): 
             SSTclusterSize = 1000.
             lons2d, lats2d = np.meshgrid(predictordict[predictorName]['lons'], predictordict[predictorName]['lats'])
@@ -1601,14 +1661,22 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
                     warnings.filterwarnings('error')
                     try:
                         notnull = pnotnull & np.isfinite(sstvals)
+                        #print(trainPredictand, sstvals)
+                        #print(trainPredictand[notnull])
+                        #print(sstvals[notnull][0])
                         r_matrix[row][col], p_matrix[row][col] = pearsonr(trainPredictand[notnull], sstvals[notnull])
                     except:
+                        #print("could not calculate r_matrix", row, col)
+                        #return
                         pass
             # corr = (p_matrix <= config['PValue']) & (abs(r_matrix) >= 0.5)
             corr = (p_matrix <= config['PValue']) & (p_matrix != 0)
+            #print(corr.shape, np.max(corr))
+            #print("cormatrices", np.max(p_matrix), np.min(p_matrix),np.max(r_matrix), np.min(r_matrix))
             if not corr.any():
                 continue
             corr_coords = list(zip(lons2d[corr], lats2d[corr]))
+            #print("coordinates", corr_coords)
             # create correlation basins
             corgrp_matrix = np.zeros((nrowssst, ncolssst)) * np.nan
     
@@ -1648,15 +1716,19 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
             corr_df['year'] = trainingYears
             corr_df[fcstPeriod] = trainPredictand
             corr_df.set_index('year', inplace=True)
-            print(station,nyearssst,len(yearspredictand),len(yearssst))
+            #print(station,nyearssst,len(yearspredictand),len(yearssst))
             for yr in range(nyearssst):
                 yearsst = yearssst[yr]
                 yearpredictand = yearspredictand[yr]
+               # print("yearpred",yearpredictand)
                 sstavg = np.zeros(SSTzones)
-                corr_df.loc[yearpredictand, fcstPeriod] = list(seasonal_precip.loc[[yearpredictand], fcstPeriod])[0]
-                for group in range(SSTzones):
-                    sstavg[group] = "{0:.3f}".format(np.mean(sst_arr[yr][corgrp_matrix == basins[group]]))
-                    corr_df.loc[year, 'Basin' + str(basins[group])] = sstavg[group]
+                if yearpredictand in seasonal_precip.index:
+                    corr_df.loc[yearpredictand, fcstPeriod] = list(seasonal_precip.loc[[yearpredictand], fcstPeriod])[0]
+                    for group in range(SSTzones):
+                        #print(group,yr,np.mean(sst_arr[yr][corgrp_matrix == basins[group]]))
+                        sstavg[group] = "{0:.3f}".format(np.mean(sst_arr[yr][corgrp_matrix == basins[group]]))
+                        corr_df.loc[yearpredictand, 'Basin' + str(basins[group])] = sstavg[group]
+
             corr_df = corr_df.dropna(how='all', axis=1)
             basin_arr = list(corr_df.columns)
             indx = basin_arr.index(fcstPeriod)
@@ -1668,7 +1740,7 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
             corroutdir = outdir + os.sep + "Correlation"
             writeout(prefix, p_matrix, corgrp_matrix, corr_df, predictordict[predictorName]['lats'],
                      predictordict[predictorName]['lons'], corroutdir, config)
-    
+
             # get basin combination with highest r-square: returns bestr2score, final_basins, final_basin_matrix
             basin_matrix_df = pd.DataFrame(basin_matrix[:len(trainingYears)], columns=basin_arr)
             notnull = np.isfinite(np.array(predictand[:len(trainingYears)]))
@@ -1742,6 +1814,7 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
                             continue
                         forecasts = np.array(regm.predict(X_test))
                         warnings.filterwarnings('error')
+                        
                         try:
                             m, n = pearsonr(forecasts[test_notnull], list(np.ravel(test_actual)[test_notnull]))
                         except:
@@ -1837,10 +1910,13 @@ def forecast_station(config, predictordict, predictanddict, fcstPeriod, outdir, 
                     lr_traindf.set_index('Year', inplace=True)
                 lr_fcstdf = pd.DataFrame(columns=['Year', fcstPeriod, 'LRfcst'])
                 lr_fcstdf['Year'] = testing_years
+                print("fcstdf",lr_fcstdf)
+                print("test_actual", test_actual)
                 lr_fcstdf[fcstPeriod] = test_actual
                 lr_fcstdf['LRfcst'] = np.array(regr.predict(X_test))
                 lr_fcstdf.set_index('Year', inplace=True)
                 warnings.filterwarnings('error')
+                print("fcstdf",lr_fcstdf)
                 try:
                     m, n = pearsonr(np.array(lr_fcstdf['LRfcst'])[test_notnull], list(np.ravel(test_actual)[test_notnull]))
                 except:

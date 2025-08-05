@@ -7,186 +7,162 @@
     <x>0</x>
     <y>0</y>
     <width>900</width>
-    <height>600</height>
+    <height>613</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Split Window GUI</string>
+   <string>CFT Data Download</string>
   </property>
-  
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="mainLayout">
-    <item>
-    
-     <widget class="QSplitter" name="splitter">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-
-      <!-- LEFT SIDE: Tab Widget with scrollable tabs -->
-      <widget class="QTabWidget" name="tabWidget">
-       <property name="currentIndex">
-        <number>0</number>
-       </property>
-
-       <!-- TAB 1 -->
-       <widget class="QWidget" name="tab1">
-        <attribute name="title">
-         <string>Download predictors</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="tab1Layout">
-         <item>
-          <widget class="QScrollArea" name="scrollArea1">
-           <property name="widgetResizable">
-            <bool>true</bool>
-           </property>
-           <widget class="QWidget" name="scrollAreaWidgetContents1">
-            <layout class="QVBoxLayout" name="scrollAreaLayout1">
-             <item>
-              <widget class="QLabel" name="label1">
-               <property name="text">
-                <string>Input 1:</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit1"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="pushButton1">
-               <property name="text">
-                <string>Submit Tab 1</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="verticalSpacer1">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-
-       <!-- TAB 2 -->
-       <widget class="QWidget" name="tab2">
-        <attribute name="title">
-         <string>Tab 2</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="tab2Layout">
-         <item>
-          <widget class="QScrollArea" name="scrollArea2">
-           <property name="widgetResizable">
-            <bool>true</bool>
-           </property>
-           <widget class="QWidget" name="scrollAreaWidgetContents2">
-            <layout class="QVBoxLayout" name="scrollAreaLayout2">
-             <item>
-              <widget class="QLabel" name="label2">
-               <property name="text">
-                <string>Input 2:</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit2"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="pushButton2">
-               <property name="text">
-                <string>Submit Tab 2</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="verticalSpacer2">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <!-- end of tab2-->
-
-       <!-- TAB 3 -->
-       <widget class="QWidget" name="tab3">
-        <attribute name="title">
-         <string>Tab 3</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="tab3Layout">
-         <item>
-          <widget class="QScrollArea" name="scrollArea3">
-           <property name="widgetResizable">
-            <bool>true</bool>
-           </property>
-           <widget class="QWidget" name="scrollAreaWidgetContents3">
-            <layout class="QVBoxLayout" name="scrollAreaLayout3">
-             <item>
-              <widget class="QLabel" name="label3">
-               <property name="text">
-                <string>Input 3:</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit3"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="pushButton3">
-               <property name="text">
-                <string>Submit Tab 3</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="verticalSpacer3">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <!-- end of tab3-->
-
-
-      </widget>
-
-      <!-- RIGHT SIDE: Output Text Box -->
-      <widget class="QTextEdit" name="outputTextEdit">
-       <property name="readOnly">
+   <widget class="QWidget" name="horizontalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>881</width>
+      <height>581</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QScrollArea" name="scrollArea">
+       <property name="widgetResizable">
         <bool>true</bool>
        </property>
-       <property name="placeholderText">
-        <string>Output will appear here...</string>
-       </property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>435</width>
+          <height>577</height>
+         </rect>
+        </property>
+        <widget class="QGroupBox" name="groupBox">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>10</y>
+           <width>421</width>
+           <height>161</height>
+          </rect>
+         </property>
+         <property name="title">
+          <string>Download predictand</string>
+         </property>
+         <widget class="QWidget" name="formLayoutWidget">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>60</y>
+            <width>121</width>
+            <height>61</height>
+           </rect>
+          </property>
+          <layout class="QFormLayout" name="formLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="minLonLabel">
+             <property name="text">
+              <string>min Lon</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="minLonLineEdit"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="maxLonLabel">
+             <property name="text">
+              <string>max Lon</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="maxLonLineEdit"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QPushButton" name="pushButton">
+          <property name="geometry">
+           <rect>
+            <x>150</x>
+            <y>130</y>
+            <width>89</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Download</string>
+          </property>
+         </widget>
+         <widget class="QWidget" name="formLayoutWidget_2">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>20</y>
+            <width>421</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <layout class="QFormLayout" name="formLayout_2">
+           <item row="0" column="0">
+            <widget class="QLabel" name="selectVariableSourceLabel">
+             <property name="text">
+              <string>Select variable &amp; source</string>
+             </property>
+             <property name="buddy">
+              <cstring>selectVariableSourceComboBox</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="selectVariableSourceComboBox"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="formLayoutWidget_3">
+          <property name="geometry">
+           <rect>
+            <x>130</x>
+            <y>60</y>
+            <width>121</width>
+            <height>61</height>
+           </rect>
+          </property>
+          <layout class="QFormLayout" name="formLayout_3">
+           <item row="0" column="0">
+            <widget class="QLabel" name="minLonLabel_2">
+             <property name="text">
+              <string>min Lon</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="minLonLineEdit_2"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="maxLonLabel_2">
+             <property name="text">
+              <string>max Lon</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="maxLonLineEdit_2"/>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </widget>
       </widget>
-     </widget>
-     
-    </item>
-   </layout>
-   
-   
+     </item>
+     <item>
+      <widget class="QPlainTextEdit" name="plainTextEdit"/>
+     </item>
+    </layout>
+   </widget>
   </widget>
-  <widget class="QMenuBar" name="menubar"/>
-  <widget class="QStatusBar" name="statusbar"/>
-  
  </widget>
  <resources/>
  <connections/>
 </ui>
-

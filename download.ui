@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>979</width>
+    <height>601</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>CFT data download</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QScrollArea" name="scrollArea">
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>455</width>
+          <height>559</height>
+         </rect>
+        </property>
+
+        <layout class="QVBoxLayout" name="verticalLayoutLeft">
+
+        <item>
+        <widget class="QWidget" name="directoryPickerWidget">
+         <layout class="QHBoxLayout" name="horizontalLayout_directoryPicker">
+          <item>
+           <widget class="QLabel" name="labelDirectory">
+            <property name="text">
+             <string>Output Directory:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEditDirectory"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="browseButton">
+            <property name="text">
+             <string>Browse...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        </item>
+
+             <item>
+             <layout class="QFormLayout" name="formLayout1">
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_targetseas">
+                <property name="text">
+                 <string>Target season:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboBox_tgtseas"/>
+              </item>
+             </layout>
+             </item>
+
+             <item>
+             <layout class="QFormLayout" name="formLayout1">
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_tgtyear">
+                <property name="text">
+                 <string>Target year:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="lineEdit_tgtyear"/>
+              </item>
+             </layout>
+             </item>
+
+             <item>
+             <layout class="QFormLayout" name="formLayout1">
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_srcmon">
+                <property name="text">
+                 <string>Predictor/forecast month:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboBox_srcmon"/>
+              </item>
+             </layout>
+             </item>
+
+             <item>
+             <layout class="QFormLayout" name="formLayout1">
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_srcyear">
+                <property name="text">
+                 <string>Predictor/forecast year:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="lineEdit_srcyear"/>
+              </item>
+             </layout>
+             </item>
+
+
+
+         <item>
+          <widget class="QGroupBox" name="groupBox1">
+           <property name="title">
+            <string>Download gridded predictand data</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+
+           <layout class="QVBoxLayout" name="boxLayout1">
+            <item>
+             <widget class="QWidget" name="contentWidget">
+             <layout class="QFormLayout" name="formLayout1">
+
+              <item row="0" column="0">
+               <widget class="QLabel" name="label1_var">
+                <property name="text">
+                 <string>Variable and source:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBox1_var"/>
+              </item>
+
+              <item row="1" column="0">
+               <widget class="QLabel" name="label1_minlat">
+                <property name="text">
+                 <string>min Lat</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="lineEdit1_minlat"/>
+              </item>
+
+              <item row="2" column="0">
+               <widget class="QLabel" name="label1_maxlat">
+                <property name="text">
+                 <string>max Lat</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLineEdit" name="lineEdit1_maxlat"/>
+              </item>
+
+              <item row="3" column="0">
+               <widget class="QLabel" name="label1_minlon">
+                <property name="text">
+                 <string>min Lon:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLineEdit" name="lineEdit1_minlon"/>
+              </item>
+
+              <item row="4" column="0">
+               <widget class="QLabel" name="label1_maxlon">
+                <property name="text">
+                 <string>max Lon</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QLineEdit" name="lineEdit1_maxlon"/>
+              </item>
+
+              <item row="5" column="0">
+               <widget class="QLabel" name="label1_overwrite">
+                <property name="text">
+                 <string>overwrite</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QCheckBox" name="checkBox1_overwrite"/>
+              </item>
+
+              <item row="6" column="0">
+               <widget class="QPushButton" name="button1_run">
+                <property name="text">
+                 <string>Download</string>
+                </property>
+               </widget>
+              </item>
+
+             </layout>
+             </widget>
+
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+
+         <item>
+          <widget class="QGroupBox" name="groupBox2">
+           <property name="title">
+            <string>Download observed gridded predictor data</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+
+           <layout class="QVBoxLayout" name="boxLayout2">
+            <item>
+
+             <widget class="QWidget" name="contentWidget">
+             <layout class="QFormLayout" name="formLayout2">
+
+              <item row="0" column="0">
+               <widget class="QLabel" name="label2_var">
+                <property name="text">
+                 <string>Variable and source:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBox2_var"/>
+              </item>
+
+              <item row="1" column="0">
+               <widget class="QLabel" name="label2_minlat">
+                <property name="text">
+                 <string>min Lat</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="lineEdit2_minlat"/>
+              </item>
+
+              <item row="2" column="0">
+               <widget class="QLabel" name="label2_maxlat">
+                <property name="text">
+                 <string>max Lat</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLineEdit" name="lineEdit2_maxlat"/>
+              </item>
+
+              <item row="3" column="0">
+               <widget class="QLabel" name="label2_minlon">
+                <property name="text">
+                 <string>min Lon:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLineEdit" name="lineEdit2_minlon"/>
+              </item>
+
+              <item row="4" column="0">
+               <widget class="QLabel" name="label2_maxlon">
+                <property name="text">
+                 <string>max Lon</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QLineEdit" name="lineEdit2_maxlon"/>
+              </item>
+
+              <item row="5" column="0">
+               <widget class="QLabel" name="label2_overwrite">
+                <property name="text">
+                 <string>overwrite</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QCheckBox" name="checkBox2_overwrite"/>
+              </item>
+
+              <item row="6" column="0">
+               <widget class="QPushButton" name="button2_run">
+                <property name="text">
+                 <string>Download</string>
+                </property>
+               </widget>
+              </item>
+
+             </layout>
+             </widget>
+
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+
+
+         <item>
+          <widget class="QGroupBox" name="groupBox3">
+           <property name="title">
+            <string>Download forecasted gridded predictor data</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+
+           <layout class="QVBoxLayout" name="boxLayout3">
+            <item>
+
+             <widget class="QWidget" name="contentWidget">
+             <layout class="QFormLayout" name="formLayout3">
+
+              <item row="0" column="0">
+               <widget class="QLabel" name="label3_var">
+                <property name="text">
+                 <string>Variable and source:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBox3_var"/>
+              </item>
+
+              <item row="1" column="0">
+               <widget class="QLabel" name="label3_target">
+                <property name="text">
+                 <string>Target season:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboBox3_target"/>
+              </item>
+
+              <item row="2" column="0">
+               <widget class="QLabel" name="label3_minlat">
+                <property name="text">
+                 <string>min Lat</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLineEdit" name="lineEdit3_minlat"/>
+              </item>
+
+              <item row="3" column="0">
+               <widget class="QLabel" name="label3_maxlat">
+                <property name="text">
+                 <string>max Lat</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLineEdit" name="lineEdit3_maxlat"/>
+              </item>
+
+              <item row="4" column="0">
+               <widget class="QLabel" name="label3_minlon">
+                <property name="text">
+                 <string>min Lon:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QLineEdit" name="lineEdit3_minlon"/>
+              </item>
+
+              <item row="5" column="0">
+               <widget class="QLabel" name="label3_maxlon">
+                <property name="text">
+                 <string>max Lon</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QLineEdit" name="lineEdit3_maxlon"/>
+              </item>
+
+              <item row="6" column="0">
+               <widget class="QLabel" name="label3_overwrite">
+                <property name="text">
+                 <string>overwrite</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QCheckBox" name="checkBox3_overwrite"/>
+              </item>
+
+              <item row="7" column="0">
+               <widget class="QPushButton" name="button3_run">
+                <property name="text">
+                 <string>Download</string>
+                </property>
+               </widget>
+              </item>
+
+             </layout>
+             </widget>
+
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+
+
+         <item>
+          <widget class="QGroupBox" name="groupBox4">
+           <property name="title">
+            <string>Download observed climate indices as predictor</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+
+           <layout class="QVBoxLayout" name="boxLayout4">
+            <item>
+
+             <widget class="QWidget" name="contentWidget">
+             <layout class="QFormLayout" name="formLayout4">
+
+              <item row="0" column="0">
+               <widget class="QLabel" name="label4_var">
+                <property name="text">
+                 <string>Variable and source:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBox4_var"/>
+              </item>
+
+              <item row="1" column="0">
+               <widget class="QLabel" name="label4_overwrite">
+                <property name="text">
+                 <string>overwrite</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QCheckBox" name="checkBox4_overwrite"/>
+              </item>
+
+
+              <item row="2" column="0">
+               <widget class="QPushButton" name="button4_run">
+                <property name="text">
+                 <string>Download</string>
+                </property>
+               </widget>
+              </item>
+
+
+
+             </layout>
+
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+
+
+        </layout>
+       </widget>
+      </widget>
+
+
+      <widget class="QWidget" name="rightPanel">
+       <layout class="QVBoxLayout" name="verticalLayoutRight">
+        <item>
+         <widget class="QGroupBox" name="runLogGroupBox">
+          <property name="title">
+           <string>Run Log</string>
+          </property>
+          <layout class="QVBoxLayout" name="runLogLayout">
+           <item>
+            <widget class="QPlainTextEdit" name="logWindow"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="clearLogButton">
+             <property name="text">
+              <string>Clear Log</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

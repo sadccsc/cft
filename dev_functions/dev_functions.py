@@ -324,9 +324,11 @@ def readPredictand():
         if gl.config['fcstBaseTime']=="seas":
             showMessage("Resampling to seasonal...")
             if gl.config['temporalAggregation']=="mean":
-                 obsdata=obsdata.rolling(3).mean()
+                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth'])).mean()
+                 #obsdata=obsdata.rolling(3).mean()
             else:
-                 obsdata=obsdata.rolling(3).sum()
+                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth'])).sum()
+                 #obsdata=obsdata.rolling(3).sum()
             #date of the 3 month rolling will be set to last month of the period, need to be offset by 2 months
             newtime=obsdata.index-pd.offsets.MonthBegin(2)
             obsdata.index=newtime

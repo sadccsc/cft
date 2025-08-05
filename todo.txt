@@ -1,0 +1,12 @@
+in dowload.py:
+- implement control of lat lon to make sure integers within range
+- implement download and processing of forecast data
+
+
+
+in cft.py:
+
+- margins of buttons
+
+
+

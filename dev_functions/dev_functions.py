@@ -60,9 +60,52 @@ regressors = {
         'Decision Trees': DecisionTreeRegressor,
     }
 
-def showMessage(_message, _type="RUNTIME"):
+
+tgtSeass=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan-Mar","Feb-Apr","Mar-May","Apr-Jun","May-Jul","Jun-Aug","Jul-Sep","Aug-Oct","Sep-Nov","Oct-Dec","Nov-Jan","Dec-Feb"]
+
+srcMons=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+
+timeAggregations={"sum","mean"}
+
+crossvalidators={
+    "KF":["K-Fold",{"n_splits":5}],
+    "LOO":["Leave One Out",{}],
+}
+
+#can be read from json - potentially editable by user
+regressors = {
+    "OLS":["Linear regression", {}],
+    "Lasso":["Lasso regression", {'alpha': 0.01}],
+    "Ridge":["Ridge regression", {'alpha': 1.0}],
+    "RF":["Random Forest", {'n_estimators': 100, 'max_depth': 5}],
+    "MLP":["Multi Layer Perceptron", {'hidden_layer_sizes': (50, 25), 'max_iter': 1000, 'random_state': 0}],
+    "Trees":["Decision Trees", {'max_depth': 2}]
+}
+
+preprocessors={
+    "PCR":["Principal Component Regression (PCR)", {}],
+    "CCA":["Canonical Corelation Analysis (CCA)", {}]
+}
+
+
+def showMessage_simple(_message, _type="RUNTIME"):
     #this print messages to log window, which are generated outside of the threaded function
     print(_message)
+
+
+def showMessage(_message, _type="RUNTIME"):
+    msgColors={"ERROR": "red",
+           "INFO":"blue",
+           "RUNTIME":"grey",
+           "NONCRITICAL":"red",
+           "SUCCESS":"green"
+          }
+    try:
+        _color=msgColors[_type]
+        _message = "<pre><font color={}>{}</font></pre>".format(_color, _message)
+        gl.window.log_signal.emit(_message)
+    except:
+        print(_message)
 
     
 def month2int(_str):
@@ -324,10 +367,10 @@ def readPredictand():
         if gl.config['fcstBaseTime']=="seas":
             showMessage("Resampling to seasonal...")
             if gl.config['temporalAggregation']=="mean":
-                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth'])).mean()
+                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth']))).mean()
                  #obsdata=obsdata.rolling(3).mean()
             else:
-                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth'])).sum()
+                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth']))).sum()
                  #obsdata=obsdata.rolling(3).sum()
             #date of the 3 month rolling will be set to last month of the period, need to be offset by 2 months
             newtime=obsdata.index-pd.offsets.MonthBegin(2)
@@ -488,7 +531,7 @@ def aggregatePredictand(_data, _geodata, _poly):
 
 def getLeadTime():
     srcMonth=month2int(gl.config['predictorMonth'])
-    tgtMonth=month2int(gl.config['fcstTargetMonth'])
+    tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
     tgtYear=int(gl.config['fcstTargetYear'])
     tgtDate=pd.to_datetime("{}-{}-01".format(tgtYear,tgtMonth))
     
@@ -975,3 +1018,185 @@ def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecasti
         showMessage("done")
     else:    
         messageShow("forecasting grid, skipping of time series plotting")
+
+        
+        
+def populateGui():
+    #populate comboBoxes
+    # target season
+    gl.window.comboBox_tgtseas.clear()
+    #gl.window.comboBox_tgtseas.addItem("", "")
+    for key in tgtSeass:
+        gl.window.comboBox_tgtseas.addItem(key, key)
+    
+    #source/predictand month
+    gl.window.comboBox_srcmon.clear()
+    #gl.window.comboBox_srcmon.addItem("", "")
+    for key in srcMons:
+        gl.window.comboBox_srcmon.addItem(key, key)
+
+    #temporal aggregation
+    gl.window.comboBox_timeaggregation.clear()
+    #gl.window.comboBox_timeaggregation.addItem("", "")
+    for key in timeAggregations:
+        gl.window.comboBox_timeaggregation.addItem(key, key)
+                
+        
+    for model in range(5):
+        comboName="comboBox_preproc{}".format(model)
+        if hasattr(gl.window, comboName):
+            item=getattr(gl.window, comboName, None)
+            item.clear()
+            #item.addItem("", "")
+            for key in preprocessors:
+                item.addItem(preprocessors[key][0], key)
+            
+        comboName="comboBox_regression{}".format(model)
+        if hasattr(gl.window, comboName):
+            item=getattr(gl.window, comboName, None)
+            item.clear()
+            #item.addItem("", "")
+            for key in regressors:
+                item.addItem(regressors[key][0], key)
+                
+        comboName="comboBox_crossval{}".format(model)
+        if hasattr(gl.window, comboName):
+            item=getattr(gl.window, comboName, None)
+            item.clear()
+            #item.addItem("", "")
+            for key in crossvalidators:
+                item.addItem(crossvalidators[key][0], key)
+
+                
+    # read data from config
+    gl.window.lineEditDirectory.setText(gl.config['downloadDir'])
+    gl.window.lineEdit_tgtyear.setText(str(gl.config['fcstTargetYear']))
+    gl.window.lineEdit_srcyear.setText(str(gl.config['predictorYear']))
+    gl.window.comboBox_srcmon.setCurrentText(gl.config['predictorMonth'])
+    gl.window.comboBox_tgtseas.setCurrentText(gl.config['fcstTargetSeas'])
+    gl.window.lineEdit_climstartyr.setText(str(gl.config['climStartYr']))
+    gl.window.lineEdit_climendyr.setText(str(gl.config['climEndYr']))
+    gl.window.comboBox_timeaggregation.setCurrentText(gl.config['timeAggregation'])
+
+    for model in range(5):
+        for var in ["minLon","maxLon","minLat","maxLat"]:
+            itemName="lineEdit_{}{}".format(var.lower(), model)
+            if hasattr(gl.window, itemName):
+                item=getattr(gl.window, itemName, None)
+                item.setText(str(gl.config['predictorExtents'][model][var]))
+        
+        itemName="comboBox_crossval{}".format(model)
+        if hasattr(gl.window, itemName):
+            item=getattr(gl.window, itemName, None)
+            setval=crossvalidators[gl.config["crossval"][model]][0]
+            item.setCurrentText(setval)
+
+        itemName="comboBox_regression{}".format(model)
+        if hasattr(gl.window, itemName):
+            item=getattr(gl.window, itemName, None)
+            setval=regressors[gl.config["regression"][model]][0]
+            item.setCurrentText(setval)
+            
+        itemName="comboBox_preproc{}".format(model)
+        if hasattr(gl.window, itemName):
+            item=getattr(gl.window, itemName, None)
+            setval=preprocessors[gl.config["preproc"][model]][0]
+            item.setCurrentText(setval)
+
+        itemName="lineEdit_predictorfile{}".format(model)
+        if hasattr(gl.window, itemName):
+            item=getattr(gl.window, itemName, None)
+            setval=gl.config["predictorFiles"][model][0]
+            item.setText(setval)
+    
+        itemName="comboBox_predictorvar{}".format(model)
+        if hasattr(gl.window, itemName):
+            item=getattr(gl.window, itemName, None)
+            setval=gl.config["predictorFiles"][model][1]
+            print(setval)
+            #remove once function to read file is implemented
+            item.addItem(setval, setval)
+            item.setCurrentText(setval)
+    
+    gl.window.lineEdit_predictandfile.setText(gl.config['predictandFileName'])
+    #for the time being - have to have a function that reads this file and populates variable list
+    key=gl.config['predictandVar']            
+    gl.window.comboBox_predictandvar.clear()
+    gl.window.comboBox_predictandvar.addItem(key, key)
+    gl.window.comboBox_predictandvar.setCurrentText(gl.config['predictandVar'])
+            
+    gl.window.checkBox_zonesaggregate.setChecked(gl.config["zonesAggregate"])
+    
+    gl.window.lineEdit_zonesfile.setText(gl.config['zonesFile'])
+    #for the time being - have to have a function that reads this file and populates variable list
+    key=gl.config['zonesAttribute']            
+    gl.window.comboBox_zonesattribute.clear()
+    gl.window.comboBox_zonesattribute.addItem(key, key)
+    gl.window.comboBox_zonesattribute.setCurrentText(gl.config['zonesAttribute'])
+
+    gl.window.lineEdit_overlayfile.setText(gl.config['overlayFile'])
+
+def makeConfig():
+    gl.config={}
+
+    #defined parameters/variables
+    gl.config['downloadDir']="../test_data"
+
+    gl.config['predictorYear'] = 2025
+    gl.config['predictorMonth'] = "Jun"
+
+    #gl.config['fcstTargetSeas']="Mar-May"
+    gl.config['fcstTargetSeas']="Dec"
+    gl.config['fcstTargetYear']=2025
+
+    gl.config["climEndYr"]=2015
+    gl.config["climStartYr"]=1994
+
+    gl.config["predictorExtents"]=[{'minLat':-60,'maxLat':60,'minLon':-180,'maxLon':180},
+                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""},
+                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""},
+                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""},
+                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""}
+                                  ]
+
+
+    gl.config['predictorFiles'] = [["./data/SST_Jun_1960-2025.nc","sst"],["",""],["",""],["",""],["",""]]
+    gl.config['crossval']=["LOO","","","",""]
+    gl.config['preproc']=["CCA","","","",""]
+    gl.config['regression']=["Lasso","","","",""]
+
+    gl.config['timeAggregation']="sum"
+    gl.config["predictandFileName"]="./data/pr_mon_chirps-v2.0_198101-202308.nc"
+    gl.config["predictandVar"]="PRCPTOT"
+
+    gl.config["zonesFile"]="data/Botswana.geojson"
+    gl.config["zonesAttribute"]="ID"
+    gl.config["zonesAggregate"]=True
+
+    gl.config["overlayFile"]="data/Botswana.geojson"
+
+    #gl.config["predictandFileName"]="./data/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_cft_stations_BWA.csv"
+    #gl.config["predictandFileName"]="./data/predictand_test_format.csv"
+    #gl.config["predictandVar"]=""
+
+
+
+    # derived
+    gl.config['fcstBaseTime']="seas"
+    gl.config['predictandName'] = 'rainfall'
+    gl.config['predictandMissingValue']=-999
+    gl.config['expVariance']=0.8
+    gl.config['model']="Linear regression"
+    gl.maxLeadTime=6
+    gl.maxPercentPCsRetain=15
+    gl.config['rootDir']="./forecast"
+
+    #set target type 
+    if gl.config["zonesAggregate"]:
+        gl.config["targetType"]="zones"
+    elif gl.config["predictandFileFormat"]=="csv":
+        gl.config["targetType"]="points"
+    else:
+        gl.config["targetType"]="grid"
+    gl.config["targetType"]
+ 

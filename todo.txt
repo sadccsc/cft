@@ -9,4 +9,11 @@ in cft.py:
 - margins of buttons
 
 
-
+#to do
+# include predictor code in output directory structure
+# download function
+# data saving
+# extend and clean up plotting
+# test data ingestion errorrs
+# GUI
+# multimodel forecast

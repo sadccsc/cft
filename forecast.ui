@@ -1,1128 +1,455 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <author>Thembani Moithobogi</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
-  <property name="enabled">
-   <bool>true</bool>
-  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>957</width>
-    <height>728</height>
+    <width>1005</width>
+    <height>570</height>
    </rect>
   </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>550</width>
-    <height>600</height>
-   </size>
-  </property>
-  <property name="contextMenuPolicy">
-   <enum>Qt::DefaultContextMenu</enum>
-  </property>
   <property name="windowTitle">
-   <string>CFT Verification Tool</string>
-  </property>
-  <property name="windowIcon">
-   <iconset>
-    <normaloff>icon/cft.ico</normaloff>icon/cft.ico</iconset>
+   <string>CFT seasonal forecast</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <property name="minimumSize">
-    <size>
-     <width>547</width>
-     <height>420</height>
-    </size>
-   </property>
-   <widget class="QFrame" name="frame">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>951</width>
-      <height>701</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
-    <property name="frameShape">
-     <enum>QFrame::StyledPanel</enum>
-    </property>
-    <property name="frameShadow">
-     <enum>QFrame::Raised</enum>
-    </property>
-    <property name="lineWidth">
-     <number>1</number>
-    </property>
-    <widget class="QGroupBox" name="outDirGroup">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>0</y>
-       <width>525</width>
-       <height>50</height>
-      </rect>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>525</width>
-       <height>50</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>525</width>
-       <height>50</height>
-      </size>
-     </property>
-     <property name="title">
-      <string>Output Directory</string>
-     </property>
-     <widget class="QPushButton" name="outDirButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>93</width>
-        <height>25</height>
-       </rect>
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
-      <property name="focusPolicy">
-       <enum>Qt::ClickFocus</enum>
-      </property>
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="outDirPath">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>20</y>
-        <width>401</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QPushButton" name="runButton">
-     <property name="geometry">
-      <rect>
-       <x>420</x>
-       <y>660</y>
-       <width>120</width>
-       <height>30</height>
-      </rect>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>120</width>
-       <height>30</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>120</width>
-       <height>30</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>Run</string>
-     </property>
-    </widget>
-    <widget class="QGroupBox" name="obsFileGroup">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>240</y>
-       <width>525</width>
-       <height>81</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Observations Data</string>
-     </property>
-     <widget class="QPushButton" name="obsFileButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>93</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="focusPolicy">
-       <enum>Qt::ClickFocus</enum>
-      </property>
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="obsFilePath">
-      <property name="geometry">
-       <rect>
-        <x>110</x>
-        <y>20</y>
-        <width>401</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-     <widget class="QComboBox" name="obsFileVariable">
-      <property name="geometry">
-       <rect>
-        <x>65</x>
-        <y>50</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_15">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>50</y>
-        <width>50</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>25</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>25</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>Variable:</string>
-      </property>
-     </widget>
-     <widget class="QFrame" name="frame_4">
-      <property name="geometry">
-       <rect>
-        <x>165</x>
-        <y>50</y>
-        <width>161</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::NoFrame</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Plain</enum>
-      </property>
-      <property name="lineWidth">
-       <number>0</number>
-      </property>
-      <widget class="QRadioButton" name="obsFileFormatNetcdf">
-       <property name="enabled">
+      <widget class="QScrollArea" name="scrollArea">
+       <property name="widgetResizable">
         <bool>true</bool>
        </property>
-       <property name="geometry">
-        <rect>
-         <x>120</x>
-         <y>0</y>
-         <width>50</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>NC</string>
-       </property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>593</width>
+          <height>813</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayoutLeft">
+
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_directoryPicker">
+           <item>
+            <widget class="QLabel" name="labelDirectory">
+             <property name="text">
+              <string>Output Directory:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="lineEditDirectory"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="browseButton">
+             <property name="text">
+              <string>Browse...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox2">
+           <property name="title">
+            <string>Forecast timing</string>
+           </property>
+           <layout class="QFormLayout" name="formLayout1">
+<!--
+            <item row="0" column="0">
+             <widget class="QPushButton" name="infoButton">
+              <property name="text">
+               <string>ℹ️ Info</string>
+              </property>
+              <property name="toolTip">
+               <string>Click for more information</string>
+              </property>
+             </widget>
+            </item>
+-->
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_targetseas">
+              <property name="text">
+               <string>Target season:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="comboBox_tgtseas"/>
+            </item>
+ 
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_tgtyear">
+              <property name="text">
+               <string>Target year:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="lineEdit_tgtyear"/>
+            </item>
+ 
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_srcmon">
+              <property name="text">
+               <string>Predictor/forecast month:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QComboBox" name="comboBox_srcmon"/>
+            </item>
+ 
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_srcyear">
+              <property name="text">
+               <string>Predictor/forecast year:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QLineEdit" name="lineEdit_srcyear"/>
+            </item>
+
+            <item row="5" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Climatology start year:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="1">
+             <widget class="QLineEdit" name="lineEdit_climstartyr"/>
+            </item>
+            <item row="6" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Climatology end year:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="1">
+             <widget class="QLineEdit" name="lineEdit_climendyr"/>
+            </item>
+
+
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox2">
+           <property name="title">
+            <string>Homogeneous region map (for aggregating predictand data)</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="labelDirectory">
+              <property name="text">
+               <string>Vector file:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_zonesfile"/>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="browseButton_zonesfile">
+              <property name="text">
+               <string>Browse...</string>
+              </property>
+             </widget>
+            </item>
+
+            <item row="1" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Attribute</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="comboBox_zonesattribute"/>
+            </item>
+
+            <item row="2" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Use to aggregate predictand</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QCheckBox" name="checkBox_zonesaggregate"/>
+            </item>
+
+
+
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Overlay vector map (for plotting only)</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Vector file:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_overlayfile"/>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="browseButton_overlayfile">
+              <property name="text">
+               <string>Browse...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Predictand</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Data file:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_predictandfile"/>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="browseButton_predictandfile">
+              <property name="text">
+               <string>Browse...</string>
+              </property>
+             </widget>
+            </item>
+
+            <item row="1" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Variable</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="comboBox_predictandvar"/>
+            </item>
+
+            <item row="2" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Time aggregation</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QComboBox" name="comboBox_timeaggregation"/>
+            </item>
+
+
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Forecast Model</string>
+           </property>
+           <layout class="QVBoxLayout" name="boxLayout">
+            <item>
+             <widget class="QGroupBox" name="groupBox">
+              <property name="title">
+               <string>Predictor</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout">
+               <item row="0" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>Predictor file:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QLineEdit" name="lineEdit_predictorfile0"/>
+               </item>
+               <item row="0" column="2">
+                <widget class="QPushButton" name="browseButton_predictorfile0">
+                 <property name="text">
+                  <string>Browse...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>Variable</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboBox_predictorvar0"/>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>min Lat</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QLineEdit" name="lineEdit_minlat0"/>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                 <string>max Lat</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QLineEdit" name="lineEdit_maxlat0"/>
+               </item>
+               <item row="4" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>min Lon:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="1">
+                <widget class="QLineEdit" name="lineEdit_minlon0"/>
+               </item>
+               <item row="5" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>max Lon</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="1">
+                <widget class="QLineEdit" name="lineEdit_maxlon0"/>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="groupBox">
+              <property name="title">
+               <string>Statistical model</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout">
+               <item row="0" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>Preprocessing</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QComboBox" name="comboBox_preproc0"/>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>Regression</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboBox_regression0"/>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>Cross-validation</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QComboBox" name="comboBox_crossval0"/>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="button_run0">
+              <property name="text">
+               <string>Calculate</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
       </widget>
-      <widget class="QRadioButton" name="obsFileFormatCsv">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>65</x>
-         <y>0</y>
-         <width>50</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>CSV</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_11">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>0</y>
-         <width>50</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Format:</string>
-       </property>
-      </widget>
-     </widget>
-     <widget class="QFrame" name="frame_7">
-      <property name="geometry">
-       <rect>
-        <x>350</x>
-        <y>50</y>
-        <width>171</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::NoFrame</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Plain</enum>
-      </property>
-      <property name="lineWidth">
-       <number>0</number>
-      </property>
-      <widget class="QLabel" name="label_13">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>90</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Dataset code</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="obsDsetCode">
-       <property name="geometry">
-        <rect>
-         <x>90</x>
-         <y>0</y>
-         <width>80</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="toolTip">
-        <string>this is user-defined code that will be used in the name of ouput files for easy identification of ouput</string>
-       </property>
-      </widget>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="climGroup">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>330</y>
-       <width>521</width>
-       <height>50</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Climatological Reference</string>
-     </property>
-     <widget class="QLabel" name="label_3">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>64</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Start Year:</string>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="climStartYear">
-      <property name="geometry">
-       <rect>
-        <x>90</x>
-        <y>20</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_4">
-      <property name="geometry">
-       <rect>
-        <x>220</x>
-        <y>20</y>
-        <width>57</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>End Year:</string>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="climEndYear">
-      <property name="geometry">
-       <rect>
-        <x>290</x>
-        <y>20</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="fcstFileGroup">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>60</y>
-       <width>525</width>
-       <height>80</height>
-      </rect>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>525</width>
-       <height>80</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>525</width>
-       <height>80</height>
-      </size>
-     </property>
-     <property name="title">
-      <string>Forecast Vector File</string>
-     </property>
-     <widget class="QPushButton" name="fcstFileButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>93</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="focusPolicy">
-       <enum>Qt::ClickFocus</enum>
-      </property>
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="fcstFilePath">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>20</y>
-        <width>401</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-     <widget class="QComboBox" name="fcstFileVariable">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>50</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_17">
-      <property name="geometry">
-       <rect>
-        <x>20</x>
-        <y>50</y>
-        <width>71</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>25</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>25</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>Variable:</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="outputsGroup1">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>480</y>
-       <width>261</width>
-       <height>111</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Outputs (WMO recommended)</string>
-     </property>
-     <widget class="QCheckBox" name="outputQuantanom">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>observed percentile anomaly</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputIgnorance">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>60</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>ignorance score</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputHeidke">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>40</y>
-        <width>261</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>Heidke hit (most probable tercile)</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputIntrate">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>80</y>
-        <width>211</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>interest rate</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="outputsGroup2">
-     <property name="geometry">
-      <rect>
-       <x>290</x>
-       <y>480</y>
-       <width>251</width>
-       <height>171</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Outputs (evaluation)</string>
-     </property>
-     <widget class="QCheckBox" name="outputObscemcat">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>80</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>observed CEM category</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputObsrelanom">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>60</y>
-        <width>231</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>observed relative anomaly (%)</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputObsvalue">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>observed rainfall</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputObstercile">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>100</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>observed tercile category</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputFcstcemcat">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>120</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>forecast CEM category</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputFcsttercile">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>140</y>
-        <width>193</width>
-        <height>23</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>forecast tercile category</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputObsclim">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>40</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>observed rainfall climatology</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QPushButton" name="exitButton">
-     <property name="geometry">
-      <rect>
-       <x>160</x>
-       <y>660</y>
-       <width>120</width>
-       <height>30</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Exit</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="helpButton">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>780</x>
-       <y>660</y>
-       <width>120</width>
-       <height>30</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Help</string>
-     </property>
-    </widget>
-    <widget class="QGroupBox" name="summaryzonesFileGroup">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>150</y>
-       <width>525</width>
-       <height>80</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Summary zones file</string>
-     </property>
-     <widget class="QPushButton" name="summaryzonesFileButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>93</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="focusPolicy">
-       <enum>Qt::ClickFocus</enum>
-      </property>
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="summaryzonesFilePath">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>20</y>
-        <width>401</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-     <widget class="QComboBox" name="summaryzonesFileVariable">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>50</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_18">
-      <property name="geometry">
-       <rect>
-        <x>20</x>
-        <y>50</y>
-        <width>71</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>25</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>25</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>Variable:</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="logGroup">
-     <property name="geometry">
-      <rect>
-       <x>550</x>
-       <y>0</y>
-       <width>390</width>
-       <height>651</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Run log</string>
-     </property>
-     <widget class="QPlainTextEdit" name="logWindow">
-      <property name="geometry">
-       <rect>
-        <x>0</x>
-        <y>20</y>
-        <width>390</width>
-        <height>631</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="verifGroup">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>390</y>
-       <width>521</width>
-       <height>80</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Verification Parameters</string>
-     </property>
-     <widget class="QFrame" name="frame_5">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>50</y>
-        <width>421</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::NoFrame</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Plain</enum>
-      </property>
-      <property name="lineWidth">
-       <number>0</number>
-      </property>
-      <widget class="QRadioButton" name="verifAggregationSum">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>290</x>
-         <y>0</y>
-         <width>52</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Sum</string>
-       </property>
-      </widget>
-      <widget class="QRadioButton" name="verifAggregationAvg">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>205</x>
-         <y>0</y>
-         <width>80</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Average</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>201</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Aggregation from monthly data:</string>
-       </property>
+      <widget class="QWidget" name="rightPanel">
+       <layout class="QVBoxLayout" name="verticalLayoutRight">
+        <item>
+         <widget class="QGroupBox" name="runLogGroupBox">
+          <property name="title">
+           <string>Run Log</string>
+          </property>
+          <layout class="QVBoxLayout" name="runLogLayout">
+           <item>
+            <widget class="QPlainTextEdit" name="logWindow"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="clearLogButton">
+             <property name="text">
+              <string>Clear Log</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
-     <widget class="QLabel" name="label_6">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>171</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Year (of the first month):</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_5">
-      <property name="geometry">
-       <rect>
-        <x>310</x>
-        <y>20</y>
-        <width>50</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Period:</string>
-      </property>
-     </widget>
-     <widget class="QComboBox" name="verifPeriod">
-      <property name="geometry">
-       <rect>
-        <x>360</x>
-        <y>20</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="verifYear">
-      <property name="geometry">
-       <rect>
-        <x>180</x>
-        <y>20</y>
-        <width>100</width>
-        <height>25</height>
-       </rect>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QPushButton" name="clearLogButton">
-     <property name="geometry">
-      <rect>
-       <x>580</x>
-       <y>660</y>
-       <width>120</width>
-       <height>30</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Clear Log</string>
-     </property>
-    </widget>
-    <widget class="QGroupBox" name="outputsGroup3">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>590</y>
-       <width>261</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Outputs (other skill measures)</string>
-     </property>
-     <widget class="QCheckBox" name="outputRpss">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>40</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>RPSS</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="outputCemhit">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>241</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>CEM hits and misses</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QPushButton" name="stopButton">
-     <property name="geometry">
-      <rect>
-       <x>290</x>
-       <y>660</y>
-       <width>120</width>
-       <height>30</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Stop</string>
-     </property>
-    </widget>
-    <zorder>runButton</zorder>
-    <zorder>outDirGroup</zorder>
-    <zorder>obsFileGroup</zorder>
-    <zorder>climGroup</zorder>
-    <zorder>fcstFileGroup</zorder>
-    <zorder>outputsGroup1</zorder>
-    <zorder>outputsGroup2</zorder>
-    <zorder>exitButton</zorder>
-    <zorder>helpButton</zorder>
-    <zorder>summaryzonesFileGroup</zorder>
-    <zorder>logGroup</zorder>
-    <zorder>verifGroup</zorder>
-    <zorder>clearLogButton</zorder>
-    <zorder>outputsGroup3</zorder>
-    <zorder>stopButton</zorder>
-   </widget>
+    </item>
+   </layout>
   </widget>
-  <widget class="QStatusBar" name="statusbar">
-   <property name="minimumSize">
-    <size>
-     <width>0</width>
-     <height>0</height>
-    </size>
-   </property>
-   <property name="statusTip">
-    <string/>
-   </property>
-  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>

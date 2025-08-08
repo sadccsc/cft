@@ -11,9 +11,10 @@ in cft.py:
 
 #to do
 # include predictor code in output directory structure
-# download function
+# download function - fix paths
 # data saving
 # extend and clean up plotting
 # test data ingestion errorrs
-# GUI
+# file load and populate GUI on file load
 # multimodel forecast
+# missing values in predictand

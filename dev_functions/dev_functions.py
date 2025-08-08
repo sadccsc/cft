@@ -40,6 +40,9 @@ import geojson, json
 
 import gl
 
+
+
+
 seasons = ['JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO', 'SON', 'OND', 'NDJ', 'DJF']
 
 months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -52,13 +55,14 @@ msgColors={"ERROR": "red",
           }
 
 regressors = {
-        "Linear regression": LinearRegression,
-        'Lasso regression': Lasso,
-        'Ridge regression': Ridge,
-        'Random Forest': RandomForestRegressor,
+        "OLS": LinearRegression,
+        'Lasso': Lasso,
+        'Ridge': Ridge,
+        'RF': RandomForestRegressor,
         'MLP': MLPRegressor,
-        'Decision Trees': DecisionTreeRegressor,
+        'Trees': DecisionTreeRegressor,
     }
+
 
 
 tgtSeass=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan-Mar","Feb-Apr","Mar-May","Apr-Jun","May-Jul","Jun-Aug","Jul-Sep","Aug-Oct","Sep-Nov","Oct-Dec","Nov-Jan","Dec-Feb"]
@@ -67,13 +71,13 @@ srcMons=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
 
 timeAggregations={"sum","mean"}
 
-crossvalidators={
+crossvalidator_config={
     "KF":["K-Fold",{"n_splits":5}],
     "LOO":["Leave One Out",{}],
 }
 
 #can be read from json - potentially editable by user
-regressors = {
+regressor_config = {
     "OLS":["Linear regression", {}],
     "Lasso":["Lasso regression", {'alpha': 0.01}],
     "Ridge":["Ridge regression", {'alpha': 1.0}],
@@ -82,15 +86,10 @@ regressors = {
     "Trees":["Decision Trees", {'max_depth': 2}]
 }
 
-preprocessors={
+preprocessor_config={
     "PCR":["Principal Component Regression (PCR)", {}],
     "CCA":["Canonical Corelation Analysis (CCA)", {}]
 }
-
-
-def showMessage_simple(_message, _type="RUNTIME"):
-    #this print messages to log window, which are generated outside of the threaded function
-    print(_message)
 
 
 def showMessage(_message, _type="RUNTIME"):
@@ -262,60 +261,59 @@ def readPredictandCsv(csvfile):
     return dat, geoData
         
     
-def readPredictors():
-    predictors=[]
-    for predFile, predVar in gl.config["predictorFileList"]:
-        if predFile=="":
-            showMessage("predictor file not defined","ERROR")
-            return
+def readPredictor(_model):
+    predFile, predVar=gl.config["predictorFiles"][_model]
+    if predFile=="":
+        showMessage("predictor file not defined","ERROR")
+        return
 
-        showMessage("reading predictor from {}...".format(predFile), "INFO")
-        if not os.path.exists(predFile):
-            showMessage("file does not exist","ERROR")
-            return
+    showMessage("reading predictor from {}...".format(predFile), "INFO")
+    if not os.path.exists(predFile):
+        showMessage("file does not exist","ERROR")
+        return
 
-        showMessage("\tfile exists, reading...")
+    showMessage("\tfile exists, reading...")
 
-        #just to make sure...
+    #just to make sure...
 
-        ext=predFile.split(".")[-1]
-        if ext not in ["csv", "nc"]:
-            showMessage("only .csv and .nc files accepted, got {}".format(ext),"ERROR")
-            return
+    ext=predFile.split(".")[-1]
+    if ext not in ["csv", "nc"]:
+        showMessage("only .csv and .nc files accepted, got {}".format(ext),"ERROR")
+        return
 
-        #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        #this is where code is different for csv and netcdf formats
-        if ext=="nc":
-            predictor=readNetcdf(predFile, predVar)
-        else:
-            predictor=readCsv(predFile)
-            #need to convert to pandas
-        if predictor is None:
-            return
-        showMessage("Further processing predictor data...")
-        #select predictor month. IRI data comes filtered for a particular month, but other data sources will not be. So just to make sure.
-        srcMonth=month2int(gl.config['predictorMonth'])
-        
-        #making sure requested month is in the data
-        if not srcMonth in predictor.time.dt.month:
-            showMessage("file does not contain data for requested month ({})".format(gl.config['predictorMonth']),"ERROR")
-            return
-            
-        predictor=predictor.sel(time=predictor.time.dt.month==srcMonth)
-        
-        #preparing to convert xarray to pandas
-        predictor=predictor.stack(location=("lat", "lon"))
-        
-        #check for time steps in predictor, i.e. if predictor month was not wrongly selected by any chance.
-        #dropping nans alon location dimension
-        predictor=predictor.dropna("location")
-        
-        #converting to pandas
-        predictor=predictor.to_pandas()
-        
-        predictors.append(predictor)
-        showMessage("done\n", "INFO")
-    return predictors
+    #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    #this is where code is different for csv and netcdf formats
+    if ext=="nc":
+        predictor=readNetcdf(predFile, predVar)
+    else:
+        predictor=readCsv(predFile)
+        #need to convert to pandas
+    if predictor is None:
+        return
+    
+    showMessage("Further processing predictor data...")
+    #select predictor month. IRI data comes filtered for a particular month, but other data sources will not be. So just to make sure.
+    srcMonth=month2int(gl.config['predictorMonth'])
+
+    #making sure requested month is in the data
+    if not srcMonth in predictor.time.dt.month:
+        showMessage("file does not contain data for requested month ({})".format(gl.config['predictorMonth']),"ERROR")
+        return
+
+    predictor=predictor.sel(time=predictor.time.dt.month==srcMonth)
+
+    #preparing to convert xarray to pandas
+    predictor=predictor.stack(location=("lat", "lon"))
+
+    #check for time steps in predictor, i.e. if predictor month was not wrongly selected by any chance.
+    #dropping nans alon location dimension
+    predictor=predictor.dropna("location")
+
+    #converting to pandas
+    predictor=predictor.to_pandas()
+
+    showMessage("done\n", "INFO")
+    return predictor
 
 def readPredictand():
     obsFile=gl.config["predictandFileName"]
@@ -338,7 +336,7 @@ def readPredictand():
         return
     #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     #this is where code is different for csv and netcdf formats
-    if gl.config["predictandFileFormat"]=="netcdf":
+    if gl.config["predictandFileName"][-2:]=="nc":
         obsVar=gl.config["predictandVar"]
         if obsVar=="":
             showMessage("predictand variable not defined","ERROR")
@@ -357,21 +355,19 @@ def readPredictand():
         
     else:
         obsdata,geoData=readPredictandCsv(obsFile)
-        
+
     if obsdata is None:
         #if read functions return False, i.e. data could not be read
         return
     
     else:
         #resampling if necessary
-        if gl.config['fcstBaseTime']=="seas":
+        if gl.fcstBaseTime=="seas":
             showMessage("Resampling to seasonal...")
-            if gl.config['temporalAggregation']=="mean":
-                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth']))).mean()
-                 #obsdata=obsdata.rolling(3).mean()
+            if gl.config['timeAggregation']=="mean":
+                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetSeas'][0:3]))).mean()
             else:
-                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetMonth']))).sum()
-                 #obsdata=obsdata.rolling(3).sum()
+                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetSeas'][0:3]))).sum()
             #date of the 3 month rolling will be set to last month of the period, need to be offset by 2 months
             newtime=obsdata.index-pd.offsets.MonthBegin(2)
             obsdata.index=newtime
@@ -379,7 +375,7 @@ def readPredictand():
             showMessage("done\n")
             
         #select target season
-        tgtMonth=month2int(gl.config['fcstTargetMonth'])
+        tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
         obsdata=obsdata[obsdata.index.month==tgtMonth]
         
         return obsdata, geoData
@@ -387,14 +383,13 @@ def readPredictand():
     
 
 def readNetcdf(ncfile, ncvar):
-    ds = xr.open_dataset(ncfile, decode_times=False)
     try:
         #decode_times fixes the IRI netcdf calendar problem
         ds = xr.open_dataset(ncfile, decode_times=False)
     except:
         showMessage(("File cannot be read. please check if the file is properly formatted", "ERROR"))
         return
-
+    
     #aligning coordinate names    
     coordsubs={"lon":["longitude","X","Longitude","Lon"], "lat":["latitude","Y","Latitude","Lat"], "time":["T"]}
     for key in coordsubs.keys():
@@ -468,6 +463,8 @@ def readNetcdf(ncfile, ncvar):
 
     showMessage("done\n", "SUCCESS")
     
+    ds.close()
+    
     return(dat)
         
 
@@ -490,7 +487,7 @@ def zonalMean(_grid, _poly,_namecolumn):
 
 def aggregatePredictand(_data, _geodata, _poly):
     showMessage("aggregating...")
-    _poly = _poly[[gl.config["zonesID"], 'geometry']]
+    _poly = _poly[[gl.config["zonesAttribute"], 'geometry']]
     
     if isinstance(_geodata,xr.DataArray):
         #this is if geodata is xarray object
@@ -499,7 +496,7 @@ def aggregatePredictand(_data, _geodata, _poly):
         _data=_data.reindex(lat=np.sort(_data.lat)[::-1])
         _data.rio.set_spatial_dims(x_dim='lon', y_dim='lat')        
         _data=_data.rio.write_crs("epsg:4326")
-        _aggregated=zonalMean(_data, _poly,gl.config["zonesID"])
+        _aggregated=zonalMean(_data, _poly,gl.config["zonesAttribute"])
         
         showMessage("\tAverage values for {} regions derived from data for {} by {} grid".format(_aggregated.shape[1], _data.shape[1], _data.shape[2]))
         
@@ -574,7 +571,7 @@ def getHcstData(_predictand,_predictor):
 
 
 def getFcstData(_predictor):
-    tgtMonth=month2int(gl.config['fcstTargetMonth'])
+    tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
     tgtYear=int(gl.config['fcstTargetYear'])
     tgtDate="{}-{}".format(tgtYear,tgtMonth)
     _data=_predictor.loc[gl.predictorDate:gl.predictorDate]
@@ -754,7 +751,6 @@ def getFcstAnomalies(_det_fcst,_ref_data):
 
 
 def get_prob_hcst(_data, _pred_err, _terc_thresh, what):
-    #print(_pred_err+_data)
     if what=="above":
         prob=((_pred_err+_data>_terc_thresh).sum(0)/_pred_err.shape[0])
     elif what=="below":
@@ -767,7 +763,6 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
     #prediction error
     if _method=="empirical":
         pred_err=_Y_hcst-_Y_obs
-        #print((pred_err+_Y_fcst))
         #tercile probabilities
         prob_above_fcst=((pred_err+_Y_fcst.values>_terc_thresh.loc[0.66]).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
         prob_below_fcst=((pred_err+_Y_fcst.values<_terc_thresh.loc[0.33]).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
@@ -782,7 +777,6 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
         
     else:
         return None
-    print(prob_above_fcst.shape, prob_below_hcst.shape)
     terc_fcst=pd.concat([prob_below_fcst.T,prob_normal_fcst.T,prob_above_fcst.T], keys=["above","normal","below"], axis=1)
     terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["above","normal","below"],axis=1)
     return terc_fcst, terc_hcst
@@ -859,7 +853,6 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
         test2=np.sum(temp==0)<0.1*len(temp)
         if test1 and test2:
             #calculate roc scores
-            #print(entry)
             roc_score_above = np.round(roc_auc_score(_obs_tercile[entry]=="above", _prob_hcst["above"][entry]),2)
             roc_score_below = np.round(roc_auc_score(_obs_tercile[entry]=="below", _prob_hcst["below"][entry]),2)
             roc_score_normal = np.round(roc_auc_score(_obs_tercile[entry]=="normal", _prob_hcst["normal"][entry]),2)
@@ -920,10 +913,10 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
 
 
 def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector):
-    if gl.config["targetType"]=="grid":
+    if gl.targetType=="grid":
         scoresxr=_scores.unstack().to_xarray().transpose("level_2","lat","lon").rename({"level_2":"score"})
         for score in scoresxr.score.values:
-            outfile="{}/{}_{}_{}.jpg".format(_figuresDir,gl.config['predictandCategory'], score, _forecastID)
+            outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
             showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
@@ -941,10 +934,10 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector):
             plt.close()
             showMessage("done")
             
-    if gl.config["targetType"]=="zones":
+    if gl.targetType=="zones":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
-            outfile="{}/{}_{}_{}.jpg".format(_figuresDir,gl.config['predictandCategory'], score, _forecastID)
+            outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
             showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
@@ -966,10 +959,10 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector):
             plt.close()
             showMessage("done")
             
-    if gl.config["targetType"]=="points":
+    if gl.targetType=="points":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
-            outfile="{}/{}_{}_{}.jpg".format(_figuresDir,gl.config['predictandCategory'], score, _forecastID)
+            outfile=Path(_figuresDir, "{}_{}_{}.jpg".format(gl.config['predictandCategory'], score, _forecastID))
             showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
@@ -996,9 +989,9 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector):
             
             
 def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecastid):
-    if gl.config["targetType"] in ["zones","points"]:
+    if gl.targetType in ["zones","points"]:
         for entry in _obs.columns:
-            outfile="{}/{}_{}_{}.jpg".format(_figuresdir,gl.config['predictandCategory'], entry, _forecastid)
+            outfile=Path(_figuresdir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], entry, _forecastid))
             showMessage("plotting {}".format(outfile))
 
             fig=plt.figure(figsize=(7,4))
@@ -1010,14 +1003,14 @@ def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecasti
             pl.axhline(_tercthresh.loc[0.33][entry], color="0.7")
             pl.axhline(_tercthresh.loc[0.66][entry], color="0.7")
             pl.axhline(_tercthresh.loc[0.50][entry], color="0.7")
-            pl.set_title("Hindcast and forecast for {} in {} in region: {}\nissued in {}".format(gl.config["predictandName"], gl.config["fcstTgtCode"],entry,gl.predictorDate.strftime("%b %Y")))
+            pl.set_title("Hindcast and forecast for {} in {} in region: {}\nissued in {}".format(gl.config["predictandVar"], gl.config["fcstTargetSeas"],entry,gl.predictorDate.strftime("%b %Y")))
             plt.legend()
             
             plt.savefig(outfile)            
             plt.close()
         showMessage("done")
     else:    
-        messageShow("forecasting grid, skipping of time series plotting")
+        showMessage("forecasting grid, skipping of time series plotting", "INFO")
 
         
         
@@ -1048,28 +1041,28 @@ def populateGui():
             item=getattr(gl.window, comboName, None)
             item.clear()
             #item.addItem("", "")
-            for key in preprocessors:
-                item.addItem(preprocessors[key][0], key)
+            for key in preprocessor_config:
+                item.addItem(preprocessor_config[key][0], key)
             
         comboName="comboBox_regression{}".format(model)
         if hasattr(gl.window, comboName):
             item=getattr(gl.window, comboName, None)
             item.clear()
             #item.addItem("", "")
-            for key in regressors:
-                item.addItem(regressors[key][0], key)
+            for key in regressor_config:
+                item.addItem(regressor_config[key][0], key)
                 
         comboName="comboBox_crossval{}".format(model)
         if hasattr(gl.window, comboName):
             item=getattr(gl.window, comboName, None)
             item.clear()
             #item.addItem("", "")
-            for key in crossvalidators:
-                item.addItem(crossvalidators[key][0], key)
+            for key in crossvalidator_config:
+                item.addItem(crossvalidator_config[key][0], key)
 
                 
     # read data from config
-    gl.window.lineEditDirectory.setText(gl.config['downloadDir'])
+    gl.window.lineEdit_rootdir.setText(gl.config['rootDir'])
     gl.window.lineEdit_tgtyear.setText(str(gl.config['fcstTargetYear']))
     gl.window.lineEdit_srcyear.setText(str(gl.config['predictorYear']))
     gl.window.comboBox_srcmon.setCurrentText(gl.config['predictorMonth'])
@@ -1080,7 +1073,7 @@ def populateGui():
 
     for model in range(5):
         for var in ["minLon","maxLon","minLat","maxLat"]:
-            itemName="lineEdit_{}{}".format(var.lower(), model)
+            itemName="lineEdit_{}{}".format(var, model)
             if hasattr(gl.window, itemName):
                 item=getattr(gl.window, itemName, None)
                 item.setText(str(gl.config['predictorExtents'][model][var]))
@@ -1088,19 +1081,19 @@ def populateGui():
         itemName="comboBox_crossval{}".format(model)
         if hasattr(gl.window, itemName):
             item=getattr(gl.window, itemName, None)
-            setval=crossvalidators[gl.config["crossval"][model]][0]
+            setval=crossvalidator_config[gl.config["crossval"][model]][0]
             item.setCurrentText(setval)
 
         itemName="comboBox_regression{}".format(model)
         if hasattr(gl.window, itemName):
             item=getattr(gl.window, itemName, None)
-            setval=regressors[gl.config["regression"][model]][0]
+            setval=regressor_config[gl.config["regression"][model]][0]
             item.setCurrentText(setval)
             
         itemName="comboBox_preproc{}".format(model)
         if hasattr(gl.window, itemName):
             item=getattr(gl.window, itemName, None)
-            setval=preprocessors[gl.config["preproc"][model]][0]
+            setval=preprocessor_config[gl.config["preproc"][model]][0]
             item.setCurrentText(setval)
 
         itemName="lineEdit_predictorfile{}".format(model)
@@ -1113,8 +1106,7 @@ def populateGui():
         if hasattr(gl.window, itemName):
             item=getattr(gl.window, itemName, None)
             setval=gl.config["predictorFiles"][model][1]
-            print(setval)
-            #remove once function to read file is implemented
+            #remove once (if) function to read file is implemented
             item.addItem(setval, setval)
             item.setCurrentText(setval)
     
@@ -1140,7 +1132,7 @@ def makeConfig():
     gl.config={}
 
     #defined parameters/variables
-    gl.config['downloadDir']="../test_data"
+    gl.config['rootDir'] = "../test_data"
 
     gl.config['predictorYear'] = 2025
     gl.config['predictorMonth'] = "Jun"
@@ -1153,17 +1145,13 @@ def makeConfig():
     gl.config["climStartYr"]=1994
 
     gl.config["predictorExtents"]=[{'minLat':-60,'maxLat':60,'minLon':-180,'maxLon':180},
-                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""},
-                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""},
-                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""},
-                                  {'minLat':"",'maxLat':"",'minLon':"",'maxLon':""}
                                   ]
 
 
-    gl.config['predictorFiles'] = [["./data/SST_Jun_1960-2025.nc","sst"],["",""],["",""],["",""],["",""]]
-    gl.config['crossval']=["LOO","","","",""]
-    gl.config['preproc']=["CCA","","","",""]
-    gl.config['regression']=["Lasso","","","",""]
+    gl.config['predictorFiles'] = [["./data/SST_Jun_1960-2025.nc","sst"]]
+    gl.config['crossval']=["KF"]
+    gl.config['preproc']=["PCR"]
+    gl.config['regression']=["OLS"]
 
     gl.config['timeAggregation']="sum"
     gl.config["predictandFileName"]="./data/pr_mon_chirps-v2.0_198101-202308.nc"
@@ -1175,28 +1163,5 @@ def makeConfig():
 
     gl.config["overlayFile"]="data/Botswana.geojson"
 
-    #gl.config["predictandFileName"]="./data/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_cft_stations_BWA.csv"
-    #gl.config["predictandFileName"]="./data/predictand_test_format.csv"
-    #gl.config["predictandVar"]=""
 
-
-
-    # derived
-    gl.config['fcstBaseTime']="seas"
-    gl.config['predictandName'] = 'rainfall'
-    gl.config['predictandMissingValue']=-999
-    gl.config['expVariance']=0.8
-    gl.config['model']="Linear regression"
-    gl.maxLeadTime=6
-    gl.maxPercentPCsRetain=15
-    gl.config['rootDir']="./forecast"
-
-    #set target type 
-    if gl.config["zonesAggregate"]:
-        gl.config["targetType"]="zones"
-    elif gl.config["predictandFileFormat"]=="csv":
-        gl.config["targetType"]="points"
-    else:
-        gl.config["targetType"]="grid"
-    gl.config["targetType"]
  

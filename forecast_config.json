@@ -1,5 +1,5 @@
 {
-    "rootDir": "../test_data1",
+    "rootDir": "../test_data",
     "predictorYear": 2025,
     "predictorMonth": "Jun",
     "fcstTargetSeas": "Dec",

@@ -10,11 +10,19 @@ in cft.py:
 
 
 #to do
-# include predictor code in output directory structure
+
+# CEM categories
 # download function - fix paths
-# data saving
+# add zoning to main menu
+# data saving - results of pca and cca
 # extend and clean up plotting
+# add overlay file to plotting
 # test data ingestion errorrs
-# file load and populate GUI on file load
+
+
 # multimodel forecast
-# missing values in predictand
+# filling missing values in predictand
+# regridding of gridded predictand to a reasonable resolution
+# include more skill measures
+# optimize skill calculation on gridded data
+# parameters that are not defined throug gui to be read from json dictionary

@@ -49,6 +49,24 @@ predictor
      </widget>
     </item>
     <item>
+     <widget class="QPushButton" name="zoningButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Homogeneous 
+zones</string>
+      </property>
+      <property name="wordWrap" stdset="0">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+
+    <item>
      <widget class="QPushButton" name="forecastButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">

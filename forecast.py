@@ -29,19 +29,29 @@ import traceback
 from pathlib import Path
 
 import gl
-from dev_functions.dev_functions import *
+from functions.functions import *
 
-# derived
+# in code
+gl.configFile="forecast.json"
+
+#this should be read from a "deep config json"
 gl.maxLeadTime=6
-gl.configFile="forecast_config.json"
+
+#this should be added to gui
+gl.predictandCategory="rainfall"
+gl.predictandMissingValue=-999
 
 
 
+    
 def computeModel(model):
     
-    readGUI()    
-    saveConfig()
+    #read config from gui
+    readGUI()
     
+    #save config to json file
+    saveConfig()
+        
     showMessage(model, "INFO")
     leadTime=getLeadTime()
     
@@ -56,18 +66,27 @@ def computeModel(model):
         return
 
     #reading predictand data - this will calculate seasonal from monthly if needed.
-    predictand, geoData=readPredictand()
-    if predictand is None:
+    result=readPredictand()
+    if result is None:
         showMessage("Predictand could not be read, stopping early.", "ERROR")
         return
-
+    
+    predictand0, geoData0=result
+    
     if gl.config["zonesAggregate"]:
         zonesVector=gpd.read_file(gl.config["zonesFile"])
         showMessage("Aggregating data to zones read from {} ...".format(gl.config["zonesFile"]))
-        predictand,geoData=aggregatePredictand(predictand, geoData, zonesVector)
+        predictand,geoData=aggregatePredictand(predictand0, geoData0, zonesVector)
     else:
         zonesVector=None
-        
+        predictand=predictand0.copy()
+        geoData=geoData0.copy()
+    
+    overlayVector=None
+    if gl.config["overlayFile"] != "":
+        if os.path.exists(gl.config["overlayFile"]):
+            overlayVector=gpd.read_file(gl.config["overlayFile"])
+
     #defining target date for forecast. If seasonal - then this is the first month of the season.
     fcstTgtDate=pd.to_datetime("01 {} {}".format(gl.config['fcstTargetSeas'][0:3], gl.config['fcstTargetYear']))
     
@@ -103,7 +122,15 @@ def computeModel(model):
         showMessage("Terciles could not be calculated, stopping early.", "ERROR")
                 
     obsTercile,tercThresh=result
+    
+    #locations with too many identical values
+    bad=(tercThresh.loc[0.66]==tercThresh.loc[0.5]) | (tercThresh.loc[0.33]==tercThresh.loc[0.5])
+    good=np.invert(bad)
 
+    #removing bad locations
+    predictandHcst=predictandHcst.loc[:,good]
+    tercThresh=tercThresh.loc[:,good]
+    obsTercile=obsTercile.loc[:,good]
 
     #setting up cross-validation
     cvkwargs=crossvalidator_config[gl.config['crossval'][model]][1]
@@ -153,13 +180,20 @@ def computeModel(model):
     
     #deriving probabilistic prediction
     showMessage("Calculating probabilistic hindcast and forecast using error variance...")
-    result=probabilisticForecast(cvHcst, predictandHcst,detFcst["forecast"],tercThresh)
+    result=probabilisticForecast(cvHcst, predictandHcst,detFcst["value"],tercThresh)
     if result is None:
         showMessage("Probabilistic forecast could not be calculated", "ERROR")
         return
     probFcst,probHcst=result
-    showMessage("Hindcast and forecast calculated.")
     
+    showMessage("Calculating tercile forecast (highest probability category)")
+    
+    tercFcst=getTercCategory(probFcst)
+    tercHcst=getTercCategory(probHcst)
+    
+    showMessage("Calculating CEM categories")
+    cemFcst=getCemCategory(probFcst)
+    cemHcst=getCemCategory(probHcst)
     
     #calculating skill
     showMessage("Calculating skill scores...")
@@ -167,6 +201,7 @@ def computeModel(model):
     if scores is None:
         showMessage("Skill could not be calculated", "ERROR")
         return
+    
     
     #saving data
     showMessage("Plotting forecast maps and saving output files...")    
@@ -185,9 +220,13 @@ def computeModel(model):
         #this is for plotting
         detfcst=detFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         probfcst=probFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        tercfcst=tercFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        cemfcst=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         #this is for writing
         probfcst_write=probFcst.unstack().to_xarray()
         probhcst_write=probHcst.unstack().to_xarray()
+        tercfcst_write=tercFcst.unstack().to_xarray()
+        cemhcst_write=cemHcst.unstack().to_xarray()
         detfcst_write=detFcst.unstack().to_xarray()
         dethcst_write=cvHcst.stack(level=[0,1], future_stack=True).to_xarray().to_dataset(name=gl.config['predictandVar'])
         scores_write=scores.T.to_xarray()
@@ -196,9 +235,13 @@ def computeModel(model):
         #this is for plotting
         detfcst=detFcst.stack(future_stack=True).droplevel(0).T
         probfcst=probFcst.stack(future_stack=True).droplevel(0).T
+        tercfcst=tercFcst.stack(future_stack=True).droplevel(0).T
+        cemfcst=cemFcst.stack(future_stack=True).droplevel(0).T
         #this is for writing
-        detfcst_write=detFcst.stack(future_stack=True).droplevel(0).T
-        probfcst_write=probFcst.stack(future_stack=True).droplevel(0).T
+        detfcst_write=detfcst.copy()
+        probfcst_write=probfcst.copy()
+        tercfcst_write=tercfcst.copy()
+        cemfcst_write=cemfcst.copy()
         dethcst_write=cvHcst.copy()
         probhcst_write=probHcst.copy()
         scores_write=scores.copy()
@@ -219,12 +262,14 @@ def computeModel(model):
     outputFile=Path(outputDir, "{}_probabilistic-hcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(probhcst_write,2),outputFile)
 
-    plotMaps(detfcst, geoData, mapsDir, forecastID, zonesVector)
-    plotMaps(probfcst, geoData, mapsDir, forecastID, zonesVector)
+    plotMaps(detfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
+    plotMaps(probfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
+    plotMaps(cemfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
+    plotMaps(tercfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
 
     showMessage("Plotting skill maps...")    
     #plotting skill scores
-    plotMaps(scores, geoData, mapsDir, forecastID, zonesVector)
+    plotMaps(scores, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
 
     showMessage("Plotting time series...") 
     plotTimeSeries(cvHcst,predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID)
@@ -235,31 +280,6 @@ def computeModel(model):
     return
 
 
-def readVariablesShpfile(_file):
-    # Open the shapefile
-    showMessage("reading variables from {}".format(_file))
-    gdf = gpd.read_file(_file)
-    
-    # If you want to exclude the geometry column:
-    attributes = [col for col in gdf.columns if col != "geometry"]
-    if len(attributes)>0:
-        return attributes
-    else:
-        return
-            
-def readVariablesNcfile(_file):
-    # Open the shapefile
-    showMessage("reading variables from {}".format(_file))
-    ds = xr.open_dataset(_file, decode_times=False)
-    
-    # If you want to exclude the geometry column:
-    variables = ds.variables
-    variables =[x for x in variables if x not in ["T","time","lat","lon","Lat","Lon","Latitude","Longitude","X","Y"]]
-    ds.close()
-    if len(variables)>0:
-        return variables
-    else:
-        return
     
 def browse(line_edit, mode='file', parent=None, caption="Select File", file_filter="All Files (*)", combo_box=None):
     if mode == 'file':
@@ -275,18 +295,13 @@ def browse(line_edit, mode='file', parent=None, caption="Select File", file_filt
     if combo_box:
         # Read variables and populate the comboBox
         combo_box.clear()
-        ext=os.path.splitext(path)[1]
-        if ext==".nc":
-            variables = readVariablesNcfile(path)
-        elif ext in [".geojson",".shp"]:
-            variables = readVariablesShpfile(path)
-        else:
-            variables=[Path(path).stem.split("_")[0]]
+        variables=readVariablesFile(path)
         if variables is None:
-            raise RuntimeError("File with variables/attributes expected. Got nothing.")
-            
-        combo_box.addItems(variables)
+            showMessage("Problem reading variables from file".format(_file),"NONCRITICAL")            
+        else:
+            combo_box.addItems(variables)
 
+        
 class Worker(QtCore.QThread):
     log = QtCore.pyqtSignal(str)
     finished = QtCore.pyqtSignal(str)
@@ -427,8 +442,6 @@ preprocessors={
     "NONE":["No preprocessing", {}],
 }
 
-
-
 if os.path.exists(gl.configFile):
     try:
         showMessage("reading config from: {}".format(gl.configFile))
@@ -443,7 +456,5 @@ else:
     showMessage("config file {} does not exist. Making default config.".format(gl.configFile))
     makeConfig()
     populateGui()
-
-
-        
+    
 sys.exit(app.exec_())

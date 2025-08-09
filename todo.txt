@@ -1,28 +1,29 @@
+#to do
+- create installer - most likely 
+
 in dowload.py:
 - implement control of lat lon to make sure integers within range
 - implement download and processing of forecast data
 
+in forecast.py
+
+- extend and clean up plotting 
+- include skill-masked plots
+- catch error when some zones get dropped if spatial aggregation is used
+- include more skill measures
+- data saving - diagnostics - results of pca and cca
+- test data ingestion errors for csv files
+- add missing value to gui
+- add category of predictand to gui
+- add buttons to clear file selectors to gui
+- add "too dry to forecast" colour to plots
+- implement ability to use forecast data as predictor - it should work even now, but there is a need to make sure dates are handled correctly.
+
+# wish list:
+- multimodel forecast
+- filling missing values in predictand
+- regridding of gridded predictand to a coarser resolution if domain too large
+- optimize skill calculation on gridded data - it takes much longer than calculations of the model
+- parameters that are not defined throug gui to be read from json file (in this way, advanced users can change them)
 
 
-in cft.py:
-
-- margins of buttons
-
-
-#to do
-
-# CEM categories
-# download function - fix paths
-# add zoning to main menu
-# data saving - results of pca and cca
-# extend and clean up plotting
-# add overlay file to plotting
-# test data ingestion errorrs
-
-
-# multimodel forecast
-# filling missing values in predictand
-# regridding of gridded predictand to a reasonable resolution
-# include more skill measures
-# optimize skill calculation on gridded data
-# parameters that are not defined throug gui to be read from json dictionary

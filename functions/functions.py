@@ -65,6 +65,12 @@ regressors = {
     }
 
 
+terc2num={"below":0,"normal":1,"above":2}
+num2terc={0: "below",1:"normal",2:"above"}
+
+cem2num={"below":0,"normal-to-below":1,"normal-to-above":2,"above":3}
+num2cem={0:"below",1:"normal-to-below",2:"normal-to-above",3:"above"}
+
 
 tgtSeass=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan-Mar","Feb-Apr","Mar-May","Apr-Jun","May-Jul","Jun-Aug","Jul-Sep","Aug-Oct","Sep-Nov","Oct-Dec","Nov-Jan","Dec-Feb"]
 
@@ -243,11 +249,11 @@ def readPredictandCsv(csvfile):
             msg="Data should contain values for longitude of stations in one of the top three rows, marked by word 'Lon' in the first column of data. {} does not. Please inspect the data file.".format(csvfile)
             showMessage(msg, "ERROR")
             
-    if gl.config['predictandMissingValue'] != "":
-        dat[dat==gl.config['predictandMissingValue']]=np.nan
+    if gl.predictandMissingValue != "":
+        dat[dat==gl.predictandMissingValue]=np.nan
 
     #check only if rainfall
-    if  gl.config['predictandCategory'] =='rainfall':
+    if  gl.predictandCategory =='rainfall':
         dat[dat<0]=np.nan
 
     nancount=np.sum(np.isnan(dat), axis=0).sum()
@@ -313,13 +319,8 @@ def readPredictor(_model):
     #this is where code is different for csv and netcdf formats
     if ext=="nc":
         predictor=readNetcdf(predFile, predVar)
-        
-        #making sure requested month is in the data
-        if not srcMonth in predictor.time.dt.month:
-            showMessage("file does not contain data for requested month ({})".format(gl.config['predictorMonth']),"ERROR")
+        if predictor is None:
             return
-
-        predictor=predictor.sel(time=predictor.time.dt.month==srcMonth)
 
         #preparing to convert xarray to pandas
         predictor=predictor.stack(location=("lat", "lon"))
@@ -333,18 +334,40 @@ def readPredictor(_model):
 
     else:
         predictor=readPredictorCsv(predFile)
+
         
-        #making sure requested month is in the data
-        if not srcMonth in predictor.index.month:
-            showMessage("file does not contain data for requested month ({})".format(gl.config['predictorMonth']),"ERROR")
-            return
-        predictor=predictor[predictor.index.month==srcMonth]
-        
+    #making sure requested month is in the data
+    if not srcMonth in predictor.index.month:
+        showMessage("file does not contain data for requested month ({})".format(gl.config['predictorMonth']),"ERROR")
+        return
+    
+    predictor=predictor[predictor.index.month==srcMonth]    
     if predictor is None:
         return
+    
+   
+    datdates=predictor.index
+    firstdatdate=datdates.strftime('%Y-%m-%d')[0]
+    lastdatdate=datdates.strftime('%Y-%m-%d')[-1]
 
+    showMessage("Predictor file covers period of: {} to {}".format(firstdatdate,lastdatdate),"RUNTIME")
+
+    firstdatyear=datdates.year[0]
+    lastdatyear=datdates.year[-1]
+
+    #check if covers climatological period
+    if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
+        showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
+        return
+    
+    #check if value for the forecast year is in data
+    if not gl.predictorDate in datdates:
+        showMessage("Predictor data do not include forecast date {}".format(gl.predictorDate.strftime("%b %Y")), "ERROR")
+        return
+        
     showMessage("done\n", "INFO")
     return predictor
+
 
 def readPredictand():
     obsFile=gl.config["predictandFileName"]
@@ -373,6 +396,10 @@ def readPredictand():
             showMessage("predictand variable not defined","ERROR")
             return
         obsdata=readNetcdf(obsFile, obsVar) #this returns xarray
+        if obsdata is None:
+            showMessage("could not read requested variable from file","ERROR")
+            return
+            
         geoData=obsdata[0,:]
         #preparing to convert xarray to pandas
         obsdata=obsdata.stack(location=("lat", "lon"))
@@ -386,30 +413,46 @@ def readPredictand():
         
     else:
         obsdata,geoData=readPredictandCsv(obsFile)
-
+        
     if obsdata is None:
-        #if read functions return False, i.e. data could not be read
+        showMessage("could not read requested variable from file","ERROR")
         return
     
-    else:
-        #resampling if necessary
-        if gl.fcstBaseTime=="seas":
-            showMessage("Resampling to seasonal...")
-            if gl.config['timeAggregation']=="mean":
-                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetSeas'][0:3]))).mean()
-            else:
-                 obsdata=obsdata.resample(time="QS-{}".format(upper(gl.config['fcstTargetSeas'][0:3]))).sum()
-            #date of the 3 month rolling will be set to last month of the period, need to be offset by 2 months
-            newtime=obsdata.index-pd.offsets.MonthBegin(2)
-            obsdata.index=newtime
-            obsdata=obsdata.dropna()
-            showMessage("done\n")
-            
-        #select target season
-        tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
-        obsdata=obsdata[obsdata.index.month==tgtMonth]
-        
-        return obsdata, geoData
+    #resampling if necessary
+    if gl.fcstBaseTime=="seas":
+        showMessage("Resampling to seasonal...")
+        if gl.config['timeAggregation']=="mean":
+             obsdata=obsdata.resample("QS-{}".format((gl.config['fcstTargetSeas'][0:3]).upper())).mean()
+        else:
+             obsdata=obsdata.resample("QS-{}".format((gl.config['fcstTargetSeas'][0:3]).upper())).sum()
+
+    obsdata=obsdata.dropna()
+
+    #select target season
+    tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
+    if not tgtMonth in obsdata.index.month:
+        showMessage("Predictand data do not contain data for requested month ({})".format(gl.config['fcstTargetSeas'][0:3]),"ERROR")
+        return
+    obsdata=obsdata[obsdata.index.month==tgtMonth]
+    if obsdata is None:
+        return        
+
+    #check for climatological period
+    datdates=obsdata.index
+    firstdatdate=datdates.strftime('%Y-%m-%d')[0]
+    lastdatdate=datdates.strftime('%Y-%m-%d')[-1]
+
+    showMessage("Predictant file covers period of: {} to {}".format(firstdatdate,lastdatdate),"RUNTIME")
+
+    firstdatyear=datdates.year[0]
+    lastdatyear=datdates.year[-1]
+
+    #check if covers climatological period
+    if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
+        showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
+        return
+
+    return obsdata, geoData
 
     
 
@@ -446,7 +489,7 @@ def readNetcdf(ncfile, ncvar):
     #testing if variable has all required dimensions
     test=[x not in dat.coords.keys() for x in ["lat","lon","time"]]
     if np.sum(test)>0:
-        message="requested variable should have time,latitude and longitude coordinates. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(ncfile,ncvar)
+        msg="requested variable should have time,latitude and longitude coordinates. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(ncfile,ncvar)
         showMessage(msg, "ERROR")
         return
 
@@ -538,7 +581,7 @@ def aggregatePredictand(_data, _geodata, _poly):
         _joined = gpd.sjoin(_points, _poly, how="inner", predicate="within").drop(columns="index_right")
 
         #aggregating 
-        _aggregated = _joined.groupby(gl.config["zonesID"]).mean(numeric_only=True).T
+        _aggregated = _joined.groupby(gl.config["zonesAttribute"]).mean(numeric_only=True).T
         _aggregated.index=_data.index
 
         showMessage("\tAverage values for {} regions derived from data for {} locations".format(_aggregated.shape[1], _points.shape[1]))
@@ -824,7 +867,7 @@ def getFcstAnomalies(_det_fcst,_ref_data):
     absanom=_det_fcst-_ref_data.mean()
     percanom=(_det_fcst-_ref_data.mean())/_ref_data.mean()*100
     percnorm=_det_fcst/_ref_data.mean()*100
-    output=pd.concat([_det_fcst,absanom,percanom,percnorm], keys=["forecast","absolute_anomaly","percent_anomaly","percent_normal"], axis=1)
+    output=pd.concat([_det_fcst,absanom,percanom,percnorm], keys=["value","absolute_anomaly","percent_anomaly","percent_normal"], names=["category"], axis=1)
     return output
 
 
@@ -856,8 +899,8 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
         
     else:
         return None
-    terc_fcst=pd.concat([prob_below_fcst.T,prob_normal_fcst.T,prob_above_fcst.T], keys=["above","normal","below"], axis=1)
-    terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["above","normal","below"],axis=1)
+    terc_fcst=pd.concat([prob_below_fcst.T,prob_normal_fcst.T,prob_above_fcst.T], keys=["above","normal","below"],  names=["category"], axis=1)
+    terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["above","normal","below"], names=["category"],axis=1)
     return terc_fcst, terc_hcst
 
 
@@ -922,22 +965,34 @@ cat2num={"below":0,"normal":1,"above":2}
 
 def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
     #iterating through stations/locations
+    index=["correlation",
+       "MAPE",
+       "RMSE",
+       "ROC_above",
+       "ROC_normal",
+       "ROC_below",
+       "rpss"]
+
     allscores=[]
     for entry in _det_hcst.columns:
         #checks
         temp=_predictand_hcst[entry]
-        #identical values
-        test1=len(np.unique(temp))>1
-        #zeros
-        test2=np.sum(temp==0)<0.1*len(temp)
-        if test1 and test2:
-            #calculate roc scores
+        #identical values - should be less than 10% of all
+        
+        counts = temp.value_counts()
+        max_count = counts.max()
+        test1=False #max_count>0.3*len(temp)
+        
+        if test1:
+            most_frequent_values = counts[counts == max_count].index.tolist()
+            showMessage("\tnot able to calculate skill for {}. {} identical values of {} in data".format(entry, max_count, most_frequent_values))
+            entryscores=pd.Series([np.nan,np.nan,np.nan,np.nan, np.nan,np.nan,np.nan], index=index)                       
+        else:
             roc_score_above = np.round(roc_auc_score(_obs_tercile[entry]=="above", _prob_hcst["above"][entry]),2)
             roc_score_below = np.round(roc_auc_score(_obs_tercile[entry]=="below", _prob_hcst["below"][entry]),2)
             roc_score_normal = np.round(roc_auc_score(_obs_tercile[entry]=="normal", _prob_hcst["normal"][entry]),2)
-            #plot roc curves here
             cor=np.round(np.corrcoef(_det_hcst[entry],_predictand_hcst[entry])[0][1],2)
-            r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
+            #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
             ev=np.round(explained_variance_score(_det_hcst[entry],_predictand_hcst[entry]))
             mape=np.round(mean_absolute_percentage_error(_det_hcst[entry],_predictand_hcst[entry]),2)
             rmse=np.round((mean_squared_error(_det_hcst[entry],_predictand_hcst[entry])**0.5),2)
@@ -965,134 +1020,40 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
             #calculate rpss
             rpss=rpss_score(phcst, pclim,obsterc)
 
-            index=["correlation",
-                   "r2",
-                   "MAPE",
-                   "RMSE",
-                   "ROC_above",
-                   "ROC_normal",
-                   "ROC_below",
-                   "rpss"]
             # rpss
             # ignorance score
             # reliability diagram - plot
             # heidtke skill score for most probable forecast
 
-            entryscores=pd.Series([cor,r2,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss], index=index)
-        else:
-            showMessage("\tnot able to calculate skill for {}".format(entry))
-            entryscores=pd.Series([np.nan,np.nan,np.nan,np.nan,np.nan, np.nan,np.nan,np.nan], index=index)
-            
+            entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss], index=index)
+
         allscores.append(entryscores)
     scores=pd.concat(allscores, axis=1, keys=_det_hcst.columns)
+    scores.index.name = "category"        
     return(scores)
 
 
 
 
 
-def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector):
+
+        
+        
+def saveConfig():
+    #defined parameters/variables
+    with open(gl.configFile, "w") as f:
+        json.dump(gl.config, f, indent=4)
+        showMessage("saved config to: {}".format(gl.configFile), "INFO")
+
+        
+def writeOutput(_data, _outputfile):
     if gl.targetType=="grid":
-        scoresxr=_scores.unstack().to_xarray().transpose("level_2","lat","lon").rename({"level_2":"score"})
-        for score in scoresxr.score.values:
-            outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
-            showMessage("plotting {}".format(outfile))
-            fig=plt.figure(figsize=(5,5))
-            pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
+        _data.to_netcdf(_outputfile)
+    else:
+        _data.to_csv(_outputfile)
+    showMessage("written {}".format(_outputfile), "INFO")
+    return
 
-            colorbar=False
-            cmap=plt.cm.BrBG
-            m=scoresxr.sel(score=score).plot(cmap=cmap, add_colorbar=colorbar)
-            ax=fig.add_axes([0.95,0.25,0.03,0.6])
-
-            cbar = fig.colorbar(m, cax=ax, label="mm/degC")
-            if not _zonesVector is None:
-                _zonesVector.boundary.plot()
-                
-            plt.savefig(outfile)
-            plt.close()
-            showMessage("done")
-            
-    if gl.targetType=="zones":
-        _geodata=_geoData.copy().join(_scores.T)
-        for score in _scores.index:
-            outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
-            showMessage("plotting {}".format(outfile))
-            fig=plt.figure(figsize=(5,5))
-            pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
-            
-            cmap=plt.cm.Grays
-            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl)
-            _geodata.boundary.plot(ax=pl)
-            
-            ax=fig.add_axes([0.95,0.25,0.03,0.6])
-            
-            # add colorbar
-            norm = colors.Normalize(vmin=_geodata[score].min(), vmax=_geodata[score].max())
-            cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-
-            # add colorbar
-            ax_cbar = fig.colorbar(cbar, cax=ax, label=score)
-
-            plt.savefig(outfile)
-            plt.close()
-            showMessage("done")
-            
-    if gl.targetType=="points":
-        _geodata=_geoData.copy().join(_scores.T)
-        for score in _scores.index:
-            outfile=Path(_figuresDir, "{}_{}_{}.jpg".format(gl.config['predictandCategory'], score, _forecastID))
-            showMessage("plotting {}".format(outfile))
-            fig=plt.figure(figsize=(5,5))
-            pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
-            
-            cmap=plt.cm.Grays
-            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl)
-            
-            ax=fig.add_axes([0.95,0.25,0.03,0.6])
-            
-            # add colorbar
-            norm = colors.Normalize(vmin=_geodata[score].min(), vmax=_geodata[score].max())
-            cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-
-            # add colorbar
-            ax_cbar = fig.colorbar(cbar, cax=ax, label=score)
-            
-            if not _zonesVector is None:
-                _zonesVector.boundary.plot(ax=pl)
-
-            plt.savefig(outfile)
-            plt.close()
-            showMessage("done")   
-            
-            
-            
-def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecastid):
-    if gl.targetType in ["zones","points"]:
-        for entry in _obs.columns:
-            outfile=Path(_figuresdir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], entry, _forecastid))
-            showMessage("plotting {}".format(outfile))
-
-            fig=plt.figure(figsize=(7,4))
-            pl=fig.add_subplot(1,1,1)
-
-            _obs[entry].plot(label="observed")
-            _dethcst[entry].plot(label="deterministic hindcast")
-            _detfcst["forecast"][entry].plot(marker="o",label="forecast", markersize=10)
-            pl.axhline(_tercthresh.loc[0.33][entry], color="0.7")
-            pl.axhline(_tercthresh.loc[0.66][entry], color="0.7")
-            pl.axhline(_tercthresh.loc[0.50][entry], color="0.7")
-            pl.set_title("Hindcast and forecast for {} in {} in region: {}\nissued in {}".format(gl.config["predictandVar"], gl.config["fcstTargetSeas"],entry,gl.predictorDate.strftime("%b %Y")))
-            plt.legend()
-            
-            plt.savefig(outfile)            
-            plt.close()
-        showMessage("done")
-    else:    
-        showMessage("forecasting grid, skipping of time series plotting", "INFO")
-
-        
-        
 def populateGui():
     #populate comboBoxes
     # target season
@@ -1180,30 +1141,33 @@ def populateGui():
             item=getattr(gl.window, itemName, None)
             setval=gl.config["predictorFiles"][model][0]
             item.setText(setval)
+            variables=readVariablesFile(setval)
     
         itemName="comboBox_predictorvar{}".format(model)
         if hasattr(gl.window, itemName):
             item=getattr(gl.window, itemName, None)
             setval=gl.config["predictorFiles"][model][1]
             #remove once (if) function to read file is implemented
-            item.addItem(setval, setval)
-            item.setCurrentText(setval)
+            item.addItems(variables)
+            if setval in variables:
+                item.setCurrentText(setval)
     
     gl.window.lineEdit_predictandfile.setText(gl.config['predictandFileName'])
     #for the time being - have to have a function that reads this file and populates variable list
-    key=gl.config['predictandVar']            
+    variables=readVariablesFile(gl.config['predictandFileName'])
     gl.window.comboBox_predictandvar.clear()
-    gl.window.comboBox_predictandvar.addItem(key, key)
-    gl.window.comboBox_predictandvar.setCurrentText(gl.config['predictandVar'])
+    gl.window.comboBox_predictandvar.addItems(variables)
+    if gl.config['predictandVar'] in variables:
+        gl.window.comboBox_predictandvar.setCurrentText(gl.config['predictandVar'])
             
     gl.window.checkBox_zonesaggregate.setChecked(gl.config["zonesAggregate"])
     
     gl.window.lineEdit_zonesfile.setText(gl.config['zonesFile'])
-    #for the time being - have to have a function that reads this file and populates variable list
-    key=gl.config['zonesAttribute']            
+    attributes=readVariablesFile(gl.config['zonesFile'])        
     gl.window.comboBox_zonesattribute.clear()
-    gl.window.comboBox_zonesattribute.addItem(key, key)
-    gl.window.comboBox_zonesattribute.setCurrentText(gl.config['zonesAttribute'])
+    gl.window.comboBox_zonesattribute.addItems(attributes)
+    if gl.config['zonesAttribute'] in attributes:
+        gl.window.comboBox_zonesattribute.setCurrentText(gl.config['zonesAttribute'])
 
     gl.window.lineEdit_overlayfile.setText(gl.config['overlayFile'])
 
@@ -1242,7 +1206,6 @@ def makeConfig():
 
     gl.config["overlayFile"]="data/Botswana.geojson"
     
-    print("deriving config variables")
     
     
 def readGUI():
@@ -1270,13 +1233,14 @@ def readGUI():
     for model in range(5):
         temp={}
         for var in ["minLon","maxLon","minLat","maxLat"]:
-            itemName="lineEdit_{}{}".format(var.lower(), model)
+            itemName="lineEdit_{}{}".format(var, model)
             if hasattr(gl.window, itemName):
                 item=getattr(gl.window, itemName, None)
-                temp[var]=item.text()
+                temp[var]=float(item.text())
         if len(temp)==4:
             gl.config["predictorExtents"].append(temp)
     
+
     gl.config["predictorFiles"]=[]
     for model in range(5):
         temp=[]
@@ -1322,21 +1286,441 @@ def readGUI():
         gl.fcstBaseTime="seas"
     else:
         gl.fcstBaseTime="mon"
-        
-        
-def saveConfig():
-    #defined parameters/variables
-    with open(gl.configFile, "w") as f:
-        json.dump(gl.config, f, indent=4)
-        showMessage("saved config to: {}".format(gl.configFile), "INFO")
 
         
-def writeOutput(_data, _outputfile):
-    if gl.targetType=="grid":
-        _data.to_netcdf(_outputfile)
+        
+def readVariablesFile(_file):        
+    ext=os.path.splitext(_file)[1]
+    if ext==".nc":
+        variables = readVariablesNcfile(_file)
+    elif ext in [".geojson",".shp"]:
+        variables = readVariablesShpfile(_file)
     else:
-        _data.to_csv(_outputfile)
-    showMessage("written {}".format(_outputfile), "INFO")
-    return
+        variables=[Path(_file).stem.split("_")[0]]
+    if variables is None:
+        #noncritical because check is done later too, and this will leave 
+        showMessage("File with variables/attributes expected. If it is a netcdf file check if it is a dataset and has at least one variable, and if it is a shapefile - check if it has at least one attribute", "NONCRITICAL")
+        variables=[]
+    return variables
+
+def readVariablesShpfile(_file):
+    # Open the shapefile
+    showMessage("reading variables from {}".format(_file))
+    if os.path.exists(_file):
+        gdf = gpd.read_file(_file)
+        #exclude the geometry column:
+        attributes = [col for col in gdf.columns if col != "geometry"]
+        if len(attributes)>0:
+            return attributes
+        else:
+            return
+    else:
+        showMessage("File {} does not exist".format(_file),"ERROR")
+        return
+            
+def readVariablesNcfile(_file):
+    # Open the shapefile
+    showMessage("reading variables from {}".format(_file))
+    if os.path.exists(_file):
+        ds = xr.open_dataset(_file, decode_times=False)
+
+        # If you want to exclude the geometry column:
+        variables = ds.variables
+        variables =[x for x in variables if x not in ["T","time","lat","lon","Lat","Lon","Latitude","Longitude","X","Y"]]
+        ds.close()
+        if len(variables)>0:
+            return variables
+        else:
+            showMessage("File {} does not exist".format(_file),"ERROR")
+            return
+    else:
+        showMessage("File {} does not exist".format(_file),"ERROR")
+        return        
+    
+    
+import re
+import unicodedata
+
+def sanitize_string(value, replacement="_", max_length=255):
+    """
+    Sanitize a string so it can be safely used as a filename
+    across Windows, macOS, and Linux.
+    
+    - Removes invalid characters
+    - Removes control characters
+    - Strips leading/trailing spaces and dots
+    - Normalizes Unicode (optional transliteration to ASCII)
+    - Truncates to max_length (default 255)
+    """
+    # Normalize Unicode (e.g., é → e)
+    value = unicodedata.normalize("NFKD", value)
+    value = value.encode("ascii", "ignore").decode()
+
+    # Replace invalid characters with replacement
+    value = re.sub(r'[<>:"/\\|?*]', replacement, value)
+
+    # Remove control characters
+    value = re.sub(r'[\x00-\x1f]', replacement, value)
+
+    # Replace multiple consecutive replacements with a single one
+    value = re.sub(rf'{re.escape(replacement)}+', replacement, value)
+
+    # Strip leading/trailing spaces and dots
+    value = value.strip(" .")
+
+    # Truncate to safe length
+    return value[:max_length] if max_length else value
 
 
+colormaps={"percent_normal":{"cmap":plt.cm.BrBG,
+                    "vmin":0,
+                    "vmax":200,
+                    "cbar_label":"mm",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "value":{"cmap":plt.cm.YlGnBu,
+                    "vmin":0,
+                    "vmax":200,
+                    "cbar_label":"mm",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "absolute_anomaly":{"cmap":plt.cm.BrBG,
+                    "vmin":-50,
+                    "vmax":50,
+                    "cbar_label":"mm",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "percent_anomaly":{"cmap":plt.cm.BrBG,
+                    "vmin":-100,
+                    "vmax":100,
+                    "cbar_label":"percent",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "correlation":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"correlation",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "MAPE":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":50,
+                    "cbar_label":"percent",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "RMSE":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":100,
+                    "cbar_label":"mm",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "ROC_above":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"score",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "ROC_normal":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"score",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "ROC_below":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"score",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "rpss":{"cmap":plt.cm.RdBu,
+                    "vmin":-1,
+                    "vmax":1,
+                    "cbar_label":"score",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "normal":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"probability",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "below":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"probability",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "above":{"cmap":plt.cm.Grays,
+                    "vmin":0,
+                    "vmax":1,
+                    "cbar_label":"probability",
+                   "levels":None,
+                   "tick_labels":None,
+                   "extend":"neither"},
+    "cem_category":{"cmap":colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue']),
+                    "vmin":0,
+                    "vmax":4,
+                    "cbar_label":"category",
+                   "levels":np.array([1,2,3,4])-0.5,
+                   "tick_labels":['BN', 'N-BN','N-AN','AN'],
+                   "extend":"neither"},
+    "tercile_category":{"cmap":colors.ListedColormap(['#d2b48c', '0.8','blue']),
+                    "vmin":0,
+                    "vmax":3,
+                    "cbar_label":"category",
+                   "levels":np.array([1,2,3])-0.5,
+                   "tick_labels":['BN', 'N', 'AN'],
+                   "extend":"neither"}
+}
+
+        
+def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector, _overlayVector=None):
+    if gl.targetType=="grid":
+        scoresxr=_scores.unstack().to_xarray().transpose("category","lat","lon")
+        for score in scoresxr.category.values:
+            outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
+            showMessage("plotting {}".format(outfile))
+            fig=plt.figure(figsize=(5,5))
+            pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
+
+            colorbar=False
+            cm=colormaps[score]
+            cmap=cm["cmap"]
+            vmin=cm["vmin"]
+            vmax=cm["vmax"]
+            levels=cm["levels"]
+            cbar_label=cm["cbar_label"]
+            extend=cm["extend"]
+            tick_labels=cm["tick_labels"]
+            
+            m=scoresxr.sel(category=score).plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
+            
+            ax=fig.add_axes([0.82,0.25,0.03,0.6])
+            
+            if levels is None:
+                cbar = fig.colorbar(m, cax=ax, label=cbar_label, extend=extend)
+            else:
+                cbar = fig.colorbar(m, cax=ax,ticks=levels, label=cbar_label, extend=extend)
+                
+            if tick_labels is not None:
+                cbar.ax.set_yticklabels(tick_labels)
+                
+                
+            if not _zonesVector is None:
+                _zonesVector.boundary.plot()
+
+            if not _overlayVector is None:
+                _overlayVector.boundary.plot(ax=pl, color='black', linewidth=0.3)
+                
+            pl.set_title(score)
+            
+            plt.subplots_adjust(right=0.8)
+            plt.savefig(outfile)
+            plt.close()
+            showMessage("done")
+         
+    if gl.targetType=="zones":
+        _geodata=_geoData.copy().join(_scores.T)
+        for score in _scores.index:
+            outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
+            showMessage("plotting {}".format(outfile))
+            fig=plt.figure(figsize=(5,5))
+            pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
+
+            colorbar=False
+            cm=colormaps[score]
+            cmap=cm["cmap"]
+            vmin=cm["vmin"]
+            vmax=cm["vmax"]
+            levels=cm["levels"]
+            cbar_label=cm["cbar_label"]
+            extend=cm["extend"]
+            tick_labels=cm["tick_labels"]
+            
+            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl)
+            _geodata.boundary.plot(ax=pl)
+            
+            ax=fig.add_axes([0.82,0.25,0.03,0.6])
+            
+            # add colorbar
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+            
+            if levels is None:
+                # add colorbar
+                ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend=extend)
+            else:
+                ax_cbar = fig.colorbar(cbar, cax=ax,ticks=levels, label=cbar_label, extend=extend)
+                
+            if tick_labels is not None:
+                ax_cbar.ax.set_yticklabels(tick_labels)
+                
+            pl.set_title(score)
+
+            if not _overlayVector is None:
+                _overlayVector.boundary.plot(ax=pl, color='black', linewidth=0.3)
+            plt.subplots_adjust(right=0.8)                
+            plt.savefig(outfile)
+            plt.close()
+            showMessage("done")
+            
+    if gl.targetType=="points":
+        _geodata=_geoData.copy().join(_scores.T)
+        for score in _scores.index:
+            outfile=Path(_figuresDir, "{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
+            showMessage("plotting {}".format(outfile))
+            fig=plt.figure(figsize=(5,5))
+            pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
+            
+            colorbar=False
+            cm=colormaps[score]
+            cmap=cm["cmap"]
+            vmin=cm["vmin"]
+            vmax=cm["vmax"]
+            levels=cm["levels"]
+            cbar_label=cm["cbar_label"]
+            extend=cm["extend"]
+            tick_labels=cm["tick_labels"]
+            
+            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl)
+            
+            ax=fig.add_axes([0.82,0.25,0.03,0.6])
+            
+            # add colorbar
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+
+            if levels is None:
+                # add colorbar
+                ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend=extend)
+            else:
+                ax_cbar = fig.colorbar(cbar, cax=ax,ticks=levels, label=cbar_label, extend=extend)
+                
+            if tick_labels is not None:
+                ax_cbar.ax.set_yticklabels(tick_labels)
+                
+            
+            if not _zonesVector is None:
+                _zonesVector.boundary.plot(ax=pl)
+                
+            if not _overlayVector is None:
+                _overlayVector.boundary.plot(ax=pl, color='black', linewidth=0.3)
+                
+            pl.set_title(score)
+                
+            plt.subplots_adjust(right=0.8)
+            plt.savefig(outfile)
+            plt.close()
+            showMessage("done")   
+            
+def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecastid):
+    if gl.targetType in ["zones","points"]:
+        for entry in _obs.columns:
+            _entry=sanitize_string(str(entry))
+            outfile=Path(_figuresdir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], _entry, _forecastid))
+            showMessage("plotting {}".format(outfile))
+
+            fig=plt.figure(figsize=(7,4))
+            pl=fig.add_subplot(1,1,1)
+
+            _obs[entry].plot(marker="o", label="observed", markersize=3)
+            _dethcst[entry].plot(label="deterministic hindcast", markersize=3)
+            _detfcst["value"][entry].plot(marker="o",label="forecast", markersize=8)
+            pl.axhline(_tercthresh.loc[0.33][entry], color="0.6")
+            pl.axhline(_tercthresh.loc[0.66][entry], color="0.6", label="climatological terciles")
+            pl.axhline(_tercthresh.loc[0.50][entry], color="0.8", label="climatological median")
+            pl.set_title("Hindcast and forecast for {} in {} in region: {}\nissued in {}".format(gl.config["predictandVar"], gl.config["fcstTargetSeas"],entry,gl.predictorDate.strftime("%b %Y")))
+            pl.set_xlim((_obs.index[0]-pd.offsets.YearBegin(2)).strftime("%Y-%m-%d"), (_detfcst.index[0]+pd.offsets.YearBegin(2)).strftime("%Y-%m-%d")
+)
+            plt.legend()
+            
+            plt.savefig(outfile)            
+            plt.close()
+        showMessage("done")
+    else:    
+        showMessage("Forecasting target is a grid, time series cannot be plotted.", "INFO")
+
+
+def getTercCategory(_data):
+    if gl.targetType=="grid":
+        temp=_data.stack(level=[1,2], future_stack=True).idxmax(axis=1).unstack(level=[1,2]).map(lambda x: terc2num[x])
+        #add a level to multiindex
+        temp.columns=pd.MultiIndex.from_tuples([('tercile_category',) + col for col in temp.columns], names=["category"] + list(temp.columns.names))
+
+    else:
+        temp=_data.stack(future_stack=True).idxmax(axis=1).unstack().map(lambda x: terc2num[x])
+        temp.columns=pd.MultiIndex.from_tuples([('tercile_category',col) for col in temp.columns], names=["category",temp.columns.name])
+
+    return temp
+
+
+def getCemCategory(_data):
+    if gl.targetType=="grid":
+    
+        stacked = _data.stack(level=[1, 2], future_stack=True)
+
+        # Convert to numpy array
+        vals = stacked.to_numpy()
+
+        # argsort sorts ascending → take [:, ::-1] for descending
+        order_idx = np.argsort(vals, axis=1)[:, ::-1]
+
+        # Get the original column labels in sorted order
+        col_array = np.array(stacked.columns)
+        ordered_labels = col_array[order_idx]
+
+        # Make a DataFrame with desired column names
+        order = pd.DataFrame(
+            ordered_labels[:, :3],  # top 3
+            index=stacked.index,
+            columns=["first", "second", "third"]
+        )
+
+        temp=order["first"].copy()
+        sel=temp=="normal"
+        temp[sel]="normal-to-"+order["second"][sel]
+        temp=temp.map(lambda x: cem2num[x])
+        temp=temp.unstack(level=["lat","lon"])
+        temp.columns=pd.MultiIndex.from_tuples([('cem_category',) + col for col in temp.columns], names=["category"] + list(temp.columns.names))
+    else:
+        stacked = _data.stack(future_stack=True)
+
+        # Convert to numpy array
+        vals = stacked.to_numpy()
+
+        # argsort sorts ascending → take [:, ::-1] for descending
+        order_idx = np.argsort(vals, axis=1)[:, ::-1]
+
+        # Get the original column labels in sorted order
+        col_array = np.array(stacked.columns)
+        ordered_labels = col_array[order_idx]
+
+        # Make a DataFrame with desired column names
+        order = pd.DataFrame(
+            ordered_labels[:, :3],  # top 3
+            index=stacked.index,
+            columns=["first", "second", "third"]
+        )
+
+        temp=order["first"].copy()
+        sel=temp=="normal"
+        temp[sel]="normal-to-"+order["second"][sel]
+        temp=temp.map(lambda x: cem2num[x])
+        
+        temp=temp.unstack()
+        temp.columns=pd.MultiIndex.from_tuples([('cem_category',col) for col in temp.columns], names=["category", temp.columns.name])
+
+    return temp  

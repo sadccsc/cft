@@ -1,0 +1,19 @@
+name: cft-v5.0.0
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - geojson
+  - xarray
+  - rioxarray
+  - scikit-learn
+  - rasterstats
+  - matplotlib
+  - cartopy
+  - pyqt
+  - geopandas
+  - scipy
+  - cftime
+  - netcdf4

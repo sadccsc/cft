@@ -6,7 +6,6 @@ import matplotlib.colors as mcolors
 from matplotlib.patches import Patch
 import xarray as xr
 
-import statsmodels.api as sm
 from scipy.stats import pearsonr
 
 from sklearn.preprocessing import StandardScaler

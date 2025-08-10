@@ -23,6 +23,8 @@ This software has been developed during 2017-2010 under funding from SADC CSC pr
 In November 2022, the software has been ported from the original personal github repo https://github.com/taxmanyana/cft
 to this "institutional" repo.
 
+Development since 2023 has been funded under ClimSA project
+
 
 SOURCE CODE
 ------------
@@ -30,44 +32,159 @@ From version 4.0.0, the CFT code is maintained at:  https://github.com/sadc-csc/
 prior to that - it was maintained at https://github.com/taxmanyana/cft
 
 
-INSTALLATION ON WINDOWS
---------------------
-1. Ensure you have installed the latest long term release version of QGIS 3 in your computer
-2. Unpack (unzip) the cft-x.x.x.zip ZIP file to a directory of your choosing (e.g. Documents)
-3. Navigate into the extracted folder "cft-x.x.x" 
-4. Right-click the "install-qgis-modules.bat" and select "Run as Administrator" to update the required python modules (internet connection required)
-5. Once installed, CFT or the Zoning tool is easily be run by double-clicking on "start_cft.bat" or "start_zoning.bat"
+Basic functionality of v5.0.0:
+------------
+Five modules:
+data download (new in v.5)
+forecast (new in v.5)
+zoning (from v.3)
+verification (from v.4)
+synthesis (from v.4)
+Download module:
+downloads following data types from sources:
+teleconnection indices from JMA (because they have lowest latency)
+IOD, Nino3, Nino4
+gridded predictors from IRI:
+SST
+gridded predictand from IRI:
+CHIPRS precipitation
+gridded forecast and hindcast data (not yet implemented)
+downloads to user-selected directory
+indices data are converted to a format ingestible by CFT
 
-INSTALLATION ON LINUX
---------------------
-The installation script will download dependency sources, compile and deploy the CFT
-1. Unpack (unzip) the cft-x.x.x.zip ZIP file to a directory of your choosing
-2. On the terminal, navigate into the extracted folder:  cd cft-x.x.x 
-3. Run the installation script using the following command:   ./install-cft-linux.sh
-   NB: install-cft-linux.sh will try to download some dependencies using hardcoded URLs, if a URL fails you can edit the script with correct/updated URL and re-run 
-4. Once installed, you can run CFT from the terminal using the following commands:
-   source python3/bin/activate
-   python3 cft.py settings.json
-5. CFT also has a Desktop launcher "CFT.desktop" which will be installed to the Desktop. On the Desktop double-click on "CFT.desktop" to run the tool (if it is the first time then it will bring a pop-up for you to trust and accept)
-6. The MPI version can be run on the terminal by executing the following commands:
-   source python3/bin/activate
-   mpirun -n 40 python3 cft_mpi.py settings.json
-   
+Forecast module
+------------
+takes two types of data as predictand:
+- gridded data
+- station data
 
-ALTERNATIVE INSTALLATION ON LINUX (FOR UBUNTU ONLY)
---------------------
-1. On the terminal, install the required dependencies using the command:   sudo apt install python3-pip python3-venv libffi-dev
-2. Unpack (unzip) the cft-x.x.x.zip ZIP file to a directory of your choosing
-3. On the terminal, navigate into the extracted folder:  cd cft-x.x.x
-4. Run the installation script using the following command:   ./install-cft-ubuntu.sh
-5. Once installed, you can run CFT from the terminal using command:    ./cft_ubuntu.sh
-6. CFT also has a Desktop launcher "CFT.desktop" which will be copied to the Desktop. On the Desktop double-click on "CFT.desktop" to run the tool (if it is the first time then it will bring a pop-up for you to trust and accept)
+takes three types of data as predictor:
+    - observed teleconnection indices
+    - observed gridded data (SST)
+    - forecasted gridded fields (not yet implemented)
+
+produces forecast for:
+    - grid - if predictand is gridded
+    - zones - if predictand is either gridded or station data, with spatial aggregation of data into zonal average, and generation of forecast for that zonal average
+    - points - if predictand is station data
+
+allows three pre-processing approaches:
+    - PCR - gridded predictor is processed to derive Principal Components (aka EOFs), and these are used in a statistical model as predictors. This can be applied to gridded predictor, and any type of predictand.
+    - CCA - canonical components are derived from predictor and predictand data
+    - no preprocessing - this can be applied to gridded predictor and any type of predictand.
+implements the following statistical models:
+    - OLS regression
+    - MLP regression
+    - Decision trees
+    - Random Forest
+    - Lasso regression
+    - Ridge regression
+
+two types of forecast are calculated:
+    - deterministic forecast
+    - tercile probabilistic forecast
+
+Tercile forecast is also presented as a 4-category forecast, where normal category is split into normal-to-above and normal-to-below. No probabilities are allocated to these two categories. 
+all forecasts are cross-validated. 
+
+Two cross-validation approaches are possible:
+    - leave-one-out
+    - k-fold
+
+skill indices are calculated through cross-validation from out-of-fold predictions. The following skill indices are included:
+    - ROC score (above, below, normal) 
+    - RPSS
+    - correlation
+
+not yet implemented skill scores:
+    - Heidke skill score for highest probability category
+    - ignorance score 
+    - reliability diagram 
+    - plotting of ROC curve
+    - reliability score
+    - Brier skill score
+    - 2AFC
 
 
+Other modules - zoning, verification, synthesis
+------------
+Not updated in v5.0 , thus not described here explicitly
 
-MAIN FEATURES
---------
-- Create homogenous zones for a country/region
-- Forecast based on existing indices (CSV/Text) data, or can detect high correlation areas from gridded data (NetCDF) to use as input
-- Machine Learning (MLP) and Linear Regression statistical forecasting methods
-- Predictand in NetCDF and CSV format
+
+Requirements:
+------------
+python 3.10 or higher installed with conda package manager
+python packages:
+numpy
+pandas
+geojson
+xarray with netcdf libraries
+rioxarray
+geopandas
+scikit-learn
+rasterstats
+matplotlib
+cartopy
+pyqt
+scipy
+cftime
+
+Installation
+------------
+1. Install Anaconda  (instructions t.b.d.)
+2. Download and unzip CFT release files
+3. Open terminal (in Linux or Mac) or Anaconda Prompt (windows), navigate to the directory in which you unzipped CFT files (using cd Dir commands - instructions to follow) and type:
+install_win.bat (on Windows)
+install_mac.sh (on Mac)
+install_linux.sh ( on Linux)
+
+
+Starting
+------------
+on Windows:
+- you should see cft.lnk on your Desktop. Double click on it.
+- alternatively:
+- open Anaconda Prompt
+- navigate to your CFT directory (using cd commands)
+	- type:
+conda activate cft-5.0.0
+python cft.py
+or to call forecasting module directly: python forecast.py
+
+on Mac/Linux:
+- open terminal
+- navigate to your CFT directory (using cd commands)
+- type: ./cft.sh
+- alternatively:
+conda activate cft-5.0.0
+python cft.py
+or to call forecasting module directly: python forecast.py
+
+
+Still to do in v5.0
+------------
+in download.py:
+- implement control of lat lon to make sure integers within range
+- implement download and processing of forecast data
+
+in forecast.py
+- extend and clean up plotting 
+- include skill-masked plots
+- catch error when some zones get dropped if spatial aggregation is used
+- include more skill measures
+- data saving - diagnostics - results of pca and cca
+- test data ingestion errors for csv files
+- add missing value to gui
+- add category of predictand to gui
+- add buttons to clear file selectors to gui
+- add "too dry to forecast" colour to plots
+- implement ability to use forecast data as predictor - it should work even now, but there is a need to make sure dates are handled correctly.
+
+wish list:
+------------
+- multimodel forecast
+- filling missing values in predictand
+- regridding of gridded predictand to a coarser resolution if domain too large
+- optimize skill calculation on gridded data - it takes much longer than calculations of the model
+- parameters that are not defined throug gui to be read from json file (in this way, advanced users can change them)
+

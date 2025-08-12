@@ -1,29 +1,38 @@
-# install.ps1
-$ErrorActionPreference = "Stop"
+@echo off
+setlocal enabledelayedexpansion
 
-# Where micromamba will be installed
-$InstallDir = "$env:USERPROFILE\micromamba"
+REM === CONFIG ===
+set ENV_NAME=cft-v5.0.0
+set MAMBA_DIR=%USERPROFILE%\micromamba
+set MAMBA_BIN=%MAMBA_DIR%\micromamba.exe
+set ENV_FILE=environment.yml
+set SCRIPT_DIR=%~dp0
+set DESKTOP=%USERPROFILE%\Desktop
+set SHORTCUT_NAME=cft.lnk
+set TARGET_BAT=%USERPROFILE%\cft.bat
 
-# Download micromamba for Windows
-Write-Host "Downloading micromamba..."
-Invoke-WebRequest -Uri "https://micro.mamba.pm/api/micromamba/win-64/latest" -OutFile "$env:TEMP\micromamba.exe"
+REM === DOWNLOAD MICROMAMBA IF NOT INSTALLED ===
+if not exist "%MAMBA_BIN%" (
+    echo Micromamba not found. Installing...
+    mkdir "%MAMBA_DIR%"
+    curl -L https://micro.mamba.pm/api/micromamba/win-64/latest -o "%MAMBA_DIR%\micromamba.tar.bz2"
+    tar -xvjf "%MAMBA_DIR%\micromamba.tar.bz2" -C "%MAMBA_DIR%" --strip-components=1 bin/micromamba.exe
+) else (
+    echo Micromamba already installed.
+)
 
-# Create installation directory
-New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-Move-Item "$env:TEMP\micromamba.exe" "$InstallDir\micromamba.exe" -Force
+REM === CREATE ENVIRONMENT ===
+"%MAMBA_BIN%" create -y -f "%SCRIPT_DIR%%ENV_FILE%" -r "%MAMBA_DIR%"
 
-# Add to PATH (for future terminals)
-Write-Host "Adding micromamba to PATH..."
-setx PATH "$InstallDir;$env:PATH"
+REM === CREATE LAUNCHER BATCH FILE ===
+echo @echo off > "%TARGET_BAT%"
+echo "%MAMBA_BIN%" activate %ENV_NAME% >> "%TARGET_BAT%"
+echo python "%SCRIPT_DIR%cft.py" >> "%TARGET_BAT%"
+echo pause >> "%TARGET_BAT%"
 
-# Initialize micromamba in PowerShell
-& "$InstallDir\micromamba.exe" shell init -s powershell -p "$InstallDir"
+REM === CREATE DESKTOP SHORTCUT ===
+powershell -command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%');$s.TargetPath='%TARGET_BAT%';$s.Save()"
 
-# Create environment
-Write-Host "Creating environment..."
-& "$InstallDir\micromamba.exe" create -y -n myenv -f environment.yml
-
-Write-Host "`nInstallation complete!"
-Write-Host "Open a new PowerShell window and run:"
-Write-Host "    micromamba activate myenv"
+echo Installation complete. Shortcut created on desktop.
+pause
 

@@ -1,41 +1,29 @@
-@echo off
+# install.ps1
+$ErrorActionPreference = "Stop"
 
-REM Define environment name here
-REM note that it has to be the same name as that defined in .yml file
-set ENV_NAME=cft-v5.0.0
+# Where micromamba will be installed
+$InstallDir = "$env:USERPROFILE\micromamba"
 
-where mamba >nul 2>nul
-if %errorlevel% neq 0 (
-    echo Mamba not found. Installing...
-    call conda install -y mamba -n base -c conda-forge
-) else (
-    echo Mamba is already installed.
-)
+# Download micromamba for Windows
+Write-Host "Downloading micromamba..."
+Invoke-WebRequest -Uri "https://micro.mamba.pm/api/micromamba/win-64/latest" -OutFile "$env:TEMP\micromamba.exe"
 
-REM 1. Create conda environment from the lock file
-call mamba env create -f environment.yml
+# Create installation directory
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+Move-Item "$env:TEMP\micromamba.exe" "$InstallDir\micromamba.exe" -Force
 
-REM 2. Create a shortcut on the desktop to run start.py in the created env
+# Add to PATH (for future terminals)
+Write-Host "Adding micromamba to PATH..."
+setx PATH "$InstallDir;$env:PATH"
 
-REM Define desktop path
-set DESKTOP=%USERPROFILE%\Desktop
-set SHORTCUT_NAME=cft.lnk
-set TARGET_BAT=%USERPROFILE%\cft.bat
+# Initialize micromamba in PowerShell
+& "$InstallDir\micromamba.exe" shell init -s powershell -p "$InstallDir"
 
+# Create environment
+Write-Host "Creating environment..."
+& "$InstallDir\micromamba.exe" create -y -n myenv -f environment.yml
 
-REM Get the directory where install.bat resides
-set SCRIPT_DIR=%~dp0
-
-
-REM Create a batch file to run start.py inside conda env from script directory
-echo @echo off > "%TARGET_BAT%"
-echo call conda activate %ENV_NAME% >> "%TARGET_BAT%"
-echo python "%SCRIPT_DIR%cft.py" >> "%TARGET_BAT%"
-echo pause >> "%TARGET_BAT%"
-
-REM Create shortcut on desktop pointing to the batch file
-powershell -command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%');$s.TargetPath='%TARGET_BAT%';$s.Save()"
-
-echo Installation complete. Shortcut created on desktop.
-pause
+Write-Host "`nInstallation complete!"
+Write-Host "Open a new PowerShell window and run:"
+Write-Host "    micromamba activate myenv"
 

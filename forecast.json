@@ -29,11 +29,11 @@
     "regression": [
         "OLS"
     ],
-    "timeAggregation": "mean",
+    "timeAggregation": "sum",
     "predictandFileName": "/work/code/csc/cft/sadc_cft_current/example_data/pr_chirps_SADC_198101-202208.csv",
     "predictandVar": "pr",
     "zonesFile": "/work/code/csc/cft/sadc_cft_current/example_data/SADC_MAM_2022_Consensus.geojson",
     "zonesAttribute": "ID",
-    "zonesAggregate": false,
+    "zonesAggregate": true,
     "overlayFile": "/work/code/csc/cft/sadc_cft_current/example_data/SADC_MAM_2022_Consensus.geojson"
 }

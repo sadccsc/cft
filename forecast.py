@@ -18,6 +18,7 @@ from sklearn.model_selection import cross_val_score, RepeatedKFold, LeaveOneOut,
 from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, mean_squared_error, explained_variance_score
 from sklearn.base import BaseEstimator, RegressorMixin
 from rasterstats import zonal_stats
+import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors

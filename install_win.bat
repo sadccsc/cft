@@ -1,38 +1,91 @@
 @echo off
-setlocal enabledelayedexpansion
 
-REM === CONFIG ===
+REM Define environment name here
+REM note that it has to be the same name as that defined in .yml file
 set ENV_NAME=cft-v5.0.0
-set MAMBA_DIR=%USERPROFILE%\micromamba
-set MAMBA_BIN=%MAMBA_DIR%\micromamba.exe
 set ENV_FILE=environment.yml
 set SCRIPT_DIR=%~dp0
 set DESKTOP=%USERPROFILE%\Desktop
 set SHORTCUT_NAME=cft.lnk
-set TARGET_BAT=%USERPROFILE%\cft.bat
+set TARGET_BAT=%SCRIPT_DIR%\cft.bat
+set SHORTCUT_PATH=%DESKTOP%\%SHORTCUT_NAME%
 
-REM === DOWNLOAD MICROMAMBA IF NOT INSTALLED ===
-if not exist "%MAMBA_BIN%" (
-    echo Micromamba not found. Installing...
-    mkdir "%MAMBA_DIR%"
-    curl -L https://micro.mamba.pm/api/micromamba/win-64/latest -o "%MAMBA_DIR%\micromamba.tar.bz2"
-    tar -xvjf "%MAMBA_DIR%\micromamba.tar.bz2" -C "%MAMBA_DIR%" --strip-components=1 bin/micromamba.exe
+
+
+echo
+echo ----------------
+echo checking if Mamba installed
+where mamba >nul 2>nul
+if %errorlevel% neq 0 (
+    echo Mamba not found. Installing. This might take some time...
+    call conda install -y mamba -n base -c conda-forge
 ) else (
-    echo Micromamba already installed.
+    echo Mamba is already installed.
 )
 
-REM === CREATE ENVIRONMENT ===
-"%MAMBA_BIN%" create -y -f "%SCRIPT_DIR%%ENV_FILE%" -r "%MAMBA_DIR%"
+REM 1. Create conda environment from the lock file
 
-REM === CREATE LAUNCHER BATCH FILE ===
-echo @echo off > "%TARGET_BAT%"
-echo "%MAMBA_BIN%" activate %ENV_NAME% >> "%TARGET_BAT%"
-echo python "%SCRIPT_DIR%cft.py" >> "%TARGET_BAT%"
-echo pause >> "%TARGET_BAT%"
+echo
+echo ----------------
+echo checking if Python environment %ENV_NAME% exists
 
-REM === CREATE DESKTOP SHORTCUT ===
-powershell -command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%DESKTOP%\%SHORTCUT_NAME%');$s.TargetPath='%TARGET_BAT%';$s.Save()"
+conda info --envs |findstr /R /C:"^%ENV_NAME% ">nul
 
-echo Installation complete. Shortcut created on desktop.
+if %ERRORLEVEL% EQU 0 (
+   echo env %ENV_NAME% exists
+) else (
+   echo it does not exist, creating...
+   call mamba env create -f environment.yml
+
+   echo checking if creation successful
+
+   conda info --envs |findstr /R /C:"^%ENV_NAME% ">nul
+
+   if %ERRORLEVEL% EQU 0 (
+   	echo env %ENV_NAME% created
+   ) else (
+       echo Env could not be created. Exiting.
+       exit \b 1
+   )
+)
+
+
+REM Create a batch file to run cft.py inside conda env from script directory
+echo
+echo ----------------
+echo Creating batch file to run CFT - it will be located in the current directory %SCRIPT_DIR% under name %TARGET_BAT%
+(
+    echo call conda activate %ENV_NAME%
+    echo python "%SCRIPT_DIR%cft.py"
+) > "%TARGET_BAT%"
+
+IF EXIST "%TARGET_BAT%" (
+    echo %TARGET_BAT% created successfuly
+) ELSE (
+    echo %TARGET_BAT% could not be created. Exiting...
+    exit \b 1
+)
+
+
+
+REM Create shortcut on desktop pointing to the batch file
+echo
+echo ----------------
+echo Create shortcut on desktop pointing to the batch file
+
+powershell -NoProfile -ExecutionPolicy Bypass ^
+"$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%SHORTCUT_PATH%'); $s.WorkingDirectory = '%SCRIPT_DIR%'; $s.TargetPath='%TARGET_BAT%'; $s.WindowStyle=7; $s.Save()"
+
+IF EXIST "%SHORTCUT_PATH%" (
+    echo %SHORTCUT_PATH% created successfuly.
+
+    echo Installation appears successful.
+) ELSE (
+    echo %SHORTCUT_PATH% could not be created. Exiting...
+    exit \b 1
+)
+
+echo =======
+echo End of installation process. Inspect messages above to check if all is in order.
 pause
 

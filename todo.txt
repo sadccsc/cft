@@ -1,5 +1,4 @@
 #to do
-- create installer - most likely 
 
 in dowload.py:
 - implement control of lat lon to make sure integers within range

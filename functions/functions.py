@@ -653,78 +653,7 @@ def getFcstData(_predictor):
 
 
 
-class PCRegressor(BaseEstimator, RegressorMixin):
-    
-    def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, pca_explained_var=0.95, **regressor_kwargs):
-        self.max_fraction = max_fraction
-        self.fit_intercept = fit_intercept
-        self.pca_explained_var = pca_explained_var
-        self.regressor_name = regressor_name
-        self.regressor_kwargs = regressor_kwargs
-        self.scaleX=StandardScaler()
-        self.pcaX = PCA()
-        self.reg=self._get_regressor()
-        
-    def _get_regressor(self):
 
-        if self.regressor_name not in regressors:
-            raise ValueError(f"Unknown regressor '{self.regressor_name}'.")
-        reg_class=regressors[self.regressor_name]
-        
-        # Inspect constructor to see if 'fit_intercept' is accepted
-        sig = inspect.signature(reg_class.__init__)
-        kwargs = self.regressor_kwargs.copy()
-        if 'fit_intercept' in sig.parameters:
-            kwargs['fit_intercept'] = self.fit_intercept
-            self.supports_intercept=True
-        else:
-            self.supports_intercept=False
-            
-        return reg_class(**kwargs)
-        
-    def fit(self, X, Y):
-        
-        #scaling the predictor
-        X_std=self.scaleX.fit_transform(X)
-        
-        #PCA on predictor
-        X_c = self.pcaX.fit_transform(X_std)
-        
-        #selecting PCA components
-        #
-        cumvar = np.cumsum(self.pcaX.explained_variance_ratio_)
-        n_samples=X.shape[0]
-        
-        #number of components should not exceed a fraction of the number of data
-        max_data_comp=int(self.max_fraction*n_samples)
-        
-        # number of components that explain target fraction of variance
-        max_var_comp=np.argmax(cumvar >= self.pca_explained_var) + 1
-        
-        #final number of components - the lower of the two
-        n_comp=int(np.ceil(np.min([max_data_comp, max_var_comp])))
-        
-        X_c=X_c[:,:n_comp]
-        self.n_comp=n_comp
-        
-        #fitting regression model
-        self.reg.fit(X_c, Y)
-        
-        return self
-
-    
-    def predict(self, X):
-        #scale as per fitted model    
-        X_c = self.scaleX.transform(X)
-        #PCA trasform as per fitted model
-        X_c = self.pcaX.transform(X_c)
-        #select only retained PC components
-        X_c=X_c[:,:self.n_comp]
-        
-        #predict with model
-        Y_pred=self.reg.predict(X_c)
-
-        return Y_pred
     
 
 class StdRegressor(BaseEstimator, RegressorMixin):
@@ -775,76 +704,7 @@ class StdRegressor(BaseEstimator, RegressorMixin):
     
 
     
-class CCARegressor(BaseEstimator, RegressorMixin):
-    #
-    #to be worked on
-    #
-    
-    def __init__(self, n_components=4):
-        self.n_components = n_components
-        self.cca = CCA(n_components=self.n_components)
-        self.reg = LinearRegression()
-        self.scaleX=StandardScaler()
-        self.scaleY=StandardScaler()
-        self.pcaX = PCA()
-        self.pcaY = PCA()
-        
 
-    def fit(self, X, Y):
-        _expVariance=0.95
-        
-        X_std=self.scaleX.fit_transform(X)
-        Y_std=self.scaleY.fit_transform(Y)
-        
-        X_c = self.pcaX.fit_transform(X_std)
-        cumvar = np.cumsum(self.pcaX.explained_variance_ratio_)
-
-        # Choose number of components that explain X % - for PCA that enters CCA - it's fixed to 95%
-        ncompX = np.argmax(cumvar >= _expVariance) + 1
-        X_c=X_c[:,:ncompX]
-        self.ncompX=ncompX
-        
-        Y_c = self.pcaY.fit_transform(Y_std)
-        cumvar = np.cumsum(self.pcaY.explained_variance_ratio_)
-        # Choose number of components that explain Y % - for PCA that enters CCA - it's fixed to 95%
-        ncompY = np.argmax(cumvar >= _expVariance) + 1
-        Y_c=Y_c[:,:ncompY]
-        self.ncompY=ncompY
-
-        #fitting CCA
-        self.cca.fit(X_c, Y_c)
-        X_c, Y_c = self.cca.transform(X_c, Y_c)
-        
-        #fitting regression model
-        self.reg.fit(X_c, Y_c)
-        
-        return self
-
-    
-    def predict(self, X):
-        #scale    
-        X_c = self.scaleX.transform(X)
-        #PCA trasform
-        X_c = self.pcaX.transform(X_c)
-        #select only retained PC components
-        X_c=X_c[:,:self.ncompX]
-        #CCA transform
-        X_c = self.cca.transform(X_c)  # transform only X
-        
-        #predict with model
-        Y_c_pred=self.reg.predict(X_c)
-        
-        # Inverse transform to get prediction in original Y space
-        #invert CCA
-        Y_pred = Y_c_pred @ self.cca.y_rotations_.T
-        #invert PCA
-        selComponents = self.pcaY.components_[0:self.ncompY]
-        Y_pred = Y_pred @ selComponents
-        #invert scaling
-        Y_pred = self.scaleY.inverse_transform(Y_pred)
-        
-
-        return Y_pred
     
     
 def getObsTerciles(_predictand,_predictandHcst):
@@ -867,6 +727,7 @@ def getFcstAnomalies(_det_fcst,_ref_data):
     percanom=(_det_fcst-_ref_data.mean())/_ref_data.mean()*100
     percnorm=_det_fcst/_ref_data.mean()*100
     output=pd.concat([_det_fcst,absanom,percanom,percnorm], keys=["value","absolute_anomaly","percent_anomaly","percent_normal"], names=["category"], axis=1)
+    output.index.name="time"
     return output
 
 
@@ -900,6 +761,9 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
         return None
     terc_fcst=pd.concat([prob_below_fcst.T,prob_normal_fcst.T,prob_above_fcst.T], keys=["above","normal","below"],  names=["category"], axis=1)
     terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["above","normal","below"], names=["category"],axis=1)
+    terc_fcst.index.name="time"
+    terc_hcst.index.name="time"
+    
     return terc_fcst, terc_hcst
 
 
@@ -1045,13 +909,7 @@ def saveConfig():
         showMessage("saved config to: {}".format(gl.configFile), "INFO")
 
         
-def writeOutput(_data, _outputfile):
-    if gl.targetType=="grid":
-        _data.to_netcdf(_outputfile)
-    else:
-        _data.to_csv(_outputfile)
-    showMessage("written {}".format(_outputfile), "INFO")
-    return
+
 
 def populateGui():
     #populate comboBoxes
@@ -1324,7 +1182,7 @@ def readVariablesNcfile(_file):
         ds = xr.open_dataset(_file, decode_times=False)
 
         # If you want to exclude the geometry column:
-        variables = ds.variables
+        variables = ds.data_vars
         variables =[x for x in variables if x not in ["T","time","lat","lon","Lat","Lon","Latitude","Longitude","X","Y"]]
         ds.close()
         if len(variables)>0:
@@ -1505,7 +1363,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
-            m=scoresxr.sel(category=score).plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
+            m=scoresxr.sortby("lat").sortby("lon").sel(category=score).plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
             
             ax=fig.add_axes([0.82,0.25,0.03,0.6])
             
@@ -1723,3 +1581,332 @@ def getCemCategory(_data):
         temp.columns=pd.MultiIndex.from_tuples([('cem_category',col) for col in temp.columns], names=["category", temp.columns.name])
 
     return temp  
+
+
+
+class PCRegressor(BaseEstimator, RegressorMixin):
+    
+    def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, pca_explained_var=0.95, **regressor_kwargs):
+        self.max_fraction = max_fraction
+        self.fit_intercept = fit_intercept
+        self.pca_explained_var = pca_explained_var
+        self.regressor_name = regressor_name
+        self.regressor_kwargs = regressor_kwargs
+        self.scaleX=StandardScaler()
+        self.pcaX = PCA()
+        self.reg=self._get_regressor()
+        
+    def _get_regressor(self):
+
+        if self.regressor_name not in regressors:
+            raise ValueError(f"Unknown regressor '{self.regressor_name}'.")
+        reg_class=regressors[self.regressor_name]
+        
+        # Inspect constructor to see if 'fit_intercept' is accepted
+        sig = inspect.signature(reg_class.__init__)
+        kwargs = self.regressor_kwargs.copy()
+        if 'fit_intercept' in sig.parameters:
+            kwargs['fit_intercept'] = self.fit_intercept
+            self.supports_intercept=True
+        else:
+            self.supports_intercept=False
+            
+        return reg_class(**kwargs)
+        
+    def fit(self, X, Y):
+        
+        #scaling the predictor
+        X_std=self.scaleX.fit_transform(X)
+        
+        #PCA on predictor
+        #X_c holds scores
+        X_c = self.pcaX.fit_transform(X_std)
+        
+        #selecting PCA components
+        #
+        cumvar = np.cumsum(self.pcaX.explained_variance_ratio_)
+        n_samples=X.shape[0]
+        
+        #number of components should not exceed a fraction of the number of data
+        max_data_comp=int(self.max_fraction*n_samples)
+        
+        # number of components that explain target fraction of variance
+        max_var_comp=np.argmax(cumvar >= self.pca_explained_var) + 1
+        
+        #final number of components - the lower of the two
+        ncompX=int(np.ceil(np.min([max_data_comp, max_var_comp])))
+        
+        X_c=X_c[:,:ncompX]
+        
+        #retaining scores # shape (n_samples, n_components)
+        self.scores=X_c
+        
+        #retaining loadings # shape (n_features, n_components)
+        self.loadings = self.pcaX.components_.T[:,:ncompX]
+        
+        #retaining number of components kept
+        self.ncompX=ncompX
+        
+        #fitting regression model
+        self.reg.fit(X_c, Y)
+        
+        return self
+
+    
+    def predict(self, X):
+        #scale as per fitted model    
+        X_c = self.scaleX.transform(X)
+        #PCA trasform as per fitted model
+        X_c = self.pcaX.transform(X_c)
+        #select only retained PC components
+        X_c=X_c[:,:self.ncompX]
+        
+        #predict with model
+        Y_pred=self.reg.predict(X_c)
+
+        return Y_pred
+    
+    
+class CCARegressor(BaseEstimator, RegressorMixin):
+    
+    def __init__(self, n_components=None, regressor_name=None, fit_intercept=True, max_fraction=0.15,pca_explained_var=0.95, **regressor_kwargs):
+        self.n_components = n_components
+        self.max_fraction = max_fraction
+        self.fit_intercept = fit_intercept
+        self.pca_explained_var = pca_explained_var
+        self.regressor_name = regressor_name
+        self.regressor_kwargs = regressor_kwargs
+        self.scaleX=StandardScaler()
+        self.scaleY=StandardScaler()
+        self.pcaX = PCA()
+        self.pcaY = PCA()
+        self.reg=self._get_regressor()        
+        
+    def _get_regressor(self):
+
+        if self.regressor_name not in regressors:
+            raise ValueError(f"Unknown regressor '{self.regressor_name}'.")
+            
+        reg_class=regressors[self.regressor_name]
+        
+        # Inspect constructor to see if 'fit_intercept' is accepted
+        sig = inspect.signature(reg_class.__init__)
+        kwargs = self.regressor_kwargs.copy()
+        if 'fit_intercept' in sig.parameters:
+            kwargs['fit_intercept'] = self.fit_intercept
+            self.supports_intercept=True
+        else:
+            self.supports_intercept=False
+      
+        return reg_class(**kwargs)
+
+    
+    def fit(self, X, Y):
+        #scaling predictor and predictand        
+        X_std=self.scaleX.fit_transform(X)
+        Y_std=self.scaleY.fit_transform(Y)
+        
+        X_c = self.pcaX.fit_transform(X_std)
+        cumvar = np.cumsum(self.pcaX.explained_variance_ratio_)
+
+        # Choose number of components that explain X % - for PCA that enters CCA 
+        ncompX=np.argmax(cumvar >= self.pca_explained_var) + 1
+        X_c=X_c[:,:ncompX]
+        self.ncompX=ncompX
+        
+        Y_c = self.pcaY.fit_transform(Y_std)
+        cumvar = np.cumsum(self.pcaY.explained_variance_ratio_)
+        
+        # Choose number of components that explain Y % - for PCA that enters CCA
+        ncompY = np.argmax(cumvar >= self.pca_explained_var) + 1
+        Y_c=Y_c[:,:ncompY]
+        self.ncompY=ncompY
+        
+        #setting up number of components for CCA
+        n_samples=X.shape[0]
+        if self.n_components is None:
+            max_allowed = int(np.floor(self.max_fraction * n_samples))
+            self.n_components = min(self.ncompX, self.ncompY, max_allowed)
+
+        #initializing cca once we know how many components we need
+        self.cca = CCA(n_components=self.n_components)
+
+        #fitting CCA
+        self.cca.fit(X_c, Y_c)
+        X_c, Y_c = self.cca.transform(X_c, Y_c)
+        
+        #retaining CCA scores
+        self.scoresX=X_c
+        self.scoresY=Y_c
+        
+        #retaining canonical patterns
+        self.can_pattern_X = self.pcaX.components_[:ncompX, :].T @ self.cca.x_weights_
+        self.can_pattern_Y = self.pcaY.components_[:ncompY, :].T @ self.cca.y_weights_
+
+        #fitting regression model
+        self.reg.fit(X_c, Y_c)
+        
+        return self
+
+    
+    def predict(self, X):
+        #scale    
+        X_c = self.scaleX.transform(X)
+        #PCA trasform
+        X_c = self.pcaX.transform(X_c)
+        #select only retained PC components
+        X_c=X_c[:,:self.ncompX]
+        #CCA transform
+        X_c = self.cca.transform(X_c)  # transform only X
+        
+        #predict with model
+        Y_c_pred=self.reg.predict(X_c)
+        
+        # Inverse transform to get prediction in original Y space
+        #invert CCA
+        Y_pred = Y_c_pred @ self.cca.y_rotations_.T
+        #invert PCA
+        selComponents = self.pcaY.components_[0:self.ncompY]
+        Y_pred = Y_pred @ selComponents
+        #invert scaling
+        Y_pred = self.scaleY.inverse_transform(Y_pred)
+        
+
+        return Y_pred
+    
+
+def writeOutput(_data, _outputfile):
+    if gl.targetType=="grid":
+        _data.to_netcdf(_outputfile)
+    else:
+        _data.to_csv(_outputfile)
+    showMessage("written {}".format(_outputfile), "INFO")
+    return    
+
+
+def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecastid):
+    #plotting predictor scores
+    canpatX=_regressor.can_pattern_X 
+
+    canpatX=pd.DataFrame(canpatX, index=predictorhcst.columns, columns=["Mode{}".format(x+1) for x in range(canpatX.shape[1])])
+    canpatX=canpatX.to_xarray().sortby("lat").sortby("lon")
+
+    for pc in canpatX.data_vars:
+        outfile=Path(_diagsdir,"{}-cannonical-pattern_predictor_{}.jpg".format(pc,_forecastid))
+        showMessage("plotting {}".format(outfile))
+
+        fig=plt.figure(figsize=(5,5))
+        pl=fig.add_subplot(1,1,1)
+
+        canpatX[pc].plot(ax=pl)
+        pl.set_title("Predictor's {} pattern \n{}".format(pc, _forecastid))
+
+        plt.savefig(outfile)            
+        plt.close()
+
+    if gl.targetType=="grid":
+        canpatY=_regressor.can_pattern_Y
+        
+        canpatY=pd.DataFrame(canpatY, index=predictandhcst.columns, columns=["Mode{}".format(x+1) for x in range(canpatY.shape[1])])
+        canpatY=canpatY.to_xarray().sortby("lat").sortby("lon")
+
+        for pc in canpatY.data_vars:
+            outfile=Path(_diagsdir,"{}-cannonical-pattern_predictand_{}.jpg".format(pc,_forecastid))
+            showMessage("plotting {}".format(outfile))
+
+            fig=plt.figure(figsize=(5,5))
+            pl=fig.add_subplot(1,1,1)
+
+            canpatY[pc].plot(ax=pl)
+            pl.set_title("Predictand's {} pattern \n{}".format(pc, _forecastid))
+
+            plt.savefig(outfile)            
+            plt.close()
+        
+
+    scoresX=_regressor.scoresX
+    scoresX=pd.DataFrame(scoresX, index=predictandhcst.index, columns=["Mode{}".format(x+1) for x in range(scoresX.shape[1])])
+
+    scoresY=_regressor.scoresY
+    scoresY=pd.DataFrame(scoresY, index=predictandhcst.index, columns=["Mode{}".format(x+1) for x in range(scoresY.shape[1])])
+
+    for mode in scoresX.columns:
+        outfile=Path(_diagsdir,"CCA-scores_{}_{}.jpg".format(mode, _forecastid))
+        showMessage("plotting {}".format(outfile))
+
+        fig=plt.figure(figsize=(7,4))
+        pl=fig.add_subplot(1,1,1)
+
+        scoresX[mode].plot(ax=pl, label="predictor")
+        scoresY[mode].plot(ax=pl, label="predictand")
+        pl.set_title("Scores of CCA {}\n{}".format(mode, _forecastid))
+        plt.legend()
+
+        plt.savefig(outfile)            
+        plt.close()
+
+        
+    #plotting correlations        
+    outfile=Path(_diagsdir,"CCA-correlations_{}.jpg".format( _forecastid))
+    showMessage("plotting {}".format(outfile))
+    
+    corrs = [np.corrcoef(scoresX.iloc[:, i], scoresY.iloc[:, i])[0,1] for i in range(scoresX.shape[1])]
+
+    fig=plt.figure(figsize=(7,4))
+    pl=fig.add_subplot(1,1,1)
+
+    bars=pl.bar(range(1, len(corrs)+1), corrs)
+    # annotate each bar with its value
+    for bar, val in zip(bars, corrs):
+        height = bar.get_height()
+        pl.text(bar.get_x() + bar.get_width()/2, height + 0.02, f"{val:.2f}",
+                ha='center', va='bottom')
+    pl.set_ylim(0,1.1)
+    pl.set_xlabel("Canonical mode")
+    pl.set_ylabel("Canonical correlation")
+    pl.set_title("Strength of canonical correlations")
+
+    plt.savefig(outfile)            
+    plt.close()
+
+    
+    
+    
+def plotDiagsPCR(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecastid):
+    #plotting predictor scores
+    scores=_regressor.scores
+    scores=pd.DataFrame(scores, index=predictandhcst.index, columns=["PC{}".format(x+1) for x in range(scores.shape[1])])
+
+    outfile=Path(_diagsdir,"PCA-scores_predictand_{}.jpg".format(_forecastid))
+    showMessage("plotting {}".format(outfile))
+
+    fig=plt.figure(figsize=(7,4))
+    pl=fig.add_subplot(1,1,1)
+
+    scores.plot(ax=pl)
+    pl.set_title("Scores of retained PCs \n{}".format(_forecastid))
+
+    plt.savefig(outfile)            
+    plt.close()
+
+
+    #plotting loadings
+    loadings=_regressor.loadings
+    loadings.shape
+
+    loadings=pd.DataFrame(loadings, index=predictorhcst.columns, columns=["PC{}".format(x+1) for x in range(loadings.shape[1])])
+    loadings=loadings.to_xarray().sortby("lat").sortby("lon")
+
+
+    for pc in loadings.data_vars:
+        outfile=Path(_diagsdir,"{}-loadings_predictand_{}.jpg".format(pc,_forecastid))
+        showMessage("plotting {}".format(outfile))
+
+        fig=plt.figure(figsize=(5,5))
+        pl=fig.add_subplot(1,1,1)
+
+        loadings[pc].plot(ax=pl)
+        pl.set_title("{} loadings \n{}".format(pc, _forecastid))
+
+        plt.savefig(outfile)            
+        plt.close()

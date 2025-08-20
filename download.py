@@ -14,7 +14,8 @@ from PyQt5 import QtWidgets, uic, QtCore
 from PyQt5.QtWidgets import QFileDialog
 
 from cftime import num2date
-
+import traceback
+from pathlib import Path
 
 msgColors={"ERROR": "red",
            "INFO":"blue",
@@ -28,21 +29,42 @@ tgtSeass=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec
 srcMons=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
           
 indexSources={
-"IOD-JMA": ["IOD (Dipole Mode Index) from JMA", "https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/DMI/anomaly"],
-"Nino3-JMA":["Nino3 from JMA","https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_3/anomaly"],
-"Nino4-JMA": ["Nino4 from JMA","https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_4/anomaly"]
+"IOD_JMA": ["IOD (Dipole Mode Index) from JMA", "https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/DMI/anomaly"],
+"Nino3_JMA":["Nino3 from JMA","https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_3/anomaly"],
+"Nino4_JMA": ["Nino4 from JMA","https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_4/anomaly"]
 }
 
-predictandSouces={
-"PRCP-CHIRPSp25-IRIDL":["CHIRPS 0.25 deg rainfall from IRI data library",
+predictandSources={
+"PRCP_CHIRPSp25_IRIDL":["CHIRPS 0.25 deg rainfall from IRI data library",
                      "https://iridl.ldeo.columbia.edu/SOURCES/.UCSB/.CHIRPS/.v2p0/.daily-improved/.global/.0p25/.prcp/{}/mul/T/(1 Jan {})/(31 Dec {})/RANGE/T/({} {}-{})/seasonalAverage/Y/({})/({})/RANGEEDGES/X/({})/({})/RANGEEDGES/-999/setmissing_value/data.nc", "sum"],
 }
 
-predictorSouces={
-"SST-ERSSTv5-IRIDL":["Sea Surface temperature ERSST v5",
+predictorSources={
+"SST_ERSSTv5_IRIDL":["Sea Surface temperature ERSST v5",
                          "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/(Jan 1979)/(Dec {})/RANGE/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
 }
 
+fcstpredSources={
+    "SST_GEOSS2S_IRIDL": ["SST forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "SST_CanSIPS-IC4_IRIDL": ["SST forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "SST_CCSM4_IRIDL": ["SST forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "SST_CFSv2_IRIDL": ["SST forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "PRCP_GEOSS2S_IRIDL": ["Rainfall forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "PRCP_CanSIPS-IC4_IRIDL": ["Rainfall forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "PRCP_CCSM4_IRIDL": ["Rainfall forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "PRCP_CFSv2_IRIDL": ["Rainfall forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "z500_GEOSS2S_IRIDL": ["z500 forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.h500/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.h500/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "z500_CanSIPS-IC4_IRIDL": ["z500 forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.hgt/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.hgt/[M]/average/appendstream/P/500/500/RANGEEDGES/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "z200_CCSM4_IRIDL": ["z200 forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.gz/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+    "z200_CFSv2_IRIDL": ["z200 forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.hgt/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+}
+#    "SST_SEAS51_IRIDL": ["SST forecasted by SEAS51 (ECMWF)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+#    "SST_GCFS2p2_IRIDL": ["SST forecasted by GCFS2p2 (DWD)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.DWD/.GCFS2p2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.DWD/.GCFS2p2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+#    "SST_CPS3_IRIDL": ["SST forecasted by CPS3 (JMA)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+#    "SST_System9_IRIDL": ["SST forecasted by System9 (MeteoFrance)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],
+#    "SST_SPSv4_IRIDL": ["SST forecasted by SPSv4 (CMCC)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"],           
+
+#GFDL-SPEAR - ending in July 2025
 
 def showMessage_print(_message, _type="RUNTIME"):
     #this print messages to log window, which are generated outside of the threaded function
@@ -69,7 +91,32 @@ def downloadUrl(_url):
     
     return response
     
+def month2int(_str):
+    #converts month string to non-pythonic integer month number
+    return (np.where(np.array(srcMons)==_str)[0][0])+1  
 
+def getLeadTime():
+    srcMonth=month2int(gl.config['predictorMonth'])
+    tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
+    tgtYear=int(gl.config['fcstTargetYear'])
+    tgtDate=pd.to_datetime("{}-{}-01".format(tgtYear,tgtMonth))
+    
+    leadTime=(tgtMonth+12-srcMonth)%12
+    if leadTime<1:
+        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the minimum allowed lead time of 1. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime)
+        showMessage(msg,"ERROR")
+        return None
+    if leadTime>gl.maxLeadTime:
+        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, gl.maxLeadTime)
+        showMessage(msg,"ERROR")
+        return None
+    gl.leadTime=leadTime
+    
+    srcDate=tgtDate-pd.offsets.MonthBegin(leadTime)
+
+    gl.predictorDate=srcDate
+    
+    return leadTime
 
     
 def downloadPredictand():
@@ -106,7 +153,7 @@ def downloadPredictand():
 
     
     #simply - monthly target will have three letters, seasonal target - 7
-    temporalaggregation=predictandSouces[_predictandcode][2]
+    temporalaggregation=predictandSources[_predictandcode][2]
     
     if len(_predictandseas)==3:
         #monthly
@@ -140,14 +187,14 @@ def downloadPredictand():
         showMessage("requesting date range: {}".format(daterange))
 
         
-        outfile="{}/{}_{}_{}-{}.nc".format(_downloadsdir,_predictandcode, basetime, first_date.strftime("%Y%m"), last_date.strftime("%Y%m"))
+        outfile=Path("{}","{}_{}_{}-{}.nc".format(_downloadsdir,_predictandcode, basetime, first_date.strftime("%Y%m"), last_date.strftime("%Y%m")))
         
         if _overwrite is False:
             if os.path.exists(outfile):
                 showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
                 return
         
-        url=predictandSouces[_predictandcode][1]
+        url=predictandSources[_predictandcode][1]
         url=url.format(multiply,firstyear, finalyear, _predictandseas, firstyear, finalyear, south,north,west,east)
 
         response=downloadUrl(url)
@@ -176,7 +223,6 @@ def downloadPredictand():
             firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin(2)
             #forward one month
             lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))+pd.offsets.MonthBegin(1)
-            print(lastdatadate, last_date)
             if lastdatadate<last_date:
                 showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}".format(last_date.strftime("%b %Y"), daterange), "NONCRITICAL")
             else:
@@ -223,9 +269,11 @@ def downloadIndexPredictor():
     
     #requesting data
     response=downloadUrl(_url)
+    
+    _source=_indexcode.split("_")[-1]
 
     #index-specific processing
-    if _indexcode in ["IOD-JMA","Nino3-JMA","Nino4-JMA"]:
+    if _source=="JMA":
         #processing raw data
         data=response.text.split("\n")
         data=np.array([x.split() for x in data[1:-1]])
@@ -235,7 +283,7 @@ def downloadIndexPredictor():
         #creating and populating dataframe
         dates=pd.date_range("{}-01-01".format(years[0]), periods=len(data), freq="ME")
         
-        _index=_indexcode.split("-")[0]
+        _index=_indexcode.split("_")[0]
         output=pd.DataFrame(data, index=dates, columns=[_index]).astype(float)
         output[output==99.90]=np.nan
         output=output[~np.isnan(output).values]
@@ -249,8 +297,8 @@ def downloadIndexPredictor():
         showMessage("predictor date {} not in data!".format(_predictordate.strftime("%b %Y")),"NONCRITICAL")
           
     #defining file names
-    rawfile="{}/{}_{}-{}.txt".format(_downloadsdir,_indexcode, first_date, last_date)
-    outfile="{}/{}_{}-{}.csv".format(_downloadsdir,_indexcode, first_date, last_date)
+    #rawfile=Path(_downloadsdir,"{}_{}-{}.txt".format(_indexcode, first_date, last_date))
+    outfile=Path(_downloadsdir,"{}_{}-{}.csv".format(_indexcode, first_date, last_date))
     
     if _overwrite is False:
         if os.path.exists(outfile):
@@ -310,7 +358,7 @@ def downloadGriddedPredictor():
 
     showMessage("\ndownloading {}".format(_predictorcode))
     
-    _source=_predictorcode.split("-")[-1]
+    _source=_predictorcode.split("_")[-1]
     
     #always
     basetime="mon"
@@ -342,7 +390,7 @@ def downloadGriddedPredictor():
         #"http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/
         # (Jan 1982)/(Dec 2021)/RANGE/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/
         # X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"
-        url=predictorSouces[_predictorcode][1]
+        url=predictorSources[_predictorcode][1]
         url=url.format(lastyear, _predictormon, firstyear, lastyear, south,north,west,east)
 
         response=downloadUrl(url)
@@ -381,8 +429,158 @@ def downloadGriddedPredictor():
             with open(outfile, "wb") as outf:
                 outf.write(response.content)
             showMessage("Saved downloaded data to {}".format(outfile), "SUCCESS")
+            
         
+def downloadFcstPredictor():
+    #read data from gui
+    _predictorcode=gl.window.comboBox3_var.currentData()
+    _overwrite=gl.window.checkBox3_overwrite.isChecked()
+    _predictoryear=gl.window.lineEdit_srcyear.text()
+    _predictormon=gl.window.comboBox_srcmon.currentData()
+    
+    _predictortime=pd.to_datetime("{}-{}-01".format(_predictoryear, _predictormon))
 
+    _forecasttime=_predictortime+pd.offsets.MonthBegin(1)
+    _forecastyear=_forecasttime.year
+    _forecastmon=srcMons[_forecasttime.month-1]
+    
+    south=gl.window.lineEdit3_minlat.text()
+    north=gl.window.lineEdit3_maxlat.text()
+    west=gl.window.lineEdit3_minlon.text()
+    east=gl.window.lineEdit3_maxlon.text()
+
+    for _x in [south,north,west,east]:
+        if _x=="":
+            showMessage("\nplease define coordinates of requested domain", "ERROR")
+            return
+        
+    _downloadsdir=gl.window.lineEditDirectory.text()
+    
+    if not os.path.exists(_downloadsdir):
+        showMessage("output directory {} does not exist. creating...".format(_downloadsdir))
+        os.makedirs(downloadsdir)
+        showMessage("done")
+    
+    if _predictorcode=="":
+        showMessage("\nplease select variable to download", "ERROR")
+        return
+
+    if _predictoryear=="":
+        showMessage("\nplease provide predictor's year", "ERROR")
+        return
+    
+    if _predictormon=="":
+        showMessage("\nplease provide predictor's month", "ERROR")
+        return
+    
+    
+
+    showMessage("\ndownloading {}".format(_predictorcode))
+    
+    _source=_predictorcode.split("_")[-1]
+    
+    #this is with respect to predictor month, not forecast month
+    leadtime=getLeadTime()
+
+
+    #this is with respect to forecast month
+    leadtimestart=leadtime-1+0.5
+
+    if len(gl.config['fcstTargetSeas'])==3:
+        basetime="mon"
+        leadtimeend=leadtime-1+0.5
+    else:
+        basetime="seas"
+        leadtimeend=leadtime-1+2.5
+
+    leadtimefile=(leadtimestart+leadtimeend)/2
+
+
+    if _source=="IRIDL":
+
+        #defined internally, can be included in the variable-source dictionary
+        firstyear=1980
+        firstmonth=_predictormon
+        first_date=pd.to_datetime("01 {} {}".format(firstmonth, firstyear))
+
+        lastyear=_predictoryear
+        lastmonth=_predictormon
+
+        last_date=pd.to_datetime("01 {} {}".format(lastmonth, lastyear))
+
+
+        daterange="{}{}-{}{}".format(_predictormon,firstyear, _predictormon, lastyear)
+        showMessage("requesting date range: {}".format(daterange))
+
+
+        outfile="{}/{}_{}_{}-{}.nc".format(_downloadsdir,_predictorcode, basetime, first_date.strftime("%Y%m"), last_date.strftime("%Y%m"))
+
+        if _overwrite is False:
+            if os.path.exists(outfile):
+                showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
+                return
+
+        url=fcstpredSources[_predictorcode][1]
+        url=url.format(_forecastmon, firstyear, _forecastyear,leadtimestart,leadtimeend,south,north,west,east)
+        showMessage(url)
+
+        response=downloadUrl(url)
+
+        if response is None:
+            showMessage("failed to download forecast data")
+            return
+        else:
+
+            data_stream = io.BytesIO(response.content)
+
+            # Open with xarray 
+            # chunks argument prevents error with time conversion, requires dask to be installed, though
+            ds = xr.open_dataset(data_stream, decode_times=False, chunks={})
+
+            #renaming to time as later functions do not work with T which is used by iri files
+            ds=ds.rename({"S":"time", "X":"lon", "Y":"lat", "L":"lead_time"})
+
+
+            if ds["time"].attrs['calendar'] == '360':
+                ds["time"].attrs['calendar'] = '360_day'
+
+            #decoding dates
+            ds = xr.decode_cf(ds, use_cftime=True)
+
+            #converting calendar
+            ds=ds.convert_calendar("standard", align_on="date")
+
+            #substituting initial condition time for forcast reference time
+            #ds.time will be set on 1st of the month, newtime will be the last day of the previous month
+            newtime=pd.to_datetime(ds.time)-pd.offsets.MonthBegin()
+            ds["time"]=newtime
+
+            #collapsing Lead time variable
+            for var in ds.data_vars:
+                ds[var] = ds[var].mean("lead_time")
+            #adding atribute
+            basetimetext={"mon":"mean monthly value for the forecast target month", "seas":"mean seasonal value for the forecast target season"}
+            ds.attrs["description"]="Data time is set to the last day of the month for which initialization data are available. The forecast reference time, i.e. month when forecast is issued is the first day of the subsequent month"
+            ds.attrs["value"]=basetimetext[basetime]
+            ds.attrs["forecast_target"]=gl.config['fcstTargetSeas']        
+            ds.attrs["forecast_reference_time"]="01 {}".format(_forecastmon)
+        
+            #iridl will not complain if available data does not cover the entire requested period
+            #need to check if data for forecast is available.
+            lastdatatime=pd.to_datetime(ds["time"].values[-1])
+            firstdatatime=pd.to_datetime(ds["time"].values[0])
+            print(lastdatatime, _predictortime, firstdatatime)
+            if _predictortime !=lastdatatime:
+                showMessage("Downloaded data contains data till {}, and thus does not include data required for forecast, i.e. for {}".format(lastdatatime.strftime("%b %Y"), _predictortime.strftime("%b %Y")), "ERROR")
+                return
+            else:
+                showMessage("All fine", "NONCRITICAL")
+                
+            # on successful response - writing file
+            ds.to_netcdf(outfile)
+            showMessage("Saved downloaded data to {}".format(outfile), "SUCCESS")
+            
+            
 class Worker(QtCore.QThread):
     log = QtCore.pyqtSignal(str)
     finished = QtCore.pyqtSignal()
@@ -401,7 +599,9 @@ class Worker(QtCore.QThread):
             self.task_function(*self.args, **self.kwargs)
             self.log.emit("Task finished successfully.")
         except Exception as e:
-            self.log.emit(f"Error: {e}")
+            tb = traceback.format_exc()
+            self.log.emit(f"Error occurred:\n{tb}")
+            #self.log.emit(f"Error: {e}")
         finally:
             self.finished.emit()
 
@@ -419,6 +619,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Connect signals
         self.button1_run.clicked.connect(lambda: self.start_task(downloadPredictand))
         self.button2_run.clicked.connect(lambda: self.start_task(downloadGriddedPredictor))
+        self.button3_run.clicked.connect(lambda: self.start_task(downloadFcstPredictor))
         self.button4_run.clicked.connect(lambda: self.start_task(downloadIndexPredictor))
         self.clearLogButton.clicked.connect(self.logWindow.clear)
         
@@ -433,11 +634,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 )
             )
                         
-        for gB in [self.groupBox1, self.groupBox2, self.groupBox3, self.groupBox4]:
+        for gB in [self.groupBox1, self.groupBox2, self.groupBox4, self.groupBox3]:
             setup_collapsible(gB)
             
         # collapsing
-        for gB in [self.groupBox2, self.groupBox3, self.groupBox1]:
+        for gB in [self.groupBox2, self.groupBox4, self.groupBox1]:
             for child in gB.findChildren(QtWidgets.QWidget):
                 if child is not gB:
                     child.setVisible(False)
@@ -474,13 +675,18 @@ if __name__ == "__main__":
 
     gl.window.comboBox1_var.clear()
     gl.window.comboBox1_var.addItem("", "")
-    for key, value in predictandSouces.items():
+    for key, value in predictandSources.items():
         gl.window.comboBox1_var.addItem(value[0], key)
         
     gl.window.comboBox2_var.clear()
     gl.window.comboBox2_var.addItem("", "")
-    for key, value in predictorSouces.items():
+    for key, value in predictorSources.items():
         gl.window.comboBox2_var.addItem(value[0], key)
+        
+    gl.window.comboBox3_var.clear()
+    gl.window.comboBox3_var.addItem("", "")
+    for key, value in fcstpredSources.items():
+        gl.window.comboBox3_var.addItem(value[0], key)
     
     gl.window.comboBox4_var.clear()
     gl.window.comboBox4_var.addItem("", "")
@@ -502,9 +708,8 @@ gl.config={}
 gl.config['downloadDir']="../test_data"
 gl.config['predictorMonth'] = "Jun"
 gl.config['predictorYear'] = 2025
-gl.config['fcstTargetMonth']="Dec"
+gl.config['fcstTargetSeas']="Dec"
 gl.config['fcstTargetYear']=2025
-gl.config['predictorSeas'] = "Mar-May"
 
 gl.config['predictandMinLat']=-34
 gl.config['predictandMaxLat']=-30
@@ -516,12 +721,19 @@ gl.config['predictorMaxLat']=60
 gl.config['predictorMinLon']=-180
 gl.config['predictorMaxLon']=180
 
+gl.config['fcstpredMinLat']=-60
+gl.config['fcstpredMaxLat']=60
+gl.config['fcstpredMinLon']=-180
+gl.config['fcstpredMaxLon']=180
+
+gl.maxLeadTime=6
+    
 def populateGui():
     gl.window.lineEditDirectory.setText(gl.config['downloadDir'])
     gl.window.lineEdit_tgtyear.setText(str(gl.config['fcstTargetYear']))
+    gl.window.comboBox_tgtseas.setCurrentText(gl.config['fcstTargetSeas'])
     gl.window.lineEdit_srcyear.setText(str(gl.config['predictorYear']))
     gl.window.comboBox_srcmon.setCurrentText(gl.config['predictorMonth'])
-    gl.window.comboBox_tgtseas.setCurrentText(gl.config['predictorSeas'])
     gl.window.lineEdit1_minlat.setText(str(gl.config['predictandMinLat']))
     gl.window.lineEdit1_minlon.setText(str(gl.config['predictandMinLon']))
     gl.window.lineEdit1_maxlat.setText(str(gl.config['predictandMaxLat']))
@@ -530,9 +742,11 @@ def populateGui():
     gl.window.lineEdit2_minlon.setText(str(gl.config['predictorMinLon']))
     gl.window.lineEdit2_maxlat.setText(str(gl.config['predictorMaxLat']))
     gl.window.lineEdit2_maxlon.setText(str(gl.config['predictorMaxLon']))
+    gl.window.lineEdit3_minlat.setText(str(gl.config['fcstpredMinLat']))
+    gl.window.lineEdit3_minlon.setText(str(gl.config['fcstpredMinLon']))
+    gl.window.lineEdit3_maxlat.setText(str(gl.config['fcstpredMaxLat']))
+    gl.window.lineEdit3_maxlon.setText(str(gl.config['fcstpredMaxLon']))
     
 populateGui()
 
 sys.exit(app.exec_())
-
-    

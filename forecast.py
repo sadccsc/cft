@@ -18,8 +18,6 @@ from sklearn.model_selection import cross_val_score, RepeatedKFold, LeaveOneOut,
 from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, mean_squared_error, explained_variance_score
 from sklearn.base import BaseEstimator, RegressorMixin
 from rasterstats import zonal_stats
-import matplotlib
-matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import cartopy.crs as ccrs
@@ -42,7 +40,6 @@ gl.maxLeadTime=6
 #this should be added to gui
 gl.predictandCategory="rainfall"
 gl.predictandMissingValue=-999
-
 
 
     
@@ -154,25 +151,29 @@ def computeModel(model):
             showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to None", "ERROR")
             #2-D predictor, no need to PCR or CCA
             return
-        
+            
     if gl.config['preproc'][model]=="PCR":
         #regession model
         regressor = PCRegressor(regressor_name=gl.config['regression'][model], **kwargs)
         
     if gl.config['preproc'][model]=="CCA":
-        showMessage("sorry, CCA is not implemented yet", "NONCRITICAL")
-        return
-#        regressor = CCAregressor(regressor_name=gl.config['regression'][model], **kwargs)
+        
+        regressor = CCARegressor(regressor_name=gl.config['regression'][model], **kwargs)
+        #return
   
     #cross-validated hindcast
     showMessage("Calculating cross-validated hindcast...")
     cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv)
+    
+    
     cvHcst=pd.DataFrame(cvHcst, index=predictandHcst.index, columns=predictandHcst.columns)
 
-    
+
     #actual prediction
     showMessage("Calculating deteriministic forecast...")
     regressor.fit(predictorHcst,  predictandHcst)
+    
+    
     detFcst=regressor.predict(predictorFcst)
     detFcst=pd.DataFrame(detFcst, index=[fcstTgtDate], columns=predictandHcst.columns)
     
@@ -225,13 +226,13 @@ def computeModel(model):
         tercfcst=tercFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         cemfcst=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         #this is for writing
-        probfcst_write=probFcst.unstack().to_xarray()
-        probhcst_write=probHcst.unstack().to_xarray()
-        tercfcst_write=tercFcst.unstack().to_xarray()
-        cemhcst_write=cemHcst.unstack().to_xarray()
-        detfcst_write=detFcst.unstack().to_xarray()
+        probfcst_write=probFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        probhcst_write=probHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        tercfcst_write=tercFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        cemhcst_write=cemHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        detfcst_write=detFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         dethcst_write=cvHcst.stack(level=[0,1], future_stack=True).to_xarray().to_dataset(name=gl.config['predictandVar'])
-        scores_write=scores.T.to_xarray()
+        scores_write=scores.T.to_xarray().sortby("lat").sortby("lon")
         fileExtension="nc"
     else:
         #this is for plotting
@@ -275,7 +276,15 @@ def computeModel(model):
 
     showMessage("Plotting time series...") 
     plotTimeSeries(cvHcst,predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID)
+    
+    showMessage("Plotting diagnostics")
+    if gl.config['preproc'][model]=="PCR":
+        plotDiagsPCR(regressor, predictorHcst, predictandHcst, diagsDir, forecastID)
 
+    if gl.config['preproc'][model]=="CCA":
+        plotDiagsCCA(regressor, predictorHcst, predictandHcst, diagsDir, forecastID)
+    
+    
     showMessage("All done!", "SUCCESS")    
     
     
@@ -426,16 +435,6 @@ timeAggregations={"sum","mean"}
 crossvalidators = {
         "KF": KFold,
         'LOO': LeaveOneOut,
-}
-
-#can be read from json - potentially editable by user
-regressors = {
-    "OLS":["Linear regression", {}],
-    "Lasso":["Lasso regression", {'alpha': 0.01}],
-    "Ridge":["Ridge regression", {'alpha': 1.0}],
-    "RF":["Random Forest", {'n_estimators': 100, 'max_depth': 5}],
-    "MLP":["Multi Layer Perceptron", {'hidden_layer_sizes': (50, 25), 'max_iter': 1000, 'random_state': 0}],
-    "Trees":["Decision Trees", {'max_depth': 2}]
 }
 
 preprocessors={

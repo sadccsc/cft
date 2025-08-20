@@ -2,14 +2,13 @@
 
 REM Define environment name here
 REM note that it has to be the same name as that defined in .yml file
-set ENV_NAME=cft-v5.0.0
+set ENV_NAME=cft-v5.0.1
 set ENV_FILE=environment.yml
 set SCRIPT_DIR=%~dp0
 set DESKTOP=%USERPROFILE%\Desktop
 set SHORTCUT_NAME=cft.lnk
 set TARGET_BAT=%SCRIPT_DIR%\cft.bat
 set SHORTCUT_PATH=%DESKTOP%\%SHORTCUT_NAME%
-
 
 
 echo
@@ -21,6 +20,12 @@ if %errorlevel% neq 0 (
     call conda install -y mamba -n base -c conda-forge
 ) else (
     echo Mamba is already installed.
+)
+
+where mamba >nul 2>nul
+if %errorlevel% neq 0 (
+    echo Mamba could not be installed. Check errors displayed above.
+    exit /b 1    
 )
 
 REM 1. Create conda environment from the lock file
@@ -44,8 +49,8 @@ if %ERRORLEVEL% EQU 0 (
    if %ERRORLEVEL% EQU 0 (
    	echo env %ENV_NAME% created
    ) else (
-       echo Env could not be created. Exiting.
-       exit \b 1
+       echo Python environment could not be created. Exiting.
+       exit /b 1
    )
 )
 
@@ -63,7 +68,7 @@ IF EXIST "%TARGET_BAT%" (
     echo %TARGET_BAT% created successfuly
 ) ELSE (
     echo %TARGET_BAT% could not be created. Exiting...
-    exit \b 1
+    exit /b 1
 )
 
 
@@ -79,13 +84,14 @@ powershell -NoProfile -ExecutionPolicy Bypass ^
 IF EXIST "%SHORTCUT_PATH%" (
     echo %SHORTCUT_PATH% created successfuly.
 
-    echo Installation appears successful.
 ) ELSE (
     echo %SHORTCUT_PATH% could not be created. Exiting...
-    exit \b 1
+    exit /b 1
 )
 
 echo =======
-echo End of installation process. Inspect messages above to check if all is in order.
+echo End of installation process.     
+echo Installation appears successful.
+echo But inspect messages above to check if all is in order.
 pause
 

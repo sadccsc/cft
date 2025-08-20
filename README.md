@@ -32,7 +32,7 @@ From version 4.0.0, the CFT code is maintained at:  https://github.com/sadc-csc/
 prior to that - it was maintained at https://github.com/taxmanyana/cft
 
 
-Basic functionality of v5.0.0:
+Basic functionality of v5.0.1:
 ------------
 Five modules:
 data download (new in v.5)
@@ -40,17 +40,23 @@ forecast (new in v.5)
 zoning (from v.3)
 verification (from v.4)
 synthesis (from v.4)
-Download module:
+
+Download module
+------------
 downloads following data types from sources:
-teleconnection indices from JMA (because they have lowest latency)
-IOD, Nino3, Nino4
-gridded predictors from IRI:
-SST
-gridded predictand from IRI:
-CHIPRS precipitation
-gridded forecast and hindcast data (not yet implemented)
-downloads to user-selected directory
-indices data are converted to a format ingestible by CFT
+1) teleconnection indices from JMA (because they have lowest latency) 
+- IOD, Nino3, Nino4
+2) gridded predictors from IRI:
+- SST
+3) gridded predictand from IRI:
+- CHIPRS precipitation
+4) gridded forecast and hindcast data
+- SST, precipitation and geopotential height for four models from NMME that are currently (August 2025) operational
+
+Data are downloaded to user-selected directory
+All data are converted to a format ingestible by CFT
+Note that geopotential height data availability varies between models, some offer only z200, some other levels. In the latter, z500 is set to be downloaded.
+
 
 Forecast module
 ------------
@@ -91,12 +97,12 @@ Two cross-validation approaches are possible:
     - leave-one-out
     - k-fold
 
-skill indices are calculated through cross-validation from out-of-fold predictions. The following skill indices are included:
+Skill indices are calculated through cross-validation from out-of-fold predictions. The following skill indices are included:
     - ROC score (above, below, normal) 
     - RPSS
     - correlation
 
-not yet implemented skill scores:
+Not yet implemented skill scores:
     - Heidke skill score for highest probability category
     - ignorance score 
     - reliability diagram 
@@ -128,6 +134,7 @@ cartopy
 pyqt
 scipy
 cftime
+dask
 
 Installation
 ------------
@@ -143,29 +150,40 @@ Starting
 ------------
 on Windows:
 - you should see cft.lnk on your Desktop. Double click on it.
-- alternatively:
+
+alternatively:
 - open Anaconda Prompt
 - navigate to your CFT directory (using cd commands)
-	- type:
-conda activate cft-5.0.0
-python cft.py
-or to call forecasting module directly: python forecast.py
+- type:
+      cft.bat
+alternatively:
+- open Anaconda Prompt
+- navigate to your CFT directory (using cd commands)
+- type:
+   conda activate cft-v5.0.1
+   python cft.py
+
+
 
 on Mac/Linux:
 - open terminal
 - navigate to your CFT directory (using cd commands)
-- type: ./cft.sh
-- alternatively:
-conda activate cft-5.0.0
-python cft.py
-or to call forecasting module directly: python forecast.py
+- type: 
+    ./cft.sh
+
+alternatively:
+- open terminal
+- navigate to your CFT directory (using cd commands)
+- type: 
+   conda activate cft-v5.0.1
+   python cft.py
+
 
 
 Still to do in v5.0
 ------------
 in download.py:
 - implement control of lat lon to make sure integers within range
-- implement download and processing of forecast data
 
 in forecast.py
 - extend and clean up plotting 

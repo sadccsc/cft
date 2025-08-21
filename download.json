@@ -1,8 +1,8 @@
 {
-    "downloadDir": "../test_data",
-    "predictorMonth": "Jun",
+    "downloadDir": "/work/code/csc/cft/download_test",
+    "predictorMonth": "Jul",
     "predictorYear": "2025",
-    "fcstTargetSeas": "Dec",
+    "fcstTargetSeas": "Dec-Feb",
     "fcstTargetYear": "2025",
     "firstDataYear": "1981",
     "predictandCode": "",
@@ -17,12 +17,12 @@
     "predictorMaxLat": "60",
     "predictorMinLon": "-180",
     "predictorMaxLon": "180",
-    "fcstpredCode": "",
+    "fcstpredCode": "z200_CFSv2_IRIDL",
     "fcstpredOverwrite": false,
     "fcstpredMinLat": "-60",
     "fcstpredMaxLat": "60",
     "fcstpredMinLon": "-180",
     "fcstpredMaxLon": "180",
-    "indexCode": "Nino3_JMA",
+    "indexCode": "",
     "indexOverwrite": false
 }

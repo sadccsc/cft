@@ -52,18 +52,20 @@ predictorSources={
 
 fcstpredSources={
     "SST_GEOSS2S_IRIDL": ["SST forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",1981],
-    "SST_CanSIPS-IC4_IRIDL": ["SST forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "SST_CCSM4_IRIDL": ["SST forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "SST_CFSv2_IRIDL": ["SST forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "PRCP_GEOSS2S_IRIDL": ["Rainfall forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-    "PRCP_CanSIPS-IC4_IRIDL": ["Rainfall forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "PRCP_CCSM4_IRIDL": ["Rainfall forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "PRCP_CFSv2_IRIDL": ["Rainfall forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "z500_GEOSS2S_IRIDL": ["z500 forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.h500/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.h500/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-    "z500_CanSIPS-IC4_IRIDL": ["z500 forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.hgt/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.hgt/[M]/average/appendstream/P/500/500/RANGEEDGES/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "z200_CCSM4_IRIDL": ["z200 forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.gz/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
     "z200_CFSv2_IRIDL": ["z200 forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.hgt/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
 }
+
+#    "SST_CanSIPS-IC4_IRIDL": ["SST forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
+#    "PRCP_CanSIPS-IC4_IRIDL": ["Rainfall forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
+#    "z500_CanSIPS-IC4_IRIDL": ["z500 forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.hgt/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.hgt/[M]/average/appendstream/P/500/500/RANGEEDGES/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
+
 #    "SST_SEAS51_IRIDL": ["SST forecasted by SEAS51 (ECMWF)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
 #    "SST_GCFS2p2_IRIDL": ["SST forecasted by GCFS2p2 (DWD)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.DWD/.GCFS2p2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.DWD/.GCFS2p2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
 #    "SST_CPS3_IRIDL": ["SST forecasted by CPS3 (JMA)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
@@ -279,10 +281,16 @@ def downloadPredictand():
             
             #iridl dates are mid of the season or mid month, aligning them with our notation
             #first month first year, and last month last year
-            #back two months
-            firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin(2)
-            #forward one month
-            lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))+pd.offsets.MonthBegin(1)
+            if basetime=="seas":
+                #back two months
+                firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin(2)
+                #forward one month
+                lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))+pd.offsets.MonthBegin(1)
+            else:
+                #for montly data, it will be the first of the first month and the first of the last month
+                firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin()
+                lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))-pd.offsets.MonthBegin()
+                           
             if lastdatadate<last_date:
                 showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}".format(last_date.strftime("%b %Y"), daterange), "NONCRITICAL")
             else:
@@ -441,7 +449,7 @@ def downloadGriddedPredictor():
             firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin(2)
             #forward one month
             lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))+pd.offsets.MonthBegin(1)
-            print(lastdatadate, last_date)
+
             if lastdatadate<last_date:
                 showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}".format(last_date.strftime("%b %Y"), daterange), "NONCRITICAL")
             else:
@@ -599,8 +607,12 @@ def downloadFcstPredictor():
 
             # Open with xarray 
             # chunks argument prevents error with time conversion, requires dask to be installed, though
-            ds = xr.open_dataset(data_stream, decode_times=False, chunks={})
-
+            try:
+                
+                ds = xr.open_dataset(data_stream, decode_times=False, chunks={})
+            except:
+                showMessage("Could not read downloaded data. This might be a result of a temporary problem with IRIDL server. Wait a couple of minutes and re-download the data. If the same error occurs - copy and paste the following url into a browser to identify the problem: \n{}".format(url), "ERROR")
+                return
             #renaming to time as later functions do not work with T which is used by iri files
             ds=ds.rename({"S":"time", "X":"lon", "Y":"lat", "L":"lead_time"})
 
@@ -633,7 +645,7 @@ def downloadFcstPredictor():
             #need to check if data for forecast is available.
             lastdatatime=pd.to_datetime(ds["time"].values[-1])
             firstdatatime=pd.to_datetime(ds["time"].values[0])
-            print(lastdatatime, _predictortime, firstdatatime)
+
             if _predictortime !=lastdatatime:
                 showMessage("Downloaded data contains data till {}, and thus does not include data required for forecast, i.e. for {}".format(lastdatatime.strftime("%b %Y"), _predictortime.strftime("%b %Y")), "ERROR")
                 return

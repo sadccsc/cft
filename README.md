@@ -32,7 +32,7 @@ From version 4.0.0, the CFT code is maintained at:  https://github.com/sadc-csc/
 prior to that - it was maintained at https://github.com/taxmanyana/cft
 
 
-Basic functionality of v5.0.1:
+Basic functionality of v5.0:
 ------------
 Five modules:
 data download (new in v.5)
@@ -51,7 +51,7 @@ downloads following data types from sources:
 3) gridded predictand from IRI:
 - CHIPRS precipitation
 4) gridded forecast and hindcast data
-- SST, precipitation and geopotential height for four models from NMME that are currently (August 2025) operational
+- SST, precipitation and geopotential height for three models from NMME that are currently (August 2025) operational
 
 Data are downloaded to user-selected directory
 All data are converted to a format ingestible by CFT
@@ -86,7 +86,7 @@ implements the following statistical models:
     - Lasso regression
     - Ridge regression
 
-two types of forecast are calculated:
+Two types of forecast are calculated:
     - deterministic forecast
     - tercile probabilistic forecast
 

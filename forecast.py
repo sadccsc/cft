@@ -29,7 +29,7 @@ import traceback
 from pathlib import Path
 
 import gl
-from functions.functions import *
+from functions.functions_forecast import *
 
 # in code
 gl.configFile="forecast.json"

@@ -41,7 +41,9 @@ import gl
 
 from PyQt5.QtWidgets import QFileDialog
 
-
+    
+import re
+import unicodedata
 
 seasons = ['JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO', 'SON', 'OND', 'NDJ', 'DJF']
 
@@ -1188,15 +1190,13 @@ def readVariablesNcfile(_file):
         if len(variables)>0:
             return variables
         else:
-            showMessage("File {} does not exist".format(_file),"ERROR")
+            showMessage("File {} does not have any data variables".format(_file),"ERROR")
             return
     else:
         showMessage("File {} does not exist".format(_file),"ERROR")
         return        
     
-    
-import re
-import unicodedata
+
 
 def sanitize_string(value, replacement="_", max_length=255):
     """

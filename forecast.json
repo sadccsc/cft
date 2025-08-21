@@ -16,7 +16,7 @@
     ],
     "predictorFiles": [
         [
-            "/work/code/csc/cft/test_data/SST_NASA-GEOSS2S_IRIDL_seas_198006-202506.nc",
+            "",
             "sst"
         ]
     ],

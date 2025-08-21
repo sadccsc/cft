@@ -1,18 +1,17 @@
 #to do
 
 in dowload.py:
-- implement control of lat lon to make sure integers within range
 - catch errors in download when data are not availble or iridl is down
-- catch error when output directory does not exist
-- add season to predictor and align with type of predictor
-
+- fix CanSips download error
+- implement stop button
 
 in forecast.py
 - extend and clean up plotting 
 - include skill-masked plots
 - catch error when some zones get dropped if spatial aggregation is used
 - include more skill measures
-- data saving - diagnostics - results of pca and cca
+- data saving - diagnostics - regression model diags - error distribution, obs vs predicted
+
 
 - test data ingestion errors for csv files
 - add missing value to gui
@@ -22,6 +21,7 @@ in forecast.py
 
 
 # wish list:
+- implement download from CDS, and if not - implement download of CDS data from IRIDL - both require users to set up account
 - multimodel forecast
 - filling missing values in predictand
 - regridding of gridded predictand to a coarser resolution if domain too large

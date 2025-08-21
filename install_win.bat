@@ -2,7 +2,7 @@
 
 REM Define environment name here
 REM note that it has to be the same name as that defined in .yml file
-set ENV_NAME=cft-v5.0.1
+set ENV_NAME=cft-v5.0
 set ENV_FILE=environment.yml
 set SCRIPT_DIR=%~dp0
 set DESKTOP=%USERPROFILE%\Desktop
@@ -60,9 +60,10 @@ echo
 echo ----------------
 echo Creating batch file to run CFT - it will be located in the current directory %SCRIPT_DIR% under name %TARGET_BAT%
 (
-    echo call conda activate %ENV_NAME%
+    echo call mamba activate %ENV_NAME%
     echo python "%SCRIPT_DIR%cft.py"
 ) > "%TARGET_BAT%"
+
 
 IF EXIST "%TARGET_BAT%" (
     echo %TARGET_BAT% created successfuly
@@ -85,13 +86,16 @@ IF EXIST "%SHORTCUT_PATH%" (
     echo %SHORTCUT_PATH% created successfuly.
 
 ) ELSE (
-    echo %SHORTCUT_PATH% could not be created. Exiting...
-    exit /b 1
+    echo %SHORTCUT_PATH% could not be created. Error, but not critical.
 )
 
 echo =======
 echo End of installation process.     
 echo Installation appears successful.
 echo But inspect messages above to check if all is in order.
+echo 
+echo To start - use desktop shortcut (if created) or run cft.bat located in installation folder
+echo
+echo Happy forecasting!
 pause
 

@@ -1,2 +1,5 @@
-conda activate cft_5.0.0
+#! /bin/bash
+
+conda activate cft-v5.0
+python cft.py
 

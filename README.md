@@ -160,7 +160,7 @@ alternatively:
 - open Anaconda Prompt
 - navigate to your CFT directory (using cd commands)
 - type:
-   conda activate cft-v5.0.1
+   mamba activate cft-v5.0
    python cft.py
 
 
@@ -175,7 +175,7 @@ alternatively:
 - open terminal
 - navigate to your CFT directory (using cd commands)
 - type: 
-   conda activate cft-v5.0.1
+   mamba activate cft-v5.0
    python cft.py
 
 

@@ -1,4 +1,4 @@
-name: cft-v5.0.1
+name: cft-v5.0
 channels:
   - conda-forge
 dependencies:

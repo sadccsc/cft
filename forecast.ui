@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>CFT seasonal forecast</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>icon/cft.ico</normaloff>icon/cft.ico</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>

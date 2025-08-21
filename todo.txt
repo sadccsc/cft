@@ -3,6 +3,9 @@
 in dowload.py:
 - implement control of lat lon to make sure integers within range
 - catch errors in download when data are not availble or iridl is down
+- catch error when output directory does not exist
+- add season to predictor and align with type of predictor
+
 
 in forecast.py
 - extend and clean up plotting 

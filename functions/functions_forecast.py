@@ -539,7 +539,7 @@ def readNetcdf(ncfile, ncvar):
         
 
 #this calculates zonal mean over individual time steps
-def zonalMean(_grid, _poly,_namecolumn):
+def zonalMean(_grid, _poly):
     affine=_grid.rio.transform()
     _zonalmean=[]
     for i in range(_grid.shape[0]):
@@ -551,13 +551,12 @@ def zonalMean(_grid, _poly,_namecolumn):
         _zonalmean.append(temp)
 
     _zonalmean=np.array(_zonalmean)
-    _zonalmean=pd.DataFrame(_zonalmean, index=_grid.time, columns=_poly[_namecolumn])
+    _zonalmean=pd.DataFrame(_zonalmean, index=_grid.time, columns=_poly.index)
     return(_zonalmean)
 
 
 def aggregatePredictand(_data, _geodata, _poly):
     showMessage("aggregating...")
-    _poly = _poly[[gl.config["zonesAttribute"], 'geometry']]
     
     if isinstance(_geodata,xr.DataArray):
         #this is if geodata is xarray object
@@ -566,7 +565,7 @@ def aggregatePredictand(_data, _geodata, _poly):
         _data=_data.reindex(lat=np.sort(_data.lat)[::-1])
         _data.rio.set_spatial_dims(x_dim='lon', y_dim='lat')        
         _data=_data.rio.write_crs("epsg:4326")
-        _aggregated=zonalMean(_data, _poly,gl.config["zonesAttribute"])
+        _aggregated=zonalMean(_data, _poly)
         
         showMessage("\tAverage values for {} regions derived from data for {} by {} grid".format(_aggregated.shape[1], _data.shape[1], _data.shape[2]))
         

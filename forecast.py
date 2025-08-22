@@ -91,8 +91,17 @@ def computeModel(model):
     
     #aggregating to zones if required
     if gl.config["zonesAggregate"]:
-        zonesVector=gpd.read_file(gl.config["zonesFile"])
         showMessage("Aggregating data to zones read from {} ...".format(gl.config["zonesFile"]))
+        
+        zonesVector=gpd.read_file(gl.config["zonesFile"])
+        
+        if not zonesVector[gl.config["zonesAttribute"]].is_unique:
+            showMessage("Selected vector attribute in regions map contains identical values. These values have to be unique for each zone, please check the zones vector file or the attribute you selected. Stopping early.", "ERROR")
+            return
+        
+        #retaining just the attribute as index
+        zonesVector=zonesVector[[gl.config["zonesAttribute"], 'geometry']].set_index(gl.config["zonesAttribute"])
+
         predictand,geoData=aggregatePredictand(predictand0, geoData0, zonesVector)
         #checking if result has data
         if predictand.dropna().empty:

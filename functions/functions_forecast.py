@@ -1408,14 +1408,15 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
-            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl)
+            # add colorbar
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+
+            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, norm=norm)
             _geodata.boundary.plot(ax=pl)
             
             ax=fig.add_axes([0.82,0.25,0.03,0.6])
             
-            # add colorbar
-            norm = colors.Normalize(vmin=vmin, vmax=vmax)
-            cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             
             if levels is None:
                 # add colorbar

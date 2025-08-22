@@ -49,12 +49,6 @@ seasons = ['JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO', 'SON', 'OND',
 
 months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-msgColors={"ERROR": "red",
-           "INFO":"blue",
-           "RUNTIME":"grey",
-           "NONCRITICAL":"red",
-           "SUCCESS":"green"
-          }
 
 regressors = {
         "OLS": LinearRegression,
@@ -103,7 +97,7 @@ preprocessor_config={
 
 def showMessage(_message, _type="RUNTIME"):
     msgColors={"ERROR": "red",
-           "INFO":"blue",
+           "INFO":"grey",
            "RUNTIME":"grey",
            "NONCRITICAL":"red",
            "SUCCESS":"green"
@@ -295,7 +289,8 @@ def readPredictandCsv(csvfile):
         
     
 def readPredictor(_model):
-    predFile, predVar=gl.config["predictorFiles"][_model]
+    
+    predFile, predVar, predCode=gl.config["predictorFiles"][_model]
     if predFile=="":
         showMessage("predictor file not defined","ERROR")
         return
@@ -609,7 +604,7 @@ def getLeadTime():
     
     leadTime=(tgtMonth+12-srcMonth)%12
     if leadTime>gl.maxLeadTime:
-        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, maxLeadTime)
+        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, gl.maxLeadTime)
         showMessage(msg,"ERROR")
         return None
     gl.leadTime=leadTime
@@ -621,6 +616,7 @@ def getLeadTime():
     return leadTime
 
 def getHcstData(_predictand,_predictor):
+    
     #get time of predictand and predictor
     _predictor=_predictor.dropna()
     _predictand=_predictand.dropna()
@@ -633,6 +629,7 @@ def getHcstData(_predictand,_predictor):
     tgtTimeAdj=tgtTime-pd.offsets.MonthBegin(gl.leadTime)
     _predictandOvlp=_predictand.copy()
     _predictandOvlp.index=tgtTimeAdj
+
     
     sel=np.intersect1d(tgtTimeAdj, srcTime)
     _predictorOvlp=_predictor.loc[sel]
@@ -840,57 +837,45 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
 
     allscores=[]
     for entry in _det_hcst.columns:
-        #checks
-        temp=_predictand_hcst[entry]
-        #identical values - should be less than 10% of all
         
-        counts = temp.value_counts()
-        max_count = counts.max()
-        test1=False #max_count>0.3*len(temp)
-        
-        if test1:
-            most_frequent_values = counts[counts == max_count].index.tolist()
-            showMessage("\tnot able to calculate skill for {}. {} identical values of {} in data".format(entry, max_count, most_frequent_values))
-            entryscores=pd.Series([np.nan,np.nan,np.nan,np.nan, np.nan,np.nan,np.nan], index=index)                       
+        roc_score_above = np.round(roc_auc_score(_obs_tercile[entry]=="above", _prob_hcst["above"][entry]),2)
+        roc_score_below = np.round(roc_auc_score(_obs_tercile[entry]=="below", _prob_hcst["below"][entry]),2)
+        roc_score_normal = np.round(roc_auc_score(_obs_tercile[entry]=="normal", _prob_hcst["normal"][entry]),2)
+        cor=np.round(np.corrcoef(_det_hcst[entry],_predictand_hcst[entry])[0][1],2)
+        #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
+        ev=np.round(explained_variance_score(_det_hcst[entry],_predictand_hcst[entry]))
+        mape=np.round(mean_absolute_percentage_error(_det_hcst[entry],_predictand_hcst[entry]),2)
+        rmse=np.round((mean_squared_error(_det_hcst[entry],_predictand_hcst[entry])**0.5),2)
+
+        #prep data for rpss
+        _prob_clim=_prob_hcst.copy()
+
+
+        obsterc=_obs_tercile[entry]
+        obsterc=obsterc.map(lambda x: cat2num[x]).values
+        if isinstance(entry, tuple):
+            mask = (_prob_clim.columns.get_level_values('lat') == entry[0]) & (_prob_clim.columns.get_level_values('lon') == entry[1])
+            pclim=_prob_clim.loc[:, mask].values
+            mask = (_prob_clim.columns.get_level_values('lat') == entry[0]) & (_prob_clim.columns.get_level_values('lon') == entry[1])
+            phcst=_prob_hcst.loc[:,mask]
         else:
-            roc_score_above = np.round(roc_auc_score(_obs_tercile[entry]=="above", _prob_hcst["above"][entry]),2)
-            roc_score_below = np.round(roc_auc_score(_obs_tercile[entry]=="below", _prob_hcst["below"][entry]),2)
-            roc_score_normal = np.round(roc_auc_score(_obs_tercile[entry]=="normal", _prob_hcst["normal"][entry]),2)
-            cor=np.round(np.corrcoef(_det_hcst[entry],_predictand_hcst[entry])[0][1],2)
-            #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
-            ev=np.round(explained_variance_score(_det_hcst[entry],_predictand_hcst[entry]))
-            mape=np.round(mean_absolute_percentage_error(_det_hcst[entry],_predictand_hcst[entry]),2)
-            rmse=np.round((mean_squared_error(_det_hcst[entry],_predictand_hcst[entry])**0.5),2)
+            pclim=_prob_clim.loc[:,_prob_clim.columns.get_level_values(1)==entry].values
+            phcst=_prob_hcst.loc[:,_prob_hcst.columns.get_level_values(1)==entry]
 
-            #prep data for rpss
-            _prob_clim=_prob_hcst.copy()
-        
 
-            obsterc=_obs_tercile[entry]
-            obsterc=obsterc.map(lambda x: cat2num[x]).values
-            if isinstance(entry, tuple):
-                mask = (_prob_clim.columns.get_level_values('lat') == entry[0]) & (_prob_clim.columns.get_level_values('lon') == entry[1])
-                pclim=_prob_clim.loc[:, mask].values
-                mask = (_prob_clim.columns.get_level_values('lat') == entry[0]) & (_prob_clim.columns.get_level_values('lon') == entry[1])
-                phcst=_prob_hcst.loc[:,mask]
-            else:
-                pclim=_prob_clim.loc[:,_prob_clim.columns.get_level_values(1)==entry].values
-                phcst=_prob_hcst.loc[:,_prob_hcst.columns.get_level_values(1)==entry]
-            
-                        
-            phcst.columns = phcst.columns.droplevel(1)
-            #have to reorder so that below is 0, normal is 1, above is 2 as per cat2num
-            phcst=phcst.loc[:,["below","normal","above"]].values
+        phcst.columns = phcst.columns.droplevel(1)
+        #have to reorder so that below is 0, normal is 1, above is 2 as per cat2num
+        phcst=phcst.loc[:,["below","normal","above"]].values
 
-            #calculate rpss
-            rpss=rpss_score(phcst, pclim,obsterc)
+        #calculate rpss
+        rpss=rpss_score(phcst, pclim,obsterc)
 
-            # rpss
-            # ignorance score
-            # reliability diagram - plot
-            # heidtke skill score for most probable forecast
+        # rpss
+        # ignorance score
+        # reliability diagram - plot
+        # heidtke skill score for most probable forecast
 
-            entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss], index=index)
+        entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss], index=index)
 
         allscores.append(entryscores)
     scores=pd.concat(allscores, axis=1, keys=_det_hcst.columns)
@@ -998,9 +983,9 @@ def populateGui():
         itemName="lineEdit_predictorfile{}".format(model)
         if hasattr(gl.window, itemName):
             item=getattr(gl.window, itemName, None)
-            setval=gl.config["predictorFiles"][model][0]
-            item.setText(setval)
-            variables=readVariablesFile(setval)
+            predictorfile=gl.config["predictorFiles"][model][0]
+            item.setText(predictorfile)
+            variables=readVariablesFile(predictorfile)
     
         itemName="comboBox_predictorvar{}".format(model)
         if hasattr(gl.window, itemName):
@@ -1010,6 +995,13 @@ def populateGui():
             item.addItems(variables)
             if setval in variables:
                 item.setCurrentText(setval)
+                
+        itemName="lineEdit_predictorcode{}".format(model)
+        if hasattr(gl.window, itemName):
+            item=getattr(gl.window, itemName, None)
+            setval=gl.config["predictorFiles"][model][2]
+            #remove once (if) function to read file is implemented
+            item.setText(setval)
     
     gl.window.lineEdit_predictandfile.setText(gl.config['predictandFileName'])
     #for the time being - have to have a function that reads this file and populates variable list
@@ -1030,6 +1022,7 @@ def populateGui():
 
     gl.window.lineEdit_overlayfile.setText(gl.config['overlayFile'])
 
+    
 def makeConfig():
     gl.config={}
 
@@ -1050,7 +1043,7 @@ def makeConfig():
                                   ]
 
 
-    gl.config['predictorFiles'] = [["./data/SST_Jun_1960-2025.nc","sst"]]
+    gl.config['predictorFiles'] = [["./data/SST_Jun_1960-2025.nc","sst", "SST"]]
     gl.config['crossval']=["KF"]
     gl.config['preproc']=["PCR"]
     gl.config['regression']=["OLS"]
@@ -1095,7 +1088,11 @@ def readGUI():
             itemName="lineEdit_{}{}".format(var, model)
             if hasattr(gl.window, itemName):
                 item=getattr(gl.window, itemName, None)
-                temp[var]=float(item.text())
+                try:
+                    temp[var]=float(item.text())
+                except:
+                    showMessage("Lat Lon values have to be numeric", "ERROR")
+                    return
         if len(temp)==4:
             gl.config["predictorExtents"].append(temp)
     
@@ -1109,7 +1106,11 @@ def readGUI():
         itemName="comboBox_predictorvar{}".format(model)
         if hasattr(gl.window, itemName):
             temp.append(getattr(gl.window, itemName, None).currentText())
-        if len(temp)==2:
+        itemName="lineEdit_predictorcode{}".format(model)
+        if hasattr(gl.window, itemName):
+            temp.append(getattr(gl.window, itemName, None).text())
+            
+        if len(temp)==3:
             gl.config["predictorFiles"].append(temp)
 
     gl.config["crossval"]=[]
@@ -1145,7 +1146,8 @@ def readGUI():
         gl.fcstBaseTime="seas"
     else:
         gl.fcstBaseTime="mon"
-
+        
+    return True
         
         
 def readVariablesFile(_file):        
@@ -1349,7 +1351,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
         scoresxr=_scores.unstack().to_xarray().transpose("category","lat","lon")
         for score in scoresxr.category.values:
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
-            showMessage("plotting {}".format(outfile))
+            #showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
@@ -1387,13 +1389,13 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             plt.subplots_adjust(right=0.8)
             plt.savefig(outfile)
             plt.close()
-            showMessage("done")
+            #showMessage("done")
          
     if gl.targetType=="zones":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
-            showMessage("plotting {}".format(outfile))
+            #showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
@@ -1432,13 +1434,13 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             plt.subplots_adjust(right=0.8)                
             plt.savefig(outfile)
             plt.close()
-            showMessage("done")
+            #showMessage("done")
             
     if gl.targetType=="points":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
             outfile=Path(_figuresDir, "{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
-            showMessage("plotting {}".format(outfile))
+            #showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
             
@@ -1452,7 +1454,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
-            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl)
+            m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, edgecolor='black', linewidth=0.5)
             
             ax=fig.add_axes([0.82,0.25,0.03,0.6])
             
@@ -1481,14 +1483,14 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             plt.subplots_adjust(right=0.8)
             plt.savefig(outfile)
             plt.close()
-            showMessage("done")   
+            #showMessage("done")   
             
 def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecastid):
     if gl.targetType in ["zones","points"]:
         for entry in _obs.columns:
             _entry=sanitize_string(str(entry))
             outfile=Path(_figuresdir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], _entry, _forecastid))
-            showMessage("plotting {}".format(outfile))
+            #showMessage("plotting {}".format(outfile))
 
             fig=plt.figure(figsize=(7,4))
             pl=fig.add_subplot(1,1,1)
@@ -1506,7 +1508,7 @@ def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecasti
             
             plt.savefig(outfile)            
             plt.close()
-        showMessage("done")
+        #showMessage("done")
     else:    
         showMessage("Forecasting target is a grid, time series cannot be plotted.", "INFO")
 
@@ -1780,7 +1782,7 @@ def writeOutput(_data, _outputfile):
         _data.to_netcdf(_outputfile)
     else:
         _data.to_csv(_outputfile)
-    showMessage("written {}".format(_outputfile), "INFO")
+    #showMessage("written {}".format(_outputfile), "INFO")
     return    
 
 
@@ -1793,7 +1795,7 @@ def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
 
     for pc in canpatX.data_vars:
         outfile=Path(_diagsdir,"{}-cannonical-pattern_predictor_{}.jpg".format(pc,_forecastid))
-        showMessage("plotting {}".format(outfile))
+        #showMessage("plotting {}".format(outfile))
 
         fig=plt.figure(figsize=(5,5))
         pl=fig.add_subplot(1,1,1)
@@ -1812,7 +1814,7 @@ def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
 
         for pc in canpatY.data_vars:
             outfile=Path(_diagsdir,"{}-cannonical-pattern_predictand_{}.jpg".format(pc,_forecastid))
-            showMessage("plotting {}".format(outfile))
+            #showMessage("plotting {}".format(outfile))
 
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1)
@@ -1832,7 +1834,7 @@ def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
 
     for mode in scoresX.columns:
         outfile=Path(_diagsdir,"CCA-scores_{}_{}.jpg".format(mode, _forecastid))
-        showMessage("plotting {}".format(outfile))
+        #showMessage("plotting {}".format(outfile))
 
         fig=plt.figure(figsize=(7,4))
         pl=fig.add_subplot(1,1,1)
@@ -1848,7 +1850,7 @@ def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
         
     #plotting correlations        
     outfile=Path(_diagsdir,"CCA-correlations_{}.jpg".format( _forecastid))
-    showMessage("plotting {}".format(outfile))
+    #showMessage("plotting {}".format(outfile))
     
     corrs = [np.corrcoef(scoresX.iloc[:, i], scoresY.iloc[:, i])[0,1] for i in range(scoresX.shape[1])]
 
@@ -1878,7 +1880,7 @@ def plotDiagsPCR(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
     scores=pd.DataFrame(scores, index=predictandhcst.index, columns=["PC{}".format(x+1) for x in range(scores.shape[1])])
 
     outfile=Path(_diagsdir,"PCA-scores_predictand_{}.jpg".format(_forecastid))
-    showMessage("plotting {}".format(outfile))
+    #showMessage("plotting {}".format(outfile))
 
     fig=plt.figure(figsize=(7,4))
     pl=fig.add_subplot(1,1,1)
@@ -1900,7 +1902,7 @@ def plotDiagsPCR(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
 
     for pc in loadings.data_vars:
         outfile=Path(_diagsdir,"{}-loadings_predictand_{}.jpg".format(pc,_forecastid))
-        showMessage("plotting {}".format(outfile))
+        #showMessage("plotting {}".format(outfile))
 
         fig=plt.figure(figsize=(5,5))
         pl=fig.add_subplot(1,1,1)
@@ -1910,3 +1912,201 @@ def plotDiagsPCR(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
 
         plt.savefig(outfile)            
         plt.close()
+        
+        
+
+def plotDiagsRegression(predictandhcst, cvhcst, esthcst, _diagsdir, _forecastid):
+    if gl.targetType!="grid":
+        for entry in predictandhcst.columns:
+
+            outfile=Path(_diagsdir,"{}_regression-diags_{}.jpg".format(entry,_forecastid))
+            fig=plt.figure(figsize=(15,4))
+
+            pl=fig.add_subplot(1,4,1)
+
+            obs=predictandhcst.loc[:,entry]
+            fcst=cvhcst.loc[:,entry]
+
+            xmin,xmax=nice_minmax(obs,fcst)
+
+            pl.plot(obs,fcst,"o")
+            pl.set_ylim(xmin,xmax)
+            pl.set_xlim(xmin,xmax)
+
+            pl.set_xlabel("observations")
+            pl.set_ylabel("out-of-sample forecast")
+
+            pl.set_title("out-of-sample forecast \nvs observations")
+
+
+
+            pl=fig.add_subplot(1,4,2)
+
+            fcst=esthcst.loc[:,entry]
+            xmin,xmax=nice_minmax(obs,fcst)
+
+            pl.plot(obs,fcst,"o")
+            pl.set_ylim(xmin,xmax)
+            pl.set_xlim(xmin,xmax)
+
+            pl.set_xlabel("observations")
+            pl.set_ylabel("in-sample estimate")
+
+            pl.set_title("in-sample estimate \nvs observations")
+
+            pl=fig.add_subplot(1,4,3)
+
+            obs=predictandhcst.loc[:,entry]
+            fcst=cvhcst.loc[:,entry]
+
+            resid=fcst-obs
+
+            xmin,xmax=nice_minmax(obs,resid)
+
+            pl.plot(obs,resid,"o")
+            pl.set_ylim(xmin,xmax)
+            pl.set_xlim(xmin,xmax)
+
+            pl.set_xlabel("observations")
+            pl.set_ylabel("out-of-sample residuals")
+
+            pl.set_title("out-of-sample\n residual vs observations")
+
+
+
+            pl=fig.add_subplot(1,4,4)
+
+            pl.hist(resid)
+
+            pl.set_xlabel("residuals")
+            pl.set_ylabel("frequency")
+
+            pl.set_title("error distribution")
+
+            plt.suptitle("{} \n{}\n".format(entry, _forecastid))
+
+            plt.subplots_adjust(top=0.75, left=0.1, right=0.9, wspace=0.5)
+            plt.savefig(outfile)
+            plt.close()
+
+
+def nice_minmax(x,y):
+    # 1. Get global min and max
+    data_min = min(np.min(x), np.min(y))
+    data_max = max(np.max(x), np.max(y))
+
+    # 2. Add padding
+    padding = 0.05 * (data_max - data_min)
+    raw_min = data_min - padding
+    raw_max = data_max + padding
+
+    # 3. Round to "nice" numbers (nearest power of 10 multiples)
+    def nice_limits(vmin, vmax):
+        rng = vmax - vmin
+        exp = int(np.floor(np.log10(rng)))  # order of magnitude
+        step = 10 ** exp
+        vmin = np.floor(vmin / step) * step
+        vmax = np.ceil(vmax / step) * step
+        return vmin, vmax
+
+    lims = nice_limits(raw_min, raw_max)
+    return lims    
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+    
+def checkInputs():
+
+    if gl.config["rootDir"]=="":
+        showMessage("output directory cannot be empty", "ERROR")
+        return
+    else:
+        if not os.path.exists(gl.config["rootDir"]):
+            showMessage("output directory does not exist", "ERROR")
+            return    
+    
+    if not is_number(gl.config["predictorYear"]):
+        showMessage("predictor year should be numeric", "ERROR")
+        return
+    
+    if not is_number(gl.config["fcstTargetYear"]):
+        showMessage("predictand year should be numeric", "ERROR")
+        return
+    
+    if not is_number(gl.config["climEndYr"]):
+        showMessage("last year of climatological period should be numeric", "ERROR")
+        return
+    
+    if not is_number(gl.config["climStartYr"]):
+        showMessage("first year of climatological period should be numeric", "ERROR")
+        return
+    
+    if gl.config["predictandFileName"]=="":
+        showMessage("predictand file cannot be empty", "ERROR")
+        return
+    elif not os.path.exists(gl.config["predictandFileName"]):
+        showMessage("predictand file does not exist", "ERROR")
+        return
+    
+    if gl.config["predictandVar"]=="":
+        showMessage("predictand variable cannot be empty", "ERROR")
+        return
+    
+    if gl.config["zonesFile"]!="":
+        if not os.path.exists(gl.config["zonesFile"]):
+            showMessage("zones file does not exist", "ERROR")
+            return    
+        
+    if gl.config["zonesAttribute"]=="":
+        showMessage("zones variable cannot be empty", "ERROR")
+        return
+        
+    if gl.config["overlayFile"]!="":
+        if not os.path.exists(gl.config["overlayFile"]):
+            showMessage("overlay file does not exist", "ERROR")
+            return
+        
+    for model in range(len(gl.config['predictorFiles'])):
+        file=gl.config['predictorFiles'][model][0]
+        var=gl.config['predictorFiles'][model][1]
+        code=gl.config['predictorFiles'][model][2]
+        
+        extents=gl.config['predictorExtents'][model]
+        south=extents["minLat"]
+        north=extents["maxLat"]
+        west=extents["minLon"]
+        east=extents["maxLon"]        
+        
+        if file=="":
+            showMessage("predictor file cannot be empty", "ERROR")
+            return
+        elif not os.path.exists(file):
+            showMessage("predictor file does not exist", "ERROR")
+            return
+        
+        if var=="":
+            showMessage("predictor variable cannot be empty. Please repeat selection of predictor file", "ERROR")
+            return
+
+        if code=="":
+            showMessage("predictor code cannot be empty. Please repeat selection of predictor file or add code to the input box manually", "ERROR")
+            return
+
+        check=[]
+        for _x in [east,west,south,north]:
+            check.append(is_number(_x))
+        if not all(check):
+                showMessage("\nLat and Lon values should be numeric.", "ERROR")
+                return
+
+        check=[float(east)>float(west), float(north)>float(south)]
+        if not all(check):
+                showMessage("\nLat and Lon values should be numeric.", "ERROR")
+                return    
+        
+    return True

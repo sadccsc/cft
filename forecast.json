@@ -10,14 +10,15 @@
         {
             "minLon": -180.0,
             "maxLon": 180.0,
-            "minLat": -30.0,
-            "maxLat": 30.0
+            "minLat": -60.0,
+            "maxLat": 60.0
         }
     ],
     "predictorFiles": [
         [
-            "",
-            "sst"
+            "/work/code/csc/cft/sadc_cft_current/example_data/SST_Jun_1960-2025.nc",
+            "sst",
+            "SST"
         ]
     ],
     "crossval": [
@@ -30,10 +31,10 @@
         "OLS"
     ],
     "timeAggregation": "sum",
-    "predictandFileName": "/work/code/csc/cft/sadc_cft_current/example_data/PRCPTOT_mon_CHIRPS-v2.0-p05-merged_cft_stations_BWA.csv",
+    "predictandFileName": "/work/code/csc/cft/sadc_cft_current/example_data/pr_mon_chirps-v2.0_198101-202308.nc",
     "predictandVar": "PRCPTOT",
-    "zonesFile": "/work/code/csc/cft/sadc_cft_current/example_data/SADC_MAM_2022_Consensus.geojson",
+    "zonesFile": "/work/code/csc/cft/sadc_cft_current/example_data/Botswana.geojson",
     "zonesAttribute": "ID",
-    "zonesAggregate": false,
+    "zonesAggregate": true,
     "overlayFile": "/work/code/csc/cft/sadc_cft_current/example_data/SADC_MAM_2022_Consensus.geojson"
 }

@@ -18,6 +18,8 @@ from sklearn.model_selection import cross_val_score, RepeatedKFold, LeaveOneOut,
 from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, mean_squared_error, explained_variance_score
 from sklearn.base import BaseEstimator, RegressorMixin
 from rasterstats import zonal_stats
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import cartopy.crs as ccrs
@@ -42,16 +44,31 @@ gl.predictandCategory="rainfall"
 gl.predictandMissingValue=-999
 
 
-    
 def computeModel(model):
     
+    #=======================================================================================================
+    #preliminaries
+    
     #read config from gui
-    readGUI()
+    check=readGUI()
+    if check is None:
+        showMessage("Errors in user input, stopping early.", "ERROR")
+        return
+    
+    #check user inputs
+    check=checkInputs()
+    if check is None:
+        showMessage("Errors in user input, stopping early.", "ERROR")
+        return
     
     #save config to json file
     saveConfig()
-        
-    showMessage(model, "INFO")
+
+    
+    #=======================================================================================================
+    #reading data
+    
+    #determine lead time
     leadTime=getLeadTime()
     
     if leadTime is None:
@@ -72,15 +89,22 @@ def computeModel(model):
     
     predictand0, geoData0=result
     
+    #aggregating to zones if required
     if gl.config["zonesAggregate"]:
         zonesVector=gpd.read_file(gl.config["zonesFile"])
         showMessage("Aggregating data to zones read from {} ...".format(gl.config["zonesFile"]))
         predictand,geoData=aggregatePredictand(predictand0, geoData0, zonesVector)
+        #checking if result has data
+        if predictand.dropna().empty:
+            showMessage("Predictand could not be aggregates to zones. Make sure there is overlap between predictand data and zones vector. Stopping early.", "ERROR")
+            return
+            
     else:
         zonesVector=None
         predictand=predictand0.copy()
         geoData=geoData0.copy()
     
+    #reading overlay file
     overlayVector=None
     if gl.config["overlayFile"] != "":
         if os.path.exists(gl.config["overlayFile"]):
@@ -89,31 +113,16 @@ def computeModel(model):
     #defining target date for forecast. If seasonal - then this is the first month of the season.
     fcstTgtDate=pd.to_datetime("01 {} {}".format(gl.config['fcstTargetSeas'][0:3], gl.config['fcstTargetYear']))
     
-    #do not need this anymore
-    #gl.config["fcstTgtCode"]=seasons[fcstTgtDate.month-1]
-    
     #finding overlap of predictand and predictor
     showMessage("Aligning predictor and predictand data...")
     predictandHcst,predictorHcst=getHcstData(predictand,predictor)
+    
     predictorFcst=getFcstData(predictor)
     if predictandHcst is None:
         showMessage("Hindcast data for predictand could not be derived, stopping early.", "ERROR")
         return
-
-    showMessage("Setting up directories to write to...")        
-    forecastID="{}_{}".format(gl.predictorDate.strftime("%Y%m"), gl.config['fcstTargetSeas'])
-    forecastDir=Path(gl.config['rootDir'], forecastID, gl.config["predictorFiles"][model][1],gl.targetType, "{}_{}_{}".format(gl.config["preproc"][model],gl.config["regression"][model],gl.config["crossval"][model]))
-
-    mapsDir=Path(forecastDir, "maps")
-    timeseriesDir=Path(forecastDir, "timeseries")
-    outputDir=Path(forecastDir, "output")
-    diagsDir=Path(forecastDir, "diagnostics")
-
-    for adir in [mapsDir,outputDir, diagsDir,timeseriesDir]:
-        if not os.path.exists(adir):
-            showMessage("\toutput directory {} does not exist. creating...".format(adir))
-            os.makedirs(adir)
-                
+    
+    
     #calculaing observed terciles
     #is there a need to do a strict control of overlap???
     result=getObsTerciles(predictand, predictandHcst)
@@ -122,23 +131,36 @@ def computeModel(model):
                 
     obsTercile,tercThresh=result
     
+    
     #locations with too many identical values
-    bad=(tercThresh.loc[0.66]==tercThresh.loc[0.5]) | (tercThresh.loc[0.33]==tercThresh.loc[0.5])
+    max_counts = predictandHcst.apply(lambda col: col.value_counts().max())
+    bad=max_counts>0.2*predictandHcst.shape[0]
     good=np.invert(bad)
+
+    #listing bad locations
+    if len(bad)>0:
+        badnames=predictandHcst.loc[:,bad].columns
+        for name in badnames:
+            showMessage("cannot calculate forecast for {} - too many similar values in predictand".format(name), "NONCRITICAL")
 
     #removing bad locations
     predictandHcst=predictandHcst.loc[:,good]
     tercThresh=tercThresh.loc[:,good]
     obsTercile=obsTercile.loc[:,good]
 
+    
+    #=======================================================================================================
+    #setting up forecast
+    
     #setting up cross-validation
     cvkwargs=crossvalidator_config[gl.config['crossval'][model]][1]
     cv=crossvalidators[gl.config['crossval'][model]](**cvkwargs)
     
-    
+
     #arguments for regressor
     kwargs=regressor_config[gl.config['regression'][model]][1]
     
+    #checking compatibility between data and selected regressor
     if gl.config['preproc'][model]=="NONE":
         if predictorHcst.shape[1]==1:
             regressor = StdRegressor(regressor_name=gl.config['regression'][model], **kwargs)
@@ -148,10 +170,11 @@ def computeModel(model):
             return
     else:
         if predictorHcst.shape[1]==1:
-            showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to None", "ERROR")
+            showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to 'No preprocessing'", "ERROR")
             #2-D predictor, no need to PCR or CCA
-            return
-            
+            return    
+    
+    #setting up regressor
     if gl.config['preproc'][model]=="PCR":
         #regession model
         regressor = PCRegressor(regressor_name=gl.config['regression'][model], **kwargs)
@@ -161,10 +184,41 @@ def computeModel(model):
         regressor = CCARegressor(regressor_name=gl.config['regression'][model], **kwargs)
         #return
   
+    #=======================================================================================================
+    #setting up output directory structure
+    
+    showMessage("Setting up directories to write to...")        
+    forecastID="{}_{}".format(gl.predictorDate.strftime("%Y%m"), gl.config['fcstTargetSeas'])
+    
+    predictorCode=Path(gl.config["predictorFiles"][model][0]).stem
+    
+    forecastDir=Path(gl.config['rootDir'], forecastID, predictorCode,gl.targetType, "{}_{}_{}".format(gl.config["preproc"][model],gl.config["regression"][model],gl.config["crossval"][model]))
+
+    mapsDir=Path(forecastDir, "maps")
+    timeseriesDir=Path(forecastDir, "timeseries")
+    outputDir=Path(forecastDir, "output")
+    diagsDir=Path(forecastDir, "diagnostics")
+
+    dirs={"output":outputDir,
+          "maps":mapsDir,
+          "timeseries":timeseriesDir,
+          "diagnostics":diagsDir}
+    
+    for adir in dirs.keys():
+        if not os.path.exists(dirs[adir]):
+            showMessage("{} directory {} does not exist. creating...".format(adir, dirs[adir]))
+            os.makedirs(dirs[adir])
+        else:
+            showMessage("{} will be written to {}".format(adir, dirs[adir]), "INFO")
+            
+
+
+    #=======================================================================================================
+    # calculating forecast
+
     #cross-validated hindcast
     showMessage("Calculating cross-validated hindcast...")
     cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv)
-    
     
     cvHcst=pd.DataFrame(cvHcst, index=predictandHcst.index, columns=predictandHcst.columns)
 
@@ -173,9 +227,12 @@ def computeModel(model):
     showMessage("Calculating deteriministic forecast...")
     regressor.fit(predictorHcst,  predictandHcst)
     
-    
     detFcst=regressor.predict(predictorFcst)
     detFcst=pd.DataFrame(detFcst, index=[fcstTgtDate], columns=predictandHcst.columns)
+    
+    #hindcast based on full model - for diagnostics only - called est for estimated, to avoid confusion actual forecast 
+    estHcst=regressor.predict(predictorHcst)
+    estHcst=pd.DataFrame(estHcst, index=predictandHcst.index, columns=predictandHcst.columns)
     
     #calculate forecast anomalies
     refData=predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]   
@@ -183,20 +240,24 @@ def computeModel(model):
     
     #deriving probabilistic prediction
     showMessage("Calculating probabilistic hindcast and forecast using error variance...")
+    
+    #this one uses cross-validated hindcast for error
     result=probabilisticForecast(cvHcst, predictandHcst,detFcst["value"],tercThresh)
     if result is None:
         showMessage("Probabilistic forecast could not be calculated", "ERROR")
         return
     probFcst,probHcst=result
     
-    showMessage("Calculating tercile forecast (highest probability category)")
-    
+    #tercile forecast
+    showMessage("Calculating tercile forecast (highest probability category)")    
     tercFcst=getTercCategory(probFcst)
     tercHcst=getTercCategory(probHcst)
     
+    #CEM categories
     showMessage("Calculating CEM categories")
     cemFcst=getCemCategory(probFcst)
     cemHcst=getCemCategory(probHcst)
+    
     
     #calculating skill
     showMessage("Calculating skill scores...")
@@ -249,7 +310,8 @@ def computeModel(model):
         probhcst_write=probHcst.copy()
         scores_write=scores.copy()
         fileExtension="csv"
-
+        
+    showMessage("Writing output files...")
     outputFile=Path(outputDir, "{}_deterministic-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(detfcst_write,2), outputFile)
 
@@ -265,27 +327,37 @@ def computeModel(model):
     outputFile=Path(outputDir, "{}_probabilistic-hcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(probhcst_write,2),outputFile)
 
+    
+    showMessage("Plotting forecast maps...")
+    
     plotMaps(detfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
     plotMaps(probfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
     plotMaps(cemfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
     plotMaps(tercfcst, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
 
+    
     showMessage("Plotting skill maps...")    
     #plotting skill scores
     plotMaps(scores, geoData, geoData0, mapsDir, forecastID, zonesVector, overlayVector)
 
-    showMessage("Plotting time series...") 
+    
+    showMessage("Plotting time series plots...") 
     plotTimeSeries(cvHcst,predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID)
     
-    showMessage("Plotting diagnostics")
+    
+    showMessage("Plotting preprocessing diagnostics...")
     if gl.config['preproc'][model]=="PCR":
         plotDiagsPCR(regressor, predictorHcst, predictandHcst, diagsDir, forecastID)
 
     if gl.config['preproc'][model]=="CCA":
         plotDiagsCCA(regressor, predictorHcst, predictandHcst, diagsDir, forecastID)
     
+    showMessage("Plotting regression diagnostics...")
+    plotDiagsRegression(predictandHcst, cvHcst, estHcst, diagsDir, forecastID)
     
-    showMessage("All done!", "SUCCESS")    
+    showMessage("All done!", "SUCCESS")
+    showMessage("Inspect log above for potential errors!", "SUCCESS")    
+    showMessage("All output written to {}".format(forecastDir), "SUCCESS")    
     
     
     return
@@ -301,9 +373,9 @@ def browse(line_edit, mode='file', parent=None, caption="Select File", file_filt
         raise ValueError("Unsupported browse mode")
 
     if path:
-        line_edit.setText(path)   
+        line_edit.setText(path)
         
-    if combo_box:
+    if combo_box is not None:
         # Read variables and populate the comboBox
         combo_box.clear()
         variables=readVariablesFile(path)

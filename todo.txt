@@ -6,6 +6,8 @@ in dowload.py:
 - implement stop button
 
 in forecast.py
+
+- implement plotting diagnostics for NONE preprocessing
 - extend and clean up plotting 
 - include skill-masked plots
 - catch error when some zones get dropped if spatial aggregation is used

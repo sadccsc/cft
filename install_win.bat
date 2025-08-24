@@ -63,7 +63,7 @@ echo(
 echo ----------------
 echo Creating batch file to run CFT - it will be located in the current directory %SCRIPT_DIR% under name %TARGET_BAT%
 (
-    echo call mamba activate %ENV_NAME%
+    echo call conda activate %ENV_NAME%
     echo python "%SCRIPT_DIR%cft.py"
 ) > "%TARGET_BAT%"
 

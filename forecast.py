@@ -101,7 +101,9 @@ def computeModel(model):
         
         #retaining just the attribute as index
         zonesVector=zonesVector[[gl.config["zonesAttribute"], 'geometry']].set_index(gl.config["zonesAttribute"])
-
+        
+        
+        showMessage("Aggregating data to zones read from {} ...".format(gl.config["zonesFile"]))
         predictand,geoData=aggregatePredictand(predictand0, geoData0, zonesVector)
         #checking if result has data
         if predictand.dropna().empty:
@@ -247,11 +249,15 @@ def computeModel(model):
     refData=predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]   
     detFcst=getFcstAnomalies(detFcst,refData)
     
+    # calculate anomalies on hindcast data
+    estHcst=getFcstAnomalies(estHcst,refData)
+    cvHcst=getFcstAnomalies(cvHcst,refData)
+    
     #deriving probabilistic prediction
     showMessage("Calculating probabilistic hindcast and forecast using error variance...")
     
     #this one uses cross-validated hindcast for error
-    result=probabilisticForecast(cvHcst, predictandHcst,detFcst["value"],tercThresh)
+    result=probabilisticForecast(cvHcst["value"], predictandHcst,detFcst["value"],tercThresh)
     if result is None:
         showMessage("Probabilistic forecast could not be calculated", "ERROR")
         return
@@ -270,7 +276,7 @@ def computeModel(model):
     
     #calculating skill
     showMessage("Calculating skill scores...")
-    scores=getSkill(probHcst,cvHcst,predictandHcst,obsTercile)    
+    scores=getSkill(probHcst,cvHcst["value"],predictandHcst,obsTercile)    
     if scores is None:
         showMessage("Skill could not be calculated", "ERROR")
         return
@@ -301,7 +307,8 @@ def computeModel(model):
         tercfcst_write=tercFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         cemhcst_write=cemHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         detfcst_write=detFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
-        dethcst_write=cvHcst.stack(level=[0,1], future_stack=True).to_xarray().to_dataset(name=gl.config['predictandVar'])
+        #dethcst_write=cvHcst.stack(level=[0,1], future_stack=True).to_xarray().to_dataset(name=gl.config['predictandVar'])
+        dethcst_write=cvHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         scores_write=scores.T.to_xarray().sortby("lat").sortby("lon")
         fileExtension="nc"
     else:
@@ -351,7 +358,7 @@ def computeModel(model):
 
     
     showMessage("Plotting time series plots...") 
-    plotTimeSeries(cvHcst,predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID)
+    plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID)
     
     
     showMessage("Plotting preprocessing diagnostics...")
@@ -362,7 +369,7 @@ def computeModel(model):
         plotDiagsCCA(regressor, predictorHcst, predictandHcst, diagsDir, forecastID)
     
     showMessage("Plotting regression diagnostics...")
-    plotDiagsRegression(predictandHcst, cvHcst, estHcst, diagsDir, forecastID)
+    plotDiagsRegression(predictandHcst, cvHcst, estHcst, tercThresh, detFcst, diagsDir, forecastID)
     
     showMessage("All done!", "SUCCESS")
     showMessage("Inspect log above for potential errors!", "SUCCESS")    

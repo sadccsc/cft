@@ -573,8 +573,8 @@ def aggregatePredictand(_data, _geodata, _poly):
         #this is if geodata is a geopandas object
         _points=_geodata.copy().join(_data.T)
         #joining polygons and points
-        _joined = gpd.sjoin(_points, _poly, how="inner", predicate="within").drop(columns="index_right")
-
+        _joined = gpd.sjoin(_points, _poly, how="inner", predicate="within").rename(columns={"index_right": gl.config["zonesAttribute"]})
+        
         #aggregating 
         _aggregated = _joined.groupby(gl.config["zonesAttribute"]).mean(numeric_only=True).T
         _aggregated.index=_data.index
@@ -742,7 +742,9 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
         
     #prediction error
     if _method=="empirical":
+        
         pred_err=_Y_hcst-_Y_obs
+        
         #tercile probabilities
         prob_above_fcst=((pred_err+_Y_fcst.values>_terc_thresh.loc[0.66]).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
         prob_below_fcst=((pred_err+_Y_fcst.values<_terc_thresh.loc[0.33]).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
@@ -757,8 +759,8 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
         
     else:
         return None
-    terc_fcst=pd.concat([prob_below_fcst.T,prob_normal_fcst.T,prob_above_fcst.T], keys=["above","normal","below"],  names=["category"], axis=1)
-    terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["above","normal","below"], names=["category"],axis=1)
+    terc_fcst=pd.concat([prob_above_fcst.T,prob_normal_fcst.T,prob_below_fcst.T], keys=["above","normal","below"],  names=["category"], axis=1)
+    terc_hcst=pd.concat([prob_above_hcst,prob_normal_hcst,prob_below_hcst], keys=["above","normal","below"], names=["category"],axis=1)
     terc_fcst.index.name="time"
     terc_hcst.index.name="time"
     
@@ -1229,122 +1231,224 @@ def sanitize_string(value, replacement="_", max_length=255):
     # Truncate to safe length
     return value[:max_length] if max_length else value
 
+def getCmap(d):
+    vmin=d["vmin"]
+    vmax=d["vmax"]
+    nlev=d["nlev"]
+    cmap=d["cmap"]
+    extend=d["extend"]
+    whitelev=d["whitelev"]
+    levels = np.linspace(vmin,vmax,nlev)    
+    cmap_rb = plt.get_cmap(cmap)
+    if extend=="both":
+        cols = cmap_rb(np.linspace(0.1, 0.9, len(levels)+1))
+    elif extend=="neither":
+        cols = cmap_rb(np.linspace(0.1, 0.9, len(levels)-1))
+    else:
+        cols = cmap_rb(np.linspace(0.1, 0.9, len(levels)))
+        
+    for lev in whitelev:
+        cols[lev]=(1,1,1,1)
+    cmap, norm = colors.from_levels_and_colors(levels, cols, extend=extend)
+    return cmap,norm
 
-colormaps={"percent_normal":{"cmap":plt.cm.BrBG,
-                    "vmin":0,
-                    "vmax":200,
-                    "cbar_label":"mm",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "value":{"cmap":plt.cm.YlGnBu,
-                    "vmin":0,
-                    "vmax":200,
-                    "cbar_label":"mm",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "absolute_anomaly":{"cmap":plt.cm.BrBG,
-                    "vmin":-50,
-                    "vmax":50,
-                    "cbar_label":"mm",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "percent_anomaly":{"cmap":plt.cm.BrBG,
-                    "vmin":-100,
-                    "vmax":100,
-                    "cbar_label":"percent",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "correlation":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"correlation",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "MAPE":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":50,
-                    "cbar_label":"percent",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "RMSE":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":100,
-                    "cbar_label":"mm",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "ROC_above":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"score",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "ROC_normal":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"score",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "ROC_below":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"score",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "rpss":{"cmap":plt.cm.RdBu,
-                    "vmin":-1,
-                    "vmax":1,
-                    "cbar_label":"score",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "normal":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"probability",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "below":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"probability",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "above":{"cmap":plt.cm.Grays,
-                    "vmin":0,
-                    "vmax":1,
-                    "cbar_label":"probability",
-                   "levels":None,
-                   "tick_labels":None,
-                   "extend":"neither"},
-    "cem_category":{"cmap":colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue']),
-                    "vmin":0,
-                    "vmax":4,
-                    "cbar_label":"category",
-                   "levels":np.array([1,2,3,4])-0.5,
-                   "tick_labels":['BN', 'N-BN','N-AN','AN'],
-                   "extend":"neither"},
-    "tercile_category":{"cmap":colors.ListedColormap(['#d2b48c', '0.8','blue']),
-                    "vmin":0,
-                    "vmax":3,
-                    "cbar_label":"category",
-                   "levels":np.array([1,2,3])-0.5,
-                   "tick_labels":['BN', 'N', 'AN'],
-                   "extend":"neither"}
+colormaps={"percent_normal":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast value as percent of normal",
+        "cmap":"BrBG",
+        "vmin":0,
+        "vmax":200,
+        "cbar_label":"mm",
+        "levels":None,
+        "whitelev":[4,5],
+        "tick_labels":None,
+        "extend":"max"},
+    "value":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast value",
+        "cmap":plt.cm.YlGnBu,
+        "vmin":0,
+        "vmax":200,
+        "cbar_label":"mm",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"max"},
+    "absolute_anomaly":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast anomaly",
+        "cmap":plt.cm.BrBG,
+        "vmin":-50,
+        "vmax":50,
+        "cbar_label":"mm",
+        "levels":None,
+        "whitelev":[5,6],
+        "tick_labels":None,
+        "extend":"both"},
+    "percent_anomaly":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast anomaly as percent of normal",
+        "cmap":plt.cm.BrBG,
+        "vmin":-100,
+        "vmax":100,
+        "cbar_label":"percent",
+        "levels":None,
+        "whitelev":[4,5],
+        "tick_labels":None,
+        "extend":"max"},
+    "correlation":{
+        "categorized":True,
+        "nlev":21,
+        "title":"Pearson's correlation coefficient\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":-0.5,
+        "vmax":0.5,
+        "cbar_label":"-",
+        "levels":None,
+        "whitelev":[10,11],
+        "tick_labels":None,
+        "extend":"both"},
+    "MAPE":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Mean absolute percentage error\n(hindcast)",
+        "cmap":plt.cm.Grays,
+        "vmin":0,
+        "vmax":20,
+        "cbar_label":"percent",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"max"},
+    "RMSE":{        
+        "categorized":True,
+        "nlev":11,
+        "title":"Root mean square error\n(hindcast)",
+        "cmap":plt.cm.Grays,
+        "vmin":0,
+        "vmax":100,
+        "cbar_label":"mm",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"max"},
+    "ROC_above":{
+        "categorized":True,
+        "nlev":11,
+        "title":"ROC score for above normal category\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "ROC_normal":{
+        "categorized":True,
+        "nlev":11,
+        "title":"ROC score for normal category\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "ROC_below":{
+        "categorized":True,
+        "nlev":11,
+        "title":"ROC score for above normal category\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "rpss":{
+        "categorized":True,
+        "nlev":11,
+        "title":"RPSS score\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":-1,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[4,5],
+        "tick_labels":None,
+        "extend":"neither"},
+    "normal":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast probability of normal category",
+        "cmap":plt.cm.Grays,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"probability",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "below":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast probability of below normal category",
+        "cmap":plt.cm.Grays,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"probability",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "above":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Forecast probability of above normal category",
+        "cmap":plt.cm.Grays,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"probability",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "cem_category":{
+        "categorized":False,
+        "nlev":None,
+        "title":"Forecast category \n(four category forecast)",
+        "cmap":colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue']),
+        "vmin":0,
+        "vmax":4,
+        "cbar_label":"category",
+        "levels":np.array([1,2,3,4])-0.5,
+        "whitelev":[],
+        "tick_labels":['BN', 'N-BN','N-AN','AN'],
+        "extend":"neither"},
+    "tercile_category":{
+        "categorized":False,        
+        "nlev":None,
+        "title":"Forecast category (tercile)",
+        "cmap":colors.ListedColormap(['#d2b48c', '0.8','blue']),
+        "vmin":0,
+        "vmax":3,
+        "cbar_label":"category",
+        "levels":np.array([1,2,3])-0.5,
+        "whitelev":[],
+        "tick_labels":['BN', 'N', 'AN'],
+        "extend":"neither"}
 }
 
         
+    
+    
 def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector, _overlayVector=None):
     if gl.targetType=="grid":
         scoresxr=_scores.unstack().to_xarray().transpose("category","lat","lon")
@@ -1356,6 +1460,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
 
             colorbar=False
             cm=colormaps[score]
+            title=cm["title"]
             cmap=cm["cmap"]
             vmin=cm["vmin"]
             vmax=cm["vmax"]
@@ -1364,6 +1469,14 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
+            # add colorbar
+            if cm["categorized"]:
+                cmap,norm=getCmap(cm)
+            else:
+                cmap=cm["cmap"]
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+
+                
             m=scoresxr.sortby("lat").sortby("lon").sel(category=score).plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
             
             ax=fig.add_axes([0.82,0.25,0.03,0.6])
@@ -1383,7 +1496,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             if not _overlayVector is None:
                 _overlayVector.boundary.plot(ax=pl, color='black', linewidth=0.3)
                 
-            pl.set_title(score)
+            pl.set_title(title)
             
             plt.subplots_adjust(right=0.8)
             plt.savefig(outfile)
@@ -1393,6 +1506,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
     if gl.targetType=="zones":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
+            print(score)
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
             #showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
@@ -1400,16 +1514,22 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
 
             colorbar=False
             cm=colormaps[score]
-            cmap=cm["cmap"]
+            title=cm["title"]
             vmin=cm["vmin"]
             vmax=cm["vmax"]
+            
             levels=cm["levels"]
             cbar_label=cm["cbar_label"]
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
             # add colorbar
-            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            if cm["categorized"]:
+                cmap,norm=getCmap(cm)
+            else:
+                cmap=cm["cmap"]
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+                
             cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 
             m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, norm=norm)
@@ -1427,7 +1547,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             if tick_labels is not None:
                 ax_cbar.ax.set_yticklabels(tick_labels)
                 
-            pl.set_title(score)
+            pl.set_title(title)
 
             if not _overlayVector is None:
                 _overlayVector.boundary.plot(ax=pl, color='black', linewidth=0.3)
@@ -1446,6 +1566,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             
             colorbar=False
             cm=colormaps[score]
+            title=cm["title"]
             cmap=cm["cmap"]
             vmin=cm["vmin"]
             vmax=cm["vmax"]
@@ -1453,6 +1574,13 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             cbar_label=cm["cbar_label"]
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
+            
+            # add colorbar
+            if cm["categorized"]:
+                cmap,norm=getCmap(cm)
+            else:
+                cmap=cm["cmap"]
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
             
             m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, edgecolor='black', linewidth=0.5)
             
@@ -1478,12 +1606,16 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             if not _overlayVector is None:
                 _overlayVector.boundary.plot(ax=pl, color='black', linewidth=0.3)
                 
-            pl.set_title(score)
+            pl.set_title(title)
                 
             plt.subplots_adjust(right=0.8)
             plt.savefig(outfile)
             plt.close()
             #showMessage("done")   
+
+            
+            
+            
             
 def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecastid):
     if gl.targetType in ["zones","points"]:
@@ -1794,7 +1926,7 @@ def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
     canpatX=canpatX.to_xarray().sortby("lat").sortby("lon")
 
     for pc in canpatX.data_vars:
-        outfile=Path(_diagsdir,"{}-cannonical-pattern_predictor_{}.jpg".format(pc,_forecastid))
+        outfile=Path(_diagsdir,"cannonical-pattern_predictor_{}_{}.jpg".format(pc,_forecastid))
         #showMessage("plotting {}".format(outfile))
 
         fig=plt.figure(figsize=(5,5))
@@ -1813,7 +1945,7 @@ def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
         canpatY=canpatY.to_xarray().sortby("lat").sortby("lon")
 
         for pc in canpatY.data_vars:
-            outfile=Path(_diagsdir,"{}-cannonical-pattern_predictand_{}.jpg".format(pc,_forecastid))
+            outfile=Path(_diagsdir,"cannonical-pattern_predictand_{}_{}.jpg".format(pc,_forecastid))
             #showMessage("plotting {}".format(outfile))
 
             fig=plt.figure(figsize=(5,5))
@@ -1915,21 +2047,22 @@ def plotDiagsPCR(_regressor, predictorhcst, predictandhcst, _diagsdir, _forecast
         
         
 
-def plotDiagsRegression(predictandhcst, cvhcst, esthcst, _diagsdir, _forecastid):
+def plotDiagsRegression(predictandhcst, cvhcst, esthcst, tercthresh, detfcst, _diagsdir, _forecastid):
+    
     if gl.targetType!="grid":
         for entry in predictandhcst.columns:
+            entryw=sanitize_string(str(entry))
+            outfile=Path(_diagsdir,"regression-diags_{}_{}.jpg".format(entryw,_forecastid))
+            fig=plt.figure(figsize=(10,6))
 
-            outfile=Path(_diagsdir,"{}_regression-diags_{}.jpg".format(entry,_forecastid))
-            fig=plt.figure(figsize=(15,4))
-
-            pl=fig.add_subplot(1,4,1)
+            pl=fig.add_subplot(2,3,1)
 
             obs=predictandhcst.loc[:,entry]
-            fcst=cvhcst.loc[:,entry]
+            hcst=cvhcst["value"].loc[:,entry]
 
-            xmin,xmax=nice_minmax(obs,fcst)
+            xmin,xmax=nice_minmax(obs,hcst)
 
-            pl.plot(obs,fcst,"o")
+            pl.plot(obs,hcst,"o")
             pl.set_ylim(xmin,xmax)
             pl.set_xlim(xmin,xmax)
 
@@ -1940,12 +2073,12 @@ def plotDiagsRegression(predictandhcst, cvhcst, esthcst, _diagsdir, _forecastid)
 
 
 
-            pl=fig.add_subplot(1,4,2)
+            pl=fig.add_subplot(2,3,2)
 
-            fcst=esthcst.loc[:,entry]
-            xmin,xmax=nice_minmax(obs,fcst)
+            hcst=esthcst["value"].loc[:,entry]
+            xmin,xmax=nice_minmax(obs,hcst)
 
-            pl.plot(obs,fcst,"o")
+            pl.plot(obs,hcst,"o")
             pl.set_ylim(xmin,xmax)
             pl.set_xlim(xmin,xmax)
 
@@ -1954,12 +2087,17 @@ def plotDiagsRegression(predictandhcst, cvhcst, esthcst, _diagsdir, _forecastid)
 
             pl.set_title("in-sample estimate \nvs observations")
 
-            pl=fig.add_subplot(1,4,3)
+            pl=fig.add_subplot(2,3,3)
 
+            
+            
+            
             obs=predictandhcst.loc[:,entry]
-            fcst=cvhcst.loc[:,entry]
-
-            resid=fcst-obs
+            hcst=cvhcst["value"].loc[:,entry]
+            resid=hcst-obs
+            
+            hcstfit=esthcst["value"].loc[:,entry]
+            residfit=hcstfit-obs
 
             xmin,xmax=nice_minmax(obs,resid)
 
@@ -1974,18 +2112,48 @@ def plotDiagsRegression(predictandhcst, cvhcst, esthcst, _diagsdir, _forecastid)
 
 
 
-            pl=fig.add_subplot(1,4,4)
+            
+            pl=fig.add_subplot(2,3,4)
 
-            pl.hist(resid)
+            pl.hist(resid, label="out-of-sample", alpha=0.5)
+            pl.hist(residfit, label="in-sample", alpha=0.5)
 
             pl.set_xlabel("residuals")
             pl.set_ylabel("frequency")
 
             pl.set_title("error distribution")
 
-            plt.suptitle("{} \n{}\n".format(entry, _forecastid))
+            plt.legend()
+            
+            
+            
+            pl=fig.add_subplot(2,3,5)
+            
+            hcst=cvhcst["value"].loc[:,entry]
+            
+            resid=hcst-obs
+            
+            fcst=detfcst["value"].loc[:,entry]
 
-            plt.subplots_adjust(top=0.75, left=0.1, right=0.9, wspace=0.5)
+            error=fcst.values+resid
+            
+            pl.hist(error, label="forecast error", alpha=0.5)
+            
+            pl.axvline(fcst.values, color="red", label="forecast")
+            
+            pl.axvline(tercthresh.loc[0.33][entry], color="blue", label="terciles")
+            pl.axvline(tercthresh.loc[0.66][entry], color="blue", label="_terciles")
+            
+
+            pl.set_xlabel("value")
+            pl.set_ylabel("frequency")
+            plt.legend()
+            pl.set_title("forecast error distribution")
+
+            
+            plt.suptitle("zone/location: {} \n{}\n".format(entry, _forecastid))
+            
+            plt.subplots_adjust(top=0.85, left=0.1, right=0.9, wspace=0.5, hspace=0.5)
             plt.savefig(outfile)
             plt.close()
 
@@ -2057,14 +2225,15 @@ def checkInputs():
         showMessage("predictand variable cannot be empty", "ERROR")
         return
     
-    if gl.config["zonesFile"]!="":
-        if not os.path.exists(gl.config["zonesFile"]):
-            showMessage("zones file does not exist", "ERROR")
-            return    
+    if gl.config["zonesAggregate"]:
+        if gl.config["zonesFile"]!="":
+            if not os.path.exists(gl.config["zonesFile"]):
+                showMessage("Aggregation to zones is selected. But zones file does not exist", "ERROR")
+                return    
         
-    if gl.config["zonesAttribute"]=="":
-        showMessage("zones variable cannot be empty", "ERROR")
-        return
+        if gl.config["zonesAttribute"]=="":
+            showMessage("Aggregation to zones is selected.  But zones variable is empty", "ERROR")
+            return
         
     if gl.config["overlayFile"]!="":
         if not os.path.exists(gl.config["overlayFile"]):

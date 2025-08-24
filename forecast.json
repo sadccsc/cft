@@ -25,7 +25,7 @@
         "KF"
     ],
     "preproc": [
-        "PCR"
+        "CCA"
     ],
     "regression": [
         "OLS"

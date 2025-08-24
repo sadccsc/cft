@@ -10,15 +10,13 @@ in forecast.py
 - implement plotting diagnostics for NONE preprocessing
 - extend and clean up plotting 
 - include skill-masked plots
-- catch error when some zones get dropped if spatial aggregation is used
 - include more skill measures
 - data saving - diagnostics - regression model diags - error distribution, obs vs predicted
-
+- save model configuration to output directory
 
 - test data ingestion errors for csv files
 - add missing value to gui
 - add category of predictand to gui
-- add buttons to clear file selectors to gui
 - add "too dry to forecast" colour to plots
 
 

@@ -140,7 +140,13 @@ Installation
 ------------
 1. Install Anaconda  (instructions t.b.d.)
 2. Download and unzip CFT release files
-3. Open terminal (in Linux or Mac) or Anaconda Prompt (windows), navigate to the directory in which you unzipped CFT files (using cd Dir commands - instructions to follow) and type:
+3. Open terminal (in Linux or Mac) or Anaconda Prompt (windows), navigate to the directory in which you unzipped CFT files (using cd Dir commands - instructions to follow) 
+4. if you installed cft-v5.0.2 or earlier, you have to unistall the old environments. Check the old envs using:
+conda  env list
+5. remove old envs with:
+conda env remove --name cft-v5.0.1
+repeat for all cft envs that are installed on your computer
+6. Install new env (versions v5.0.3 and later will use one env called cft-v5.0) using:
 install_win.bat (on Windows)
 install_mac.sh (on Mac)
 install_linux.sh ( on Linux)

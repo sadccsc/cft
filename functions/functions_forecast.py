@@ -573,13 +573,19 @@ def aggregatePredictand(_data, _geodata, _poly):
         #this is if geodata is a geopandas object
         _points=_geodata.copy().join(_data.T)
         #joining polygons and points
-        _joined = gpd.sjoin(_points, _poly, how="inner", predicate="within").rename(columns={"index_right": gl.config["zonesAttribute"]})
+        _joined = gpd.sjoin(_points, _poly, how="inner", predicate="within")
         
-        #aggregating 
-        _aggregated = _joined.groupby(gl.config["zonesAttribute"]).mean(numeric_only=True).T
-        _aggregated.index=_data.index
-
-        showMessage("\tAverage values for {} regions derived from data for {} locations".format(_aggregated.shape[1], _points.shape[1]))
+        # Check if spatial matches were found before trying to rename index_right
+        if not _joined.empty and 'index_right' in _joined.columns:
+            _joined = _joined.rename(columns={"index_right": gl.config["zonesAttribute"]})
+            #aggregating 
+            _aggregated = _joined.groupby(gl.config["zonesAttribute"]).mean(numeric_only=True).T
+            _aggregated.index=_data.index
+            showMessage("\tAverage values for {} regions derived from data for {} locations".format(_aggregated.shape[1], _points.shape[1]))
+        else:
+            # No spatial matches found, create empty aggregated data
+            showMessage("\tWarning: No spatial matches found between station points and polygon boundaries")
+            _aggregated = pd.DataFrame(index=_data.index)  # Empty dataframe with correct index
     
     return _aggregated, _poly
 

@@ -212,7 +212,6 @@ def readPredictandCsv(csvfile):
         #dat is pandas dataframe
         dat=pd.concat(alldata, axis=1)
 
-        
     else:
         
         #rereading the file in appropriate way
@@ -275,11 +274,7 @@ def readPredictandCsv(csvfile):
         showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
         return
 
-    
-    #converting to xarray - but do we have to?
-    #dat=dat.stack().to_xarray()
-    #dat=dat.rename({'level_0':"time", "level_1":"location"})
-    #dat=dat.assign_coords(lat=("location",lats), lon=("location", lons))
+    #making sure dates start on the first of the month    
     newtime=pd.to_datetime([x.replace(day=1) for x in pd.to_datetime(dat.index)])
     dat.index=newtime
     
@@ -413,7 +408,10 @@ def readPredictand():
     if obsdata is None:
         showMessage("could not read requested variable from file","ERROR")
         return
-    
+
+          
+    obsdata=obsdata.dropna()
+              
     #resampling if necessary
     if gl.fcstBaseTime=="seas":
         showMessage("Resampling to seasonal...")
@@ -574,7 +572,6 @@ def aggregatePredictand(_data, _geodata, _poly):
         _points=_geodata.copy().join(_data.T)
         #joining polygons and points
         _joined = gpd.sjoin(_points, _poly, how="inner", predicate="within").rename(columns={"index_right": gl.config["zonesAttribute"]})
-        
         #aggregating 
         _aggregated = _joined.groupby(gl.config["zonesAttribute"]).mean(numeric_only=True).T
         _aggregated.index=_data.index
@@ -1506,7 +1503,6 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
     if gl.targetType=="zones":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
-            print(score)
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
             #showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))

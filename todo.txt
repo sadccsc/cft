@@ -5,10 +5,10 @@ in dowload.py:
 - fix CanSips download error
 - implement stop button
 
+
 in forecast.py
 
-- implement plotting diagnostics for NONE preprocessing
-- extend and clean up plotting 
+- save tercile and cem categories as geojson
 - include skill-masked plots
 - include more skill measures
 - data saving - diagnostics - regression model diags - error distribution, obs vs predicted
@@ -18,7 +18,7 @@ in forecast.py
 - add missing value to gui
 - add category of predictand to gui
 - add "too dry to forecast" colour to plots
-
+- limit CCA forecast for less than X locations/zones
 
 # wish list:
 - implement download from CDS, and if not - implement download of CDS data from IRIDL - both require users to set up account

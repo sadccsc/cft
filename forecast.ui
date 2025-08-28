@@ -286,6 +286,27 @@
              <widget class="QComboBox" name="comboBox_timeaggregation"/>
             </item>
 
+            <item row="3" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Missing value code</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLineEdit" name="lineEdit_predictandmissingvalue"/>
+            </item>
+
+            <item row="4" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Predictand category</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QComboBox" name="comboBox_predictandcategory"/>
+            </item>
 
            </layout>
           </widget>

@@ -47,7 +47,13 @@ predictandSources={
 
 predictorSources={
 "SST_ERSSTv5_IRIDL":["Sea Surface temperature ERSST v5",
-                         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/(Jan 1979)/(Dec {})/RANGE/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1854],
+                         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1854],
+"GPH500_NCEP-NCAR_IRIDL":["Geopotential height at 500mbar, NCEP-NCAR CDAS-1",
+                         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.PressureLevel/.phi/P/(500)VALUES/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1949],
+    
+"MSL_NCEP-NCAR_IRIDL":["Mean sea level pressure, NCEP-NCAR CDAS-1",
+                       "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.MSL/.pressure/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", "1949"]
+        
 }
 
 fcstpredSources={
@@ -421,7 +427,7 @@ def downloadGriddedPredictor():
         # (Jan 1982)/(Dec 2021)/RANGE/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/
         # X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"
         url=predictorSources[_predictorcode][1]
-        url=url.format(lastyear, _predictormonth, firstyear, lastyear, south,north,west,east)
+        url=url.format(_predictormonth, firstyear, lastyear, south,north,west,east)
 
         response=downloadUrl(url)
         

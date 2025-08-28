@@ -7,11 +7,12 @@ in dowload.py:
 
 
 in forecast.py
-
+- divergent scale for probability maps
 - save tercile and cem categories as geojson
 - include skill-masked plots
 - include more skill measures
-- data saving - diagnostics - regression model diags - error distribution, obs vs predicted
+- add annotations to maps and figures
+
 - save model configuration to output directory
 
 - test data ingestion errors for csv files

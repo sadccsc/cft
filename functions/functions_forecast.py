@@ -72,6 +72,7 @@ tgtSeass=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec
 srcMons=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
 timeAggregations={"sum","mean"}
+predictandCats=["rainfall","temperature", "other"]
 
 crossvalidator_config={
     "KF":["K-Fold",{"n_splits":5}],
@@ -243,11 +244,11 @@ def readPredictandCsv(csvfile):
             msg="Data should contain values for longitude of stations in one of the top three rows, marked by word 'Lon' in the first column of data. {} does not. Please inspect the data file.".format(csvfile)
             showMessage(msg, "ERROR")
             
-    if gl.predictandMissingValue != "":
-        dat[dat==gl.predictandMissingValue]=np.nan
+    if gl.config["predictandMissingValue"] != "":
+        dat[dat==gl.config["predictandMissingValue"]]=np.nan
 
     #check only if rainfall
-    if  gl.predictandCategory =='rainfall':
+    if  gl.config["predictandCategory"] =='rainfall':
         dat[dat<0]=np.nan
 
     nancount=np.sum(np.isnan(dat), axis=0).sum()
@@ -355,7 +356,8 @@ def readPredictor(_model):
     if not gl.predictorDate in datdates:
         showMessage("Predictor data do not include forecast date {}".format(gl.predictorDate.strftime("%b %Y")), "ERROR")
         return
-        
+    predictor=predictor.astype("float")
+    
     showMessage("done\n", "INFO")
     return predictor
 
@@ -401,7 +403,6 @@ def readPredictand():
         
         #converting to pandas
         obsdata=obsdata.to_pandas()
-        
     else:
         obsdata,geoData=readPredictandCsv(obsFile)
         
@@ -445,6 +446,8 @@ def readPredictand():
     if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
         showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
         return
+    
+    obsdata=obsdata.astype("float")
 
     return obsdata, geoData
 
@@ -827,8 +830,73 @@ def rpss_score(forecast_probs, climatology_probs, observed_class):
 
 cat2num={"below":0,"normal":1,"above":2}
 
+def ignorance_score(forecast_probs, observed_class):
+    # Clip probabilities to avoid log(0)
+    eps = 1e-15
+    prob = np.clip(forecast_probs, eps, 1-eps)
+    # Select the probability assigned to the observed category
+    p_observed = prob[np.arange(len(observed_class)), observed_class]
 
+    # Compute ignorance
+    ignorance = -np.log2(p_observed)
 
+    # Mean ignorance over all instances
+    mean_ignorance = np.mean(ignorance)
+
+    return mean_ignorance
+        
+def heidke_skill_score(forecast_probs, obs):
+        
+    fcst=np.argmax(forecast_probs, axis=1)
+    
+    categories = np.unique(np.concatenate([obs, fcst]))
+    K = len(categories)
+    N_t = len(obs)
+    
+    # contingency counts per category
+    N_f = np.array([np.sum(fcst == k) for k in categories])
+    N_o = np.array([np.sum(obs == k) for k in categories])
+    N_c = np.sum(obs == fcst)  # number of correct forecasts
+    
+    N_e = np.sum(N_f * N_o) / N_t  # expected correct by chance
+    HSS = (N_c - N_e) / (N_t - N_e)
+    return HSS
+
+def brier_skill_score(forecast_probs, obs):
+    
+    n_instances = len(obs)
+    n_categories = forecast_probs.shape[1]
+
+    # one-hot encoding of observations
+    obs_onehot = np.zeros_like(forecast_probs)
+    obs_onehot[np.arange(n_instances), obs] = 1
+    
+    brier = np.mean(np.sum((forecast_probs - obs_onehot)**2, axis=1))
+    return brier
+
+def effective_interest_rate(forecast_probs, obs):
+
+    # Clip probabilities to avoid log(0)
+    eps = 1e-15
+    prob = np.clip(forecast_probs, eps, 1-eps)
+
+    # 1. Ignorance of forecast
+    p_obs = prob[np.arange(len(obs)), obs]
+    I_forecast = -np.log2(p_obs)
+
+    # 2. Reference probabilities (climatology)
+    obs_onehot = np.zeros_like(prob)
+    obs_onehot[np.arange(len(obs)), obs] = 1
+    clim_prob = obs_onehot.mean(axis=0)
+
+    p_ref = clim_prob[obs]
+    I_ref = -np.log2(p_ref)
+
+    # 3. Effective information
+    info_gain = I_ref - I_forecast
+    mean_info_gain = np.mean(info_gain)
+    
+    return mean_info_gain
 
 def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
     #iterating through stations/locations
@@ -838,7 +906,11 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
        "ROC_above",
        "ROC_normal",
        "ROC_below",
-       "rpss"]
+       "rpss", 
+       "ignorance", 
+       "hss",
+       "2afc",
+       "brier", "effintrate"]
 
     allscores=[]
     for entry in _det_hcst.columns:
@@ -875,12 +947,20 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
         #calculate rpss
         rpss=rpss_score(phcst, pclim,obsterc)
 
-        # rpss
         # ignorance score
-        # reliability diagram - plot
-        # heidtke skill score for most probable forecast
+        ignorance=ignorance_score(phcst,obsterc)
+        
+        hss=heidke_skill_score(phcst,obsterc)
 
-        entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss], index=index)
+        twoafc=two_afc_multicategory(phcst, obsterc)
+        
+        brier=brier_skill_score(phcst, obsterc)
+        
+        effintrate=effective_interest_rate(phcst,obsterc)
+        
+        # reliability diagram - plot
+
+        entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss, ignorance, hss, twoafc, brier, effintrate], index=index)
 
         allscores.append(entryscores)
     scores=pd.concat(allscores, axis=1, keys=_det_hcst.columns)
@@ -891,7 +971,7 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
 
 
 
-
+    
         
         
 def saveConfig():
@@ -923,6 +1003,10 @@ def populateGui():
     for key in timeAggregations:
         gl.window.comboBox_timeaggregation.addItem(key, key)
                 
+    #predictand category
+    gl.window.comboBox_predictandcategory.clear()
+    for item in predictandCats:
+        gl.window.comboBox_predictandcategory.addItem(item, item)
         
     for model in range(5):
         comboName="comboBox_preproc{}".format(model)
@@ -958,7 +1042,8 @@ def populateGui():
     gl.window.comboBox_tgtseas.setCurrentText(gl.config['fcstTargetSeas'])
     gl.window.lineEdit_climstartyr.setText(str(gl.config['climStartYr']))
     gl.window.lineEdit_climendyr.setText(str(gl.config['climEndYr']))
-    gl.window.comboBox_timeaggregation.setCurrentText(gl.config['timeAggregation'])
+    gl.window.comboBox_predictandcategory.setCurrentText(gl.config['predictandCategory'])
+    gl.window.lineEdit_predictandmissingvalue.setText(str(gl.config['predictandMissingValue']))
 
     for model in range(5):
         for var in ["minLon","maxLon","minLat","maxLat"]:
@@ -1056,6 +1141,8 @@ def makeConfig():
     gl.config['timeAggregation']="sum"
     gl.config["predictandFileName"]="./data/pr_mon_chirps-v2.0_198101-202308.nc"
     gl.config["predictandVar"]="PRCPTOT"
+    gl.config["predictandCategory"]="rainfall"
+    gl.config["predictandMissingValue"]=-999
 
     gl.config["zonesFile"]="data/Botswana.geojson"
     gl.config["zonesAttribute"]="ID"
@@ -1078,6 +1165,8 @@ def readGUI():
 
     gl.config["predictandFileName"]=gl.window.lineEdit_predictandfile.text()
     gl.config["predictandVar"]=gl.window.comboBox_predictandvar.currentText()
+    gl.config["predictandCategory"]=gl.window.comboBox_predictandcategory.currentText()
+    gl.config["predictandMissingValue"]=gl.window.lineEdit_predictandmissingvalue.text()
 
     gl.config["zonesFile"]=gl.window.lineEdit_zonesfile.text()
     gl.config["zonesAttribute"]=gl.window.comboBox_zonesattribute.currentText()
@@ -1235,6 +1324,7 @@ def sanitize_string(value, replacement="_", max_length=255):
     # Truncate to safe length
     return value[:max_length] if max_length else value
 
+
 def getCmap(d):
     vmin=d["vmin"]
     vmax=d["vmax"]
@@ -1254,18 +1344,58 @@ def getCmap(d):
     for lev in whitelev:
         cols[lev]=(1,1,1,1)
     cmap, norm = colors.from_levels_and_colors(levels, cols, extend=extend)
-    return cmap,norm
+    return cmap,norm, levels
+
+
+def getCmap_dev(d):
+    vmin=d["vmin"]
+    vmax=d["vmax"]
+    nlev=d["nlev"]
+    cmap=d["cmap"]
+    extend=d["extend"]
+    whitelev=d["whitelev"]
+    vcenter  = d.get("vcenter", None)   # optional    
+    
+    
+    levels=d["levels"]
+    if levels is None:
+        levels = np.linspace(vmin,vmax,nlev)   
+    
+    # choose norm
+    if vcenter is not None:
+        levels = d["levels"]   
+        norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+    else:
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
+  
+    # get base colormap
+    cmap_rb = plt.get_cmap(cmap)
+    
+    if extend=="both":
+        cols = cmap_rb(np.linspace(0.1, 0.9, len(levels)+1))
+    elif extend=="neither":
+        cols = cmap_rb(np.linspace(0.1, 0.9, len(levels)-1))
+    else:
+        cols = cmap_rb(np.linspace(0.1, 0.9, len(levels)))
+
+    # overwrite selected bins with white if requested
+    for lev in whitelev:
+        cols[lev] = (1,1,1,1)
+
+    cmap, _ = colors.from_levels_and_colors(levels, cols, extend=extend)
+    
+    return cmap,norm, levels
 
 colormaps={"percent_normal":{
         "categorized":True,
-        "nlev":11,
+        "nlev":21,
         "title":"Forecast value as percent of normal",
         "cmap":"BrBG",
         "vmin":0,
         "vmax":200,
         "cbar_label":"mm",
         "levels":None,
-        "whitelev":[4,5],
+        "whitelev":[9,10],
         "tick_labels":None,
         "extend":"max"},
     "value":{
@@ -1274,7 +1404,7 @@ colormaps={"percent_normal":{
         "title":"Forecast value",
         "cmap":plt.cm.YlGnBu,
         "vmin":0,
-        "vmax":200,
+        "vmax":"auto",
         "cbar_label":"mm",
         "levels":None,
         "whitelev":[],
@@ -1282,26 +1412,26 @@ colormaps={"percent_normal":{
         "extend":"max"},
     "absolute_anomaly":{
         "categorized":True,
-        "nlev":11,
+        "nlev":21,
         "title":"Forecast anomaly",
         "cmap":plt.cm.BrBG,
         "vmin":-50,
         "vmax":50,
         "cbar_label":"mm",
         "levels":None,
-        "whitelev":[5,6],
+        "whitelev":[10,11],
         "tick_labels":None,
         "extend":"both"},
     "percent_anomaly":{
         "categorized":True,
-        "nlev":11,
+        "nlev":21,
         "title":"Forecast anomaly as percent of normal",
         "cmap":plt.cm.BrBG,
         "vmin":-100,
         "vmax":100,
         "cbar_label":"percent",
         "levels":None,
-        "whitelev":[4,5],
+        "whitelev":[9,10],
         "tick_labels":None,
         "extend":"max"},
     "correlation":{
@@ -1322,7 +1452,7 @@ colormaps={"percent_normal":{
         "title":"Mean absolute percentage error\n(hindcast)",
         "cmap":plt.cm.Grays,
         "vmin":0,
-        "vmax":20,
+        "vmax":"auto",
         "cbar_label":"percent",
         "levels":None,
         "whitelev":[],
@@ -1334,7 +1464,7 @@ colormaps={"percent_normal":{
         "title":"Root mean square error\n(hindcast)",
         "cmap":plt.cm.Grays,
         "vmin":0,
-        "vmax":100,
+        "vmax":"auto",
         "cbar_label":"mm",
         "levels":None,
         "whitelev":[],
@@ -1367,7 +1497,7 @@ colormaps={"percent_normal":{
     "ROC_below":{
         "categorized":True,
         "nlev":11,
-        "title":"ROC score for above normal category\n(hindcast)",
+        "title":"ROC score for below normal category\n(hindcast)",
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
@@ -1388,39 +1518,103 @@ colormaps={"percent_normal":{
         "whitelev":[4,5],
         "tick_labels":None,
         "extend":"neither"},
+    "ignorance":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Ignorance score\n(hindcast)",
+        "cmap":plt.cm.Greys_r,
+        "vmin":0,
+        "vmax":"auto",
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"max"},
+    "hss":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Heidke skill score\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":-1,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "2afc":{
+        "categorized":True,
+        "nlev":11,
+        "title":"2AFC score\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":0,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"neither"},
+    "brier":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Brier score\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":-1,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"min"},
+    "effintrate":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Effective interest rate\n(hindcast)",
+        "cmap":plt.cm.RdBu,
+        "vmin":-1,
+        "vmax":1,
+        "cbar_label":"score",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"both"},
+           
     "normal":{
         "categorized":True,
         "nlev":11,
-        "title":"Forecast probability of normal category",
-        "cmap":plt.cm.Grays,
+        "title":"Forecast probability \nof normal category",
+        "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "vcenter":0.33,
         "cbar_label":"probability",
-        "levels":None,
+        "levels":[0, 0.15, 0.20,0.25, 0.3, 0.33, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         "whitelev":[],
         "tick_labels":None,
         "extend":"neither"},
     "below":{
         "categorized":True,
         "nlev":11,
-        "title":"Forecast probability of below normal category",
-        "cmap":plt.cm.Grays,
+        "title":"Forecast probability \nof below normal category",
+        "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "vcenter":0.33,
         "cbar_label":"probability",
-        "levels":None,
+        "levels":[0, 0.15, 0.20,0.25, 0.3, 0.33, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         "whitelev":[],
         "tick_labels":None,
         "extend":"neither"},
     "above":{
         "categorized":True,
         "nlev":11,
-        "title":"Forecast probability of above normal category",
-        "cmap":plt.cm.Grays,
+        "title":"Forecast probability \nof above normal category",
+        "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "vcenter":0.33,
         "cbar_label":"probability",
-        "levels":None,
+        "levels":[0, 0.15, 0.20,0.25, 0.3, 0.33, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         "whitelev":[],
         "tick_labels":None,
         "extend":"neither"},
@@ -1450,7 +1644,58 @@ colormaps={"percent_normal":{
         "extend":"neither"}
 }
 
-        
+
+def nice_minmax(x,y=None, symmetric=False):
+    # 1. Get global min and max
+    if y is None:
+        data_min = np.min(x)
+        data_max = np.max(x)        
+    else:
+        data_min = min(np.min(x), np.min(y))
+        data_max = max(np.max(x), np.max(y))
+
+    # 2. Add padding
+    padding = 0.05 * (data_max - data_min)
+    raw_min = data_min - padding
+    raw_max = data_max + padding
+
+    # 3. Round to "nice" numbers (nearest power of 10 multiples)
+    def nice_limits(vmin, vmax):
+        rng = vmax - vmin
+        exp = int(np.floor(np.log10(rng)))  # order of magnitude
+        step = 10 ** exp
+        vmin = np.floor(vmin / step) * step
+        vmax = np.ceil(vmax / step) * step
+        return vmin, vmax
+
+    lims = nice_limits(raw_min, raw_max)
+    if symmetric:
+        largest=max([abs(lims[0]), lims[1]])
+        lims[0]=-largest
+        lims[1]=largest
+
+    return lims    
+
+
+def nice_max(x):
+    # 1. Get global min and max
+    data_max = np.nanmax(x)
+
+    # 2. Add padding
+    padding = 0.05 * (data_max)
+    raw_max = data_max + padding
+
+    # 3. Round to "nice" numbers (nearest power of 10 multiples)
+    def nice_limits(vmax):
+        rng = vmax
+        exp = int(np.floor(np.log10(rng)))  # order of magnitude
+        step = 10 ** exp
+        vmax = np.ceil(vmax / step) * step
+        return vmax
+
+    lims = nice_limits(raw_max)
+
+    return lims    
     
     
 def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector, _overlayVector=None):
@@ -1469,21 +1714,31 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
+            
+            dat2plot=scoresxr.sortby("lat").sortby("lon").sel(category=score)
+            
+            if vmax=="auto":
+                if vmin=="auto":
+                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,True)
+                else:
+                    vmax=nice_max(dat2plot.data.flatten())
+            cm["vmin"]=vmin
+            cm["vmax"]=vmax
+            
             cbar_label=cm["cbar_label"]
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
             # add colorbar
             if cm["categorized"]:
-                cmap,norm=getCmap(cm)
+                cmap,norm,levels=getCmap(cm)
             else:
                 cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
-                
-            m=scoresxr.sortby("lat").sortby("lon").sel(category=score).plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
+            m=dat2plot.plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
             
-            ax=fig.add_axes([0.82,0.25,0.03,0.6])
+            ax=fig.add_axes([0.82,0.15,0.03,0.7])
             
             if levels is None:
                 cbar = fig.colorbar(m, cax=ax, label=cbar_label, extend=extend)
@@ -1522,13 +1777,25 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             vmax=cm["vmax"]
             
             levels=cm["levels"]
+            
+            if vmax=="auto":
+                if vmin=="auto":
+                    vmin,vmax=nice_minmax(_geodata[score].values.flatten(), None,True)
+                else:
+                    vmax=nice_max(_geodata[score].values.flatten())
+                    
+            
+            #have to feed back, because new values are used later
+            cm["vmin"]=vmin
+            cm["vmax"]=vmax
+            
             cbar_label=cm["cbar_label"]
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
             # add colorbar
             if cm["categorized"]:
-                cmap,norm=getCmap(cm)
+                cmap,norm,levels=getCmap(cm)
             else:
                 cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
@@ -1538,7 +1805,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, norm=norm)
             _geodata.boundary.plot(ax=pl)
             
-            ax=fig.add_axes([0.82,0.25,0.03,0.6])
+            ax=fig.add_axes([0.82,0.15,0.03,0.7])
             
             
             if levels is None:
@@ -1549,7 +1816,7 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
                 
             if tick_labels is not None:
                 ax_cbar.ax.set_yticklabels(tick_labels)
-                
+            
             pl.set_title(title)
 
             if not _overlayVector is None:
@@ -1574,20 +1841,31 @@ def plotMaps(_scores, _geoData, _geoData0,_figuresDir, _forecastID, _zonesVector
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
+            
+            
+            if vmax=="auto":
+                if vmin=="auto":
+                    vmin,vmax=nice_minmax(_geodata[score].values.flatten(), None,True)
+                else:
+                    vmax=nice_max(_geodata[score].values.flatten())
+                    
+            cm["vmin"]=vmin
+            cm["vmax"]=vmax
+            
             cbar_label=cm["cbar_label"]
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
             # add colorbar
             if cm["categorized"]:
-                cmap,norm=getCmap(cm)
+                cmap,norm,levels=getCmap(cm)
             else:
                 cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
             
             m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, edgecolor='black', linewidth=0.5)
             
-            ax=fig.add_axes([0.82,0.25,0.03,0.6])
+            ax=fig.add_axes([0.82,0.15,0.03,0.7])
             
             # add colorbar
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
@@ -2161,27 +2439,7 @@ def plotDiagsRegression(predictandhcst, cvhcst, esthcst, tercthresh, detfcst, _d
             plt.close()
 
 
-def nice_minmax(x,y):
-    # 1. Get global min and max
-    data_min = min(np.min(x), np.min(y))
-    data_max = max(np.max(x), np.max(y))
-
-    # 2. Add padding
-    padding = 0.05 * (data_max - data_min)
-    raw_min = data_min - padding
-    raw_max = data_max + padding
-
-    # 3. Round to "nice" numbers (nearest power of 10 multiples)
-    def nice_limits(vmin, vmax):
-        rng = vmax - vmin
-        exp = int(np.floor(np.log10(rng)))  # order of magnitude
-        step = 10 ** exp
-        vmin = np.floor(vmin / step) * step
-        vmax = np.ceil(vmax / step) * step
-        return vmin, vmax
-
-    lims = nice_limits(raw_min, raw_max)
-    return lims    
+            
 
 def is_number(s):
     try:

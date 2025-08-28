@@ -25,16 +25,18 @@
         "KF"
     ],
     "preproc": [
-        "CCA"
+        "PCR"
     ],
     "regression": [
         "OLS"
     ],
-    "timeAggregation": "sum",
-    "predictandFileName": "/work/code/csc/cft/stress_testing_data/ZAMBIAN_DATA_ STATION 1961_JUNE 2025_UPDATE.csv",
-    "predictandVar": "ZAMBIAN",
-    "zonesFile": "/work/code/csc/cft/stress_testing_data/synthesis/zambia/Zambia.geojson",
-    "zonesAttribute": "ZONE",
-    "zonesAggregate": true,
-    "overlayFile": ""
+    "timeAggregation": "mean",
+    "predictandFileName": "/work/code/csc/cft/sadc_cft_current/example_data/pr_mon_chirps-v2.0_198101-202308.nc",
+    "predictandVar": "PRCPTOT",
+    "predictandCategory": "rainfall",
+    "predictandMissingValue": "-999",
+    "zonesFile": "/work/code/csc/cft/sadc_cft_current/example_data/SADC_MAM_2022_Consensus.geojson",
+    "zonesAttribute": "ID",
+    "zonesAggregate": false,
+    "overlayFile": "/work/code/csc/cft/sadc_cft_current/example_data/SADC_MAM_2022_Consensus.geojson"
 }

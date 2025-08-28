@@ -166,7 +166,7 @@ alternatively:
 - open Anaconda Prompt
 - navigate to your CFT directory (using cd commands)
 - type:
-   mamba activate cft-v5.0
+   conda activate cft-v5.0
    python cft.py
 
 
@@ -181,34 +181,35 @@ alternatively:
 - open terminal
 - navigate to your CFT directory (using cd commands)
 - type: 
-   mamba activate cft-v5.0
+   conda activate cft-v5.0
    python cft.py
 
 
 
 Still to do in v5.0
 ------------
-in download.py:
-- implement control of lat lon to make sure integers within range
+in dowload.py:
+- catch errors in download when data are not availble or iridl is down
+- fix CanSips download error
+- implement stop button
+
 
 in forecast.py
-- extend and clean up plotting 
+- divergent scale for probability maps
+- save tercile and cem categories as geojson
 - include skill-masked plots
-- catch error when some zones get dropped if spatial aggregation is used
-- include more skill measures
-- data saving - diagnostics - results of pca and cca
-- test data ingestion errors for csv files
-- add missing value to gui
-- add category of predictand to gui
-- add buttons to clear file selectors to gui
+- add annotations to maps and figures
+- save model configuration to output directory
 - add "too dry to forecast" colour to plots
-- implement ability to use forecast data as predictor - it should work even now, but there is a need to make sure dates are handled correctly.
+- limit CCA forecast if fewer than X locations/zones
 
-wish list:
-------------
+# wish list:
+- implement download from CDS, and if not - implement download of CDS data from IRIDL - both require users to set up account
 - multimodel forecast
 - filling missing values in predictand
 - regridding of gridded predictand to a coarser resolution if domain too large
 - optimize skill calculation on gridded data - it takes much longer than calculations of the model
-- parameters that are not defined throug gui to be read from json file (in this way, advanced users can change them)
+- parameters that are not defined through gui to be read from json file (in this way, advanced users can change them)
+
+
 

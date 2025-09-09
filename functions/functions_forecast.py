@@ -49,6 +49,9 @@ from PyQt5.QtWidgets import QFileDialog
 import re
 import unicodedata
 
+from scipy.interpolate import interp1d
+from scipy.stats import norm
+
 crossvalidator_config_file=Path("dictionaries", "crossvalidator_config.json")
 regressor_config_file=Path("dictionaries", "regressor_config.json")
 preprocessor_config_file=Path("dictionaries", "preprocessor_config.json")
@@ -819,15 +822,7 @@ def getFcstAnomalies(_det_fcst,_ref_data):
 
 
 
-def get_prob_hcst(_data, _pred_err, _terc_thresh, what):
-    if what=="above":
-        prob=((_pred_err+_data>_terc_thresh).sum(0)/_pred_err.shape[0])
-    elif what=="below":
-        prob=((_pred_err+_data<_terc_thresh).sum(0)/_pred_err.shape[0])
-    return(prob)
-
-
-def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirical"):
+def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst, _terc_thresh, _method="empirical"):
         
     #prediction error
     if _method=="empirical":
@@ -838,10 +833,8 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
         prob_above_fcst=((pred_err+_Y_fcst.values>_terc_thresh.loc[0.66]).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
         prob_below_fcst=((pred_err+_Y_fcst.values<_terc_thresh.loc[0.33]).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
         prob_normal_fcst=(((pred_err+_Y_fcst.values>=_terc_thresh.loc[0.33]) & (pred_err+_Y_fcst.values<=_terc_thresh.loc[0.66])).sum(0)/pred_err.shape[0]).to_frame(name=_Y_fcst.index[0])
+        
         #should calculate for hindcast too
-
-        pred_err=_Y_hcst-_Y_obs
-
         prob_above_hcst=_Y_hcst.apply(lambda row: get_prob_hcst(row, pred_err, _terc_thresh.loc[0.66], "above"), axis=1)
         prob_below_hcst=_Y_hcst.apply(lambda row: get_prob_hcst(row, pred_err, _terc_thresh.loc[0.33], "below"), axis=1)
         prob_normal_hcst=1-(prob_above_hcst+prob_below_hcst)
@@ -854,6 +847,138 @@ def probabilisticForecast(_Y_hcst,_Y_obs,_Y_fcst,_terc_thresh, _method="empirica
     terc_hcst.index.name="time"
     
     return terc_fcst, terc_hcst
+
+
+
+
+def probabilisticForecastCalibrated(Y_hcst,Y_obs,Y_fcst,terc_thresh, dist="empirical"):
+        
+    # getting cdf threshold array (we are not using threshold values here)
+    targetcdfs=np.tile(terc_thresh.index.values[:, np.newaxis], (1, terc_thresh.shape[1]))
+
+    #prediction error
+    pred_err=Y_hcst-Y_obs
+
+    #forecast distribution
+    fcstvals=(Y_fcst.values + pred_err.values).astype(float)
+
+    fcstdistrib = fit_dist_to_arr(fcstvals, dist=dist)
+
+    #obs distribution - should be list
+    obsdistrib = fit_dist_to_arr(Y_obs.values.astype(float), dist=dist)
+
+    #this is distribution of hindcast+error - shaped nyears*nyears,nfeatures
+    hcstfulldata=(Y_hcst.values[:, None, :] + pred_err.values[None, :, :])
+
+    arr=hcstfulldata.reshape(-1,Y_hcst.shape[1]).astype(float)
+    #this will be a list
+    hcstfulldistrib = fit_dist_to_arr(arr, dist=dist)
+
+
+    calibfcstcdf=calibrate(targetcdfs, fcstdistrib, hcstfulldistrib, dist=dist)
+    calibfcstcdf=pd.DataFrame(calibfcstcdf, index=terc_thresh.index, columns=Y_fcst.columns)    
+
+    temp=calibfcstcdf.loc[0.33]
+    prob_below_fcst=pd.DataFrame(temp.values.reshape(*Y_fcst.shape), index=Y_fcst.index, columns=Y_fcst.columns)
+
+    temp=1-calibfcstcdf.loc[0.66]
+    prob_above_fcst=pd.DataFrame(temp.values.reshape(*Y_fcst.shape), index=Y_fcst.index, columns=Y_fcst.columns)
+    prob_normal_fcst=1-(prob_above_fcst+prob_below_fcst)
+
+
+    calibhcstcdf=[]
+    for i in range(hcstfulldata.shape[0]):
+        hcstyeardistrib=fit_dist_to_arr(hcstfulldata[i,:].astype(float), dist=dist)
+        temp=calibrate(targetcdfs,hcstyeardistrib,hcstfulldistrib, dist=dist)
+        calibhcstcdf.append(temp)
+    calibhcstcdf=pd.DataFrame(np.concatenate(calibhcstcdf, axis=1), index=terc_thresh.index)    
+
+
+    temp=calibhcstcdf.loc[0.33]
+    prob_below_hcst=pd.DataFrame(temp.values.reshape(*Y_hcst.shape), index=Y_hcst.index, columns=Y_hcst.columns)
+    prob_below_hcst
+
+    temp=1-calibhcstcdf.loc[0.66]
+    prob_above_hcst=pd.DataFrame(temp.values.reshape(*Y_hcst.shape), index=Y_hcst.index, columns=Y_hcst.columns)
+    prob_above_hcst
+    prob_normal_hcst=1-(prob_above_hcst+prob_below_hcst)
+
+    #preparing final dataframes
+    terc_fcst=pd.concat([prob_above_fcst,prob_normal_fcst,prob_below_fcst], keys=["above","normal","below"],  names=["category"], axis=1)
+    terc_hcst=pd.concat([prob_above_hcst,prob_normal_hcst,prob_below_hcst], keys=["above","normal","below"], names=["category"],axis=1)
+    terc_fcst.index.name="time"
+    terc_hcst.index.name="time"
+    
+    return terc_fcst, terc_hcst, calibhcstcdf
+
+
+
+class ECDF:
+    @staticmethod
+    def fit(data):
+        """Fit ECDF: returns (x_sorted, cdf_grid) like params."""
+        data = np.sort(np.asarray(data, dtype=float))
+        n = len(data)
+        cdf_grid = np.linspace(1/n, 1, n)
+        return data, cdf_grid
+
+    @staticmethod
+    def cdf(vals, x_sorted, cdf_grid):
+        """CDF from fitted ECDF."""
+        f = interp1d(x_sorted, cdf_grid, bounds_error=False, fill_value=(0, 1))
+        return f(vals)
+
+    @staticmethod
+    def ppf(q, x_sorted, cdf_grid):
+        """Quantile (inverse CDF) from fitted ECDF."""
+        f = interp1d(cdf_grid, x_sorted, bounds_error=False,
+                     fill_value=(x_sorted[0], x_sorted[-1]))
+        return f(q)
+
+
+def fit_dist_to_arr(data, dist="normal"):
+    if dist=="normal":
+        func=norm
+    elif dist=="empirical":
+        func=ECDF
+        
+    params=[func.fit(data[:, i][~np.isnan(data[:, i])]) for i in range(data.shape[1])]
+    
+    return params
+        
+        
+def get_cdf(values, params, dist="normal"):
+    if dist=="normal":
+        func=norm
+    elif dist=="empirical":
+        func=ECDF
+    
+    cdf=values.copy()
+    cdf[:]=np.nan
+    for i in range(values.shape[1]):
+        cdf[:,i]=func.cdf(values[:,i], *params[i])
+        
+    return cdf
+
+def get_value(cdf, params, dist="normal"):
+    if dist=="normal":
+        func=norm
+    elif dist=="empirical":
+        func=ECDF
+    
+    values=cdf.copy()
+    values[:]=np.nan
+    for i in range(cdf.shape[1]):
+        values[:,i]=func.ppf(cdf[:,i], *params[i])
+    return values
+
+def calibrate(targetcdfs, fcstdistrib, hcstfulldistrib, dist="normal"):
+    
+    hcsttargetvalue=get_value(targetcdfs,hcstfulldistrib, dist=dist)
+    _calibfcstcdf=get_cdf(hcsttargetvalue,fcstdistrib, dist=dist)
+    return _calibfcstcdf
+
+
 
 
 
@@ -1862,6 +1987,43 @@ def getSkillMask(_vars, _skillscores):
 
      return outdata
 
+
+
+def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
+    allprobs=calibhcstcdf.values.reshape(-1,*Y_hcst.shape)
+    #distribution here has to be empirical, this is how the terciles are calculated
+    obsdistrib=fit_dist_to_arr(Y_obs.values.astype(float), dist="empirical")
+    obsprobs=get_cdf(Y_obs.values.astype(float),obsdistrib, dist="empirical")
+    
+    catnames=["below normal","normal","above normal"]
+    
+    ncat=calibhcstcdf.shape[0]
+    obscat=(obsprobs*ncat).astype(int)
+    obscat[obscat==ncat]=ncat-1
+
+    for loc,name in enumerate(Y_obs.columns):
+        probs=allprobs[:,:,loc]
+        obs_idx=obscat[:,loc]
+
+        # Rank histogram
+        counts = np.zeros(probs.shape[0])
+        for i in range(len(obscat)):
+            counts[obs_idx[i]] += 1
+            
+        fig=plt.figure(figsize=(5,3))
+        pl=fig.add_subplot(1,1,1)
+
+        pl.bar(np.arange(1, ncat+1), counts)
+        pl.set_xticks(range(1, ncat+1))
+        pl.set_xticklabels(catnames)
+        pl.set_xlabel("Forecast category \n(in {} years of hindcast data)".format(Y_hcst.shape[0]))
+        pl.set_ylabel("Count of observations")
+        pl.set_title("Rank Histogram\nregion: {}".format(name))
+        plt.subplots_adjust(bottom=0.25, top=0.8)
+        plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, name, forecastid))
+
+
+
 def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotation, _overlayVector=None):
     
     if gl.targetType=="grid":
@@ -2752,3 +2914,7 @@ def checkInputs():
             return    
         
     return True
+
+
+
+

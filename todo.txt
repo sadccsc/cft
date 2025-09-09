@@ -6,17 +6,25 @@ in dowload.py:
 - fix CanSips download error
 - implement stop button
 
+- needs to be revised - should download data in native format, because then manually downloaded files could be used too
+
+
 
 in forecast.py
 - divergent scale for probability maps - centered on 0.33
 - save tercile and cem categories as geojson
 - include skill-masked plots
 
+
+- make sure "native" IRI files and ECMWF files read properly
+
+
 - save model configuration to output directory
 
-- test data ingestion errors for csv files
 - add "too dry to forecast" colour to plots
 - limit CCA forecast for less than X locations/zones
+
+- optimize skill calculation on gridded data - it takes much longer than calculations of the model
 
 
 # wish list:
@@ -24,7 +32,6 @@ in forecast.py
 - multimodel forecast
 - filling missing values in predictand
 - regridding of gridded predictand to a coarser resolution if domain too large
-- optimize skill calculation on gridded data - it takes much longer than calculations of the model
-- parameters that are not defined throug gui to be read from json file (in this way, advanced users can change them)
+
 
 

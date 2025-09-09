@@ -638,6 +638,8 @@ def downloadFcstPredictor():
             except:
                 showMessage("Could not read downloaded data. This might be a result of a temporary problem with IRIDL server. Wait a couple of minutes and re-download the data. If the same error occurs - copy and paste the following url into a browser to identify the problem: \n{}".format(url), "ERROR")
                 return
+            
+            
             #renaming to time as later functions do not work with T which is used by iri files
             ds=ds.rename({"S":"time", "X":"lon", "Y":"lat", "L":"lead_time"})
 

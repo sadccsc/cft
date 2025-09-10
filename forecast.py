@@ -31,16 +31,12 @@ import geopandas as gpd
 
 from pathlib import Path
 
-
 import gl
 import functions.functions_forecast as ff
 
 
 # in code
 gl.configFile="forecast.json"
-
-#this should be read from a "deep config json"
-gl.maxLeadTime=6
 
 
 def computeModel():
@@ -289,17 +285,21 @@ def computeModel():
     
     # for cross-validated hindcast
     cvHcst=ff.getFcstAnomalies(cvHcst,refData)
+
     
     #deriving probabilistic prediction
     ff.showMessage("Calculating probabilistic hindcast and forecast using error variance...")
     
     #this one uses cross-validated hindcast for error
-    result=ff.probabilisticForecast(cvHcst["value"], predictandHcst,detFcst["value"],tercThresh)
+    dist="normal"
+    result=ff.probabilisticForecastCalibrated(cvHcst["value"], predictandHcst,detFcst["value"],tercThresh, dist=dist)
+    
     if result is None:
         ff.showMessage("Probabilistic forecast could not be calculated", "ERROR")
         return
-    probFcst,probHcst=result
     
+    probFcst,probHcst,calibHcstCdf=result    
+        
     #tercile forecast
     ff.showMessage("Calculating tercile forecast (highest probability category)")
     
@@ -406,7 +406,10 @@ def computeModel():
     #plotting skill scores
     ff.plotMaps(scores_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
 
-    
+    ff.showMessage("Plotting tercile probabilities map...")    
+    #plotting
+    ff.plotTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector)
+
     ff.showMessage("Plotting time series plots...") 
     ff.plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID, annotation)
     
@@ -420,6 +423,9 @@ def computeModel():
     
     ff.showMessage("Plotting regression diagnostics...")
     ff.plotDiagsRegression(predictandHcst, cvHcst, estHcst, tercThresh, detFcst, diagsDir, forecastID, annotation)
+    
+    ff.showMessage("Plotting calibratin diagnostics...")
+    ff.plotCalibDiags(calibHcstCdf, predictandHcst, cvHcst["value"], diagsDir, forecastID)
     
     ff.showMessage("All done!", "SUCCESS")
     ff.showMessage("Inspect log above for potential errors!", "SUCCESS")    

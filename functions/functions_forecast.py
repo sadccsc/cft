@@ -27,6 +27,7 @@ from sklearn.base import BaseEstimator, RegressorMixin
 
 from rasterstats import zonal_stats
 import rioxarray
+from rasterio.enums import Resampling
 
 import matplotlib.colors as colors
 
@@ -52,6 +53,7 @@ import unicodedata
 from scipy.interpolate import interp1d
 from scipy.stats import norm
 
+deep_config_file=Path("dictionaries", "deep_config.json")
 crossvalidator_config_file=Path("dictionaries", "crossvalidator_config.json")
 regressor_config_file=Path("dictionaries", "regressor_config.json")
 preprocessor_config_file=Path("dictionaries", "preprocessor_config.json")
@@ -83,11 +85,6 @@ timeAggregations={"sum","mean"}
 predictandCats=["rainfall","temperature", "other"]
 
 
-#crossvalidator_config={
-#    "KF":["K-Fold",{"n_splits":5}],
-#    "LOO":["Leave One Out",{}],
-#}
-
 
 def readFunctionConfig():
     
@@ -101,6 +98,10 @@ def readFunctionConfig():
 
     gl.preprocessor_config=readConfigFile(preprocessor_config_file)
     if gl.preprocessor_config is None:
+        return
+
+    gl.deep_config=readConfigFile(deep_config_file)
+    if gl.deep_config is None:
         return
     
     return True
@@ -211,11 +212,8 @@ def readPredictandCsv(csvfile):
         alldata=[]
         lats=[]
         lons=[]
-        print(locs)
         for name in locs:
-            print("name", name)
             sel=ds.ID==name
-            print("sel", sel)
             lats=lats+[np.unique(ds[sel].Lat.values)[0]]
             lons=lons+[np.unique(ds[sel].Lon.values)[0]]
             years=np.unique(ds[sel].Year.values)
@@ -435,6 +433,39 @@ def readPredictand():
             return
             
         geoData=obsdata[0,:]
+        
+        if gl.config["regridPredictand"]:
+            
+            showMessage("Regridding predictand to {} deg grid".format(gl.deep_config["gridSize"]))
+            
+            lats=geoData.lat
+            lons=geoData.lon
+            
+            #check if target resolution is higher than data to avoid downsampling
+            
+            dataGridSize=lats[1]-lats[0]
+            if dataGridSize>gl.deep_config["gridSize"]:
+                showMessage("Data grid is {} deg, requested grid is {} deg. Skipping regridding to avoid downsampling".format(dataGridSize, gl.deep_config["gridSize"]))
+            else:
+                #ok, let's regrid
+                
+                minlat=np.floor(np.min(lats))
+                maxlat=np.ceil(np.max(lats))
+                numlat=int((maxlat-minlat)/gl.deep_config["gridSize"])+1
+
+                minlon=np.floor(np.min(lons))
+                maxlon=np.ceil(np.max(lons))
+                numlon=int((maxlon-minlon)/gl.deep_config["gridSize"])+1
+
+                new_lon = np.linspace(minlon, maxlon, numlon)
+                new_lat = np.linspace(minlat, maxlat, numlat)
+
+                target = xr.Dataset(coords={"y": new_lat, "x": new_lon}).rio.write_crs("epsg:4326")
+
+                obsdata=obsdata.rio.write_crs("epsg:4326")
+                obsdata=obsdata.rio.reproject_match(target,resampling=Resampling.bilinear)
+                obsdata=obsdata.rename({"x":"lon", "y":"lat"})
+            
         #preparing to convert xarray to pandas
         obsdata=obsdata.stack(location=("lat", "lon"))
         
@@ -692,8 +723,8 @@ def getLeadTime():
     tgtDate=pd.to_datetime("{}-{}-01".format(tgtYear,tgtMonth))
     
     leadTime=(tgtMonth+12-srcMonth)%12
-    if leadTime>gl.maxLeadTime:
-        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, gl.maxLeadTime)
+    if leadTime>gl.deep_config["maxLeadTime"]:
+        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, gl.deep_config["maxLeadTime"])
         showMessage(msg,"ERROR")
         return None
     gl.leadTime=leadTime
@@ -904,8 +935,8 @@ def probabilisticForecastCalibrated(Y_hcst,Y_obs,Y_fcst,terc_thresh, dist="empir
     prob_normal_hcst=1-(prob_above_hcst+prob_below_hcst)
 
     #preparing final dataframes
-    terc_fcst=pd.concat([prob_above_fcst,prob_normal_fcst,prob_below_fcst], keys=["above","normal","below"],  names=["category"], axis=1)
-    terc_hcst=pd.concat([prob_above_hcst,prob_normal_hcst,prob_below_hcst], keys=["above","normal","below"], names=["category"],axis=1)
+    terc_fcst=pd.concat([prob_below_fcst,prob_normal_fcst,prob_above_fcst], keys=["below","normal","above"],  names=["category"], axis=1)
+    terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["below","normal","above"], names=["category"],axis=1)
     terc_fcst.index.name="time"
     terc_hcst.index.name="time"
     
@@ -1360,6 +1391,8 @@ def populateGui():
             
     gl.window.checkBox_zonesaggregate.setChecked(gl.config["zonesAggregate"])
     
+    gl.window.checkBox_regridpredictand.setChecked(gl.config["regridPredictand"])
+    
     gl.window.lineEdit_zonesfile.setText(gl.config['zonesFile'])
     attributes=readVariablesFile(gl.config['zonesFile'])        
     gl.window.comboBox_zonesattribute.clear()
@@ -1404,6 +1437,7 @@ def makeConfig():
     gl.config["zonesFile"]="data/Botswana.geojson"
     gl.config["zonesAttribute"]="ID"
     gl.config["zonesAggregate"]=True
+    gl.config["regridPredictand"]=False
 
     gl.config["overlayFile"]=""
     
@@ -1428,6 +1462,7 @@ def readGUI():
     gl.config["zonesFile"]=gl.window.lineEdit_zonesfile.text()
     gl.config["zonesAttribute"]=gl.window.comboBox_zonesattribute.currentText()
     gl.config["zonesAggregate"]=gl.window.checkBox_zonesaggregate.isChecked()
+    gl.config["regridPredictand"]=gl.window.checkBox_regridpredictand.isChecked()
 
     gl.config["overlayFile"]=gl.window.lineEdit_overlayfile.text()
 
@@ -1990,40 +2025,159 @@ def getSkillMask(_vars, _skillscores):
 
 
 def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
-    allprobs=calibhcstcdf.values.reshape(-1,*Y_hcst.shape)
-    #distribution here has to be empirical, this is how the terciles are calculated
-    obsdistrib=fit_dist_to_arr(Y_obs.values.astype(float), dist="empirical")
-    obsprobs=get_cdf(Y_obs.values.astype(float),obsdistrib, dist="empirical")
+    if gl.targetType!="grid":    
+        allprobs=calibhcstcdf.values.reshape(-1,*Y_hcst.shape)
+        #distribution here has to be empirical, this is how the terciles are calculated
+        obsdistrib=fit_dist_to_arr(Y_obs.values.astype(float), dist="empirical")
+        obsprobs=get_cdf(Y_obs.values.astype(float),obsdistrib, dist="empirical")
+
+        catnames=["below normal","normal","above normal"]
+
+        ncat=calibhcstcdf.shape[0]
+        obscat=(obsprobs*ncat).astype(int)
+        obscat[obscat==ncat]=ncat-1
+
+        for loc,name in enumerate(Y_obs.columns):
+            probs=allprobs[:,:,loc]
+            obs_idx=obscat[:,loc]
+
+            # Rank histogram
+            counts = np.zeros(probs.shape[0])
+            for i in range(len(obscat)):
+                counts[obs_idx[i]] += 1
+
+            fig=plt.figure(figsize=(5,3))
+            pl=fig.add_subplot(1,1,1)
+
+            pl.bar(np.arange(1, ncat+1), counts)
+            pl.set_xticks(range(1, ncat+1))
+            pl.set_xticklabels(catnames)
+            pl.set_xlabel("Forecast category \n(in {} years of hindcast data)".format(Y_hcst.shape[0]))
+            pl.set_ylabel("Count of observations")
+            pl.set_title("Rank Histogram\nregion: {}".format(name))
+            plt.subplots_adjust(bottom=0.25, top=0.8)
+            plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, name, forecastid))
+            plt.close()
+
+def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
+    _cmap_above="BrBG"
+    _cmap_below="BrBG_r"
+    cbar_label_dry="probablity [%]\nbelow normal"
+    cbar_label_norm="probablity [%]\nnormal"
+    cbar_label_wet="probablity [%]\nabove normal"
+
     
-    catnames=["below normal","normal","above normal"]
+    #calculating max value
+    data=probfcst.values.reshape(-1,predictandhcst.shape[1])
+    row_idx = np.argmax(data, axis=0)
+    data_max=np.max(data, 0)
+    data=(data_max+row_idx)*100
+
     
-    ncat=calibhcstcdf.shape[0]
-    obscat=(obsprobs*ncat).astype(int)
-    obscat[obscat==ncat]=ncat-1
 
-    for loc,name in enumerate(Y_obs.columns):
-        probs=allprobs[:,:,loc]
-        obs_idx=obscat[:,loc]
+    fig=plt.figure(figsize=(5,5))
+    pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
-        # Rank histogram
-        counts = np.zeros(probs.shape[0])
-        for i in range(len(obscat)):
-            counts[obs_idx[i]] += 1
-            
-        fig=plt.figure(figsize=(5,3))
-        pl=fig.add_subplot(1,1,1)
-
-        pl.bar(np.arange(1, ncat+1), counts)
-        pl.set_xticks(range(1, ncat+1))
-        pl.set_xticklabels(catnames)
-        pl.set_xlabel("Forecast category \n(in {} years of hindcast data)".format(Y_hcst.shape[0]))
-        pl.set_ylabel("Count of observations")
-        pl.set_title("Rank Histogram\nregion: {}".format(name))
-        plt.subplots_adjust(bottom=0.25, top=0.8)
-        plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, name, forecastid))
+    levels_dry=[33,40,50,60,70,100]
+    ncat=len(levels_dry)
+    cmap_dry = plt.get_cmap(_cmap_below)
+    cols_dry = cmap_dry(np.linspace(0.5, 0.9, ncat-1))
+    cmap_dry, norm_dry = colors.from_levels_and_colors(levels_dry, cols_dry, extend="neither")
 
 
 
+    levels_norm=[133,140,150,170,200]
+    ncat=len(levels_norm)
+    cmap_norm = plt.get_cmap("Greys")
+    cols_norm = cmap_norm(np.linspace(0, 0.5, ncat-1))
+    cmap_norm, norm_norm = colors.from_levels_and_colors(levels_norm, cols_norm, extend="neither")
+
+
+
+    levels_wet=[233,240,250,260,270,300]
+    ncat=len(levels_wet)
+    cmap_wet = plt.get_cmap(_cmap_above)
+    cols_wet = cmap_wet(np.linspace(0.5, 0.9, ncat-1))
+    cmap_wet, norm_wet = colors.from_levels_and_colors(levels_wet, cols_wet, extend="neither")
+
+
+    if gl.targetType=="grid":
+        cont=True
+
+        datadf=predictandhcst.iloc[0:1,:].copy()
+        datadf[:]=data
+        dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
+
+        m_dry=dataxr.plot(cmap=cmap_dry, vmin=33,vmax=100, add_colorbar=False, norm=norm_dry, ax=pl)
+        m_norm=dataxr.plot(cmap=cmap_norm, vmin=133,vmax=200, add_colorbar=False, norm=norm_norm, ax=pl)
+        m_wet=dataxr.plot(cmap=cmap_wet, vmin=233,vmax=300, add_colorbar=False, norm=norm_wet, ax=pl)
+
+    else:
+        
+        data=data.reshape(1,-1)
+        
+        data=pd.DataFrame(data, index=["probability"], columns=predictandhcst.columns)
+        geodata=geodata.copy().join(data.T)
+
+        m_dry=geodata.plot(column="probability", cmap=cmap_dry, legend=False, ax=pl, norm=norm_dry, vmin=33, vmax=100)
+        m_norm=geodata.plot(column="probability", cmap=cmap_norm, legend=False, ax=pl, norm=norm_norm, vmin=133, vmax=200)
+        m_wet=geodata.plot(column="probability", cmap=cmap_wet, legend=False, ax=pl, norm=norm_wet, vmin=233, vmax=300)
+
+        geodata.boundary.plot(ax=pl)
+
+
+    cbar_label="below\nnormal"
+    ax=fig.add_axes([0.82,0.25,0.02,0.15])
+    cbar = plt.cm.ScalarMappable(norm=norm_dry, cmap=cmap_dry)
+    ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
+
+    ticklabels=levels_dry
+    ax_cbar.ax.set_yticklabels([x-0 for x in ticklabels])
+    ax_cbar.ax.tick_params(labelsize=6)
+    ax_cbar.ax.tick_params(size=0)
+
+
+
+    cbar_label="normal"
+    ax=fig.add_axes([0.82,0.45,0.02,0.1])
+    cbar = plt.cm.ScalarMappable(norm=norm_norm, cmap=cmap_norm)
+    ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
+
+    ticklabels=levels_norm
+    ax_cbar.ax.set_yticklabels([x-100 for x in ticklabels])
+    ax_cbar.ax.tick_params(labelsize=6)
+    ax_cbar.ax.tick_params(size=0)
+
+
+    cbar_label="above\nnormal"
+    ax=fig.add_axes([0.82,0.60,0.02,0.15])     
+    cbar = plt.cm.ScalarMappable(norm=norm_wet, cmap=cmap_wet)        
+    ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
+
+    ticklabels=levels_wet
+    ax_cbar.ax.set_yticklabels([x-200 for x in ticklabels])
+    ax_cbar.ax.tick_params(labelsize=6)
+    ax_cbar.ax.tick_params(size=0)
+
+    
+    if not overlayvector is None:
+        overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
+    
+    title="Tercile probabilities"
+    
+    pl.set_title(title)
+    
+    pl.text(0,-0.01,annotation,fontsize=6, transform=pl.transAxes, va="top")
+    
+    plt.subplots_adjust(right=0.8)
+    outfile=Path(mapsdir,"{}_tercile-probability_{}.jpg".format(gl.config['predictandVar'], forecastid))
+    
+    plt.savefig(outfile)
+
+    
+    
+    
+    
 def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotation, _overlayVector=None):
     
     if gl.targetType=="grid":

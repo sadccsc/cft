@@ -2,7 +2,7 @@
 """
 @author: thembani
 """
-from functions import *
+from functions import functions_zoning as ff
 import matplotlib.pyplot as plt
 import numpy as np
 import threading
@@ -14,8 +14,10 @@ import os, time, sys, re
 from datetime import datetime
 import geojson, json
 import math
-
-
+from pathlib import Path
+from shapely.geometry import shape, Point, Polygon
+from descartes import PolygonPatch
+from netCDF4 import Dataset
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import QThread, QObject, QDate, QTime, QDateTime, Qt
 qtCreatorFile = "zoning.ui"
@@ -86,7 +88,7 @@ def concat_csvs(csvs, missing):
 
 
 def stationdata(idata, station, season):
-    smonths = season_months[season][:]
+    smonths = ff.season_months[season][:]
     smonths.insert(0, 'Year')
     sdata = idata.loc[idata.ID==station][smonths]
     sdata.drop_duplicates('Year', inplace=True)
@@ -431,9 +433,9 @@ if __name__ == "__main__":
             station_data = stationdata(input_data, station, period)
             for year in trainyears:
                 if composition == "Sum":
-                    data.loc[[year], station] = season_cumulation(station_data, year, period)
+                    data.loc[[year], station] =ff. season_cumulation(station_data, year, period)
                 else:
-                    data.loc[[year], station] = season_average(station_data, year, period)
+                    data.loc[[year], station] = ff.season_average(station_data, year, period)
         
         # remove gaps
         data.dropna(axis=1, inplace=True)
@@ -603,7 +605,7 @@ if __name__ == "__main__":
                 maxk = 16
                 klist = list(range(1, maxk+1))
                 for d in klist:
-                    kmeans = cluster.KMeans(n_clusters = d, random_state=42).fit(comps.T)
+                    kmeans = cluster.KMeans(n_clusters = d, random_state=42, n_init=5).fit(comps.T)
                     wcss.append(kmeans.inertia_)
                 
                 # create linear coefficients for line joining first and last kmeans inertia
@@ -623,7 +625,7 @@ if __name__ == "__main__":
             
             print('clustering of components')
             window.statusbar.showMessage('clustering components')
-            db = cluster.KMeans(n_clusters = n_clusters, random_state=42).fit(comps.T)
+            db = cluster.KMeans(n_clusters = n_clusters, random_state=42, n_init=5).fit(comps.T)
             dblabels = np.array(db.labels_) + 1
             zi = dblabels.reshape(len(ys), len(xs))
             print("number of zones ", len(np.unique(dblabels)))

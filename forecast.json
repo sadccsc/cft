@@ -1,5 +1,5 @@
 {
-    "rootDir": "/work/code/csc/cft/test3",
+    "rootDir": "/work/code/csc/cft/test4",
     "predictorYear": 2025,
     "predictorMonth": "Aug",
     "fcstTargetSeas": "Dec-Feb",
@@ -18,14 +18,14 @@
     "crossval": "KF",
     "preproc": "CCA",
     "regression": "Trees",
-    "timeAggregation": "sum",
-    "predictandFileName": "/work/code/csc/cft/sadc_cft_current/example_data/PRCP_CHIRPSp25_IRIDL_Dec-Feb_198112-202502.nc",
-    "predictandVar": "prcp",
+    "timeAggregation": "mean",
+    "predictandFileName": "/work/code/csc/cft/stress_testing_data/lesotho/CombinedENACTSmonthly.nc",
+    "predictandVar": "precip",
     "predictandCategory": "rainfall",
     "predictandMissingValue": "-999",
     "zonesFile": "/work/code/csc/cft/sadc_cft_current/example_data/sadc_djf_zones.geojson",
     "zonesAttribute": "ID",
     "zonesAggregate": false,
-    "regridPredictand": true,
+    "regridPredictand": false,
     "overlayFile": "/work/code/csc/cft/sadc_cft_current/example_data/sadc_countries_simple.geojson"
 }

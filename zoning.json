@@ -1,0 +1,51 @@
+{
+    "outdir": "/work/code/csc/cft/test4",
+    "base_vector": {
+        "file": "/work/code/csc/cft/sadc_cft_current/example_data/Botswana.geojson",
+        "ID": 0,
+        "attr": []
+    },
+    "interpolation": "idw",
+    "ExplainedVariance": 70.0,
+    "gridsize": 1.0,
+    "rotation": {
+        "types": [
+            "varimax",
+            "quartimax"
+        ],
+        "indx": 1
+    },
+    "inputFormat": "CSV",
+    "predictandMissingValue": "-9999",
+    "composition": "Sum",
+    "period": {
+        "season": [
+            "JFM",
+            "FMA",
+            "MAM",
+            "AMJ",
+            "MJJ",
+            "JJA",
+            "JAS",
+            "ASO",
+            "SON",
+            "OND",
+            "NDJ",
+            "DJF"
+        ],
+        "indx": 9
+    },
+    "startyr": 1981,
+    "endyr": 2010,
+    "zones": "",
+    "smoothing": 0,
+    "predictandList": [
+        "/work/code/csc/cft/sadc_cft_current/example_data/pr_botswana_format1.csv"
+    ],
+    "predictandattr": {
+        "params": [
+            "pre"
+        ],
+        "indx": 0
+    }
+}

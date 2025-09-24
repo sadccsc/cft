@@ -449,13 +449,14 @@ def readPredictand():
             else:
                 #ok, let's regrid
                 
-                minlat=np.floor(np.min(lats))
-                maxlat=np.ceil(np.max(lats))
+                minlat=np.floor(np.min(lats.data))
+                maxlat=np.ceil(np.max(lats.data))
                 numlat=int((maxlat-minlat)/gl.deep_config["gridSize"])+1
 
-                minlon=np.floor(np.min(lons))
-                maxlon=np.ceil(np.max(lons))
+                minlon=np.floor(np.min(lons.data))
+                maxlon=np.ceil(np.max(lons.data))
                 numlon=int((maxlon-minlon)/gl.deep_config["gridSize"])+1
+                print("params",minlon,maxlon,numlon)
 
                 new_lon = np.linspace(minlon, maxlon, numlon)
                 new_lat = np.linspace(minlat, maxlat, numlat)
@@ -463,6 +464,7 @@ def readPredictand():
                 target = xr.Dataset(coords={"y": new_lat, "x": new_lon}).rio.write_crs("epsg:4326")
 
                 obsdata=obsdata.rio.write_crs("epsg:4326")
+                obsdata.rio.write_nodata(np.nan, inplace=True)
                 obsdata=obsdata.rio.reproject_match(target,resampling=Resampling.bilinear)
                 obsdata=obsdata.rename({"x":"lon", "y":"lat"})
             
@@ -2175,6 +2177,157 @@ def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, a
     plt.savefig(outfile)
 
     
+def nan_gaussian_smooth(data, sigma=1):
+    """
+    Apply Gaussian filter to data with NaNs handled properly.
+    NaNs remain NaN in output, edges are preserved.
+    """
+    # Create weights (1 where data is valid, 0 where NaN)
+    data = np.array(data, dtype=float)
+    nan_mask = np.isnan(data)
+    data_filled = np.where(nan_mask, 0, data)
+    weights = np.where(nan_mask, 0, 1)
+
+    # Apply Gaussian filter to data and weights
+    smooth_data = gaussian_filter(data_filled, sigma=sigma, mode='nearest')
+    smooth_weights = gaussian_filter(weights, sigma=sigma, mode='nearest')
+
+    # Avoid division by zero
+    #with np.errstate(invalid='ignore'):
+    #    result = smooth_data / smooth_weights
+    result=smooth_data
+    result[nan_mask] = np.nan
+    return result
+
+
+def plotSmoothTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
+    
+    if gl.targetType!="grid":
+        showMessage("can only do for gridded data. skipping...")
+    else:
+        
+        #plotting now
+        _cmap_above="BrBG"
+
+        cbar_label_dry="probablity [%]\nbelow normal"
+        cbar_label_wet="probablity [%]\nabove normal"
+
+        data=probfcst.stack(future_stack=True).droplevel(0).T
+        data.unstack().to_xarray().transpose("category","lat","lon")
+
+        print(data)
+        
+        datadf=predictandhcst.iloc[0:1,:].copy()
+        datadf[:]=data
+        dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
+
+        
+        #this is np.array with three rows - below,normal,above
+        data=probfcst.values.reshape(-1,predictandhcst.shape[1])
+        
+        row_idx = np.argmax(data, axis=0)
+        data_max=np.max(data, 0)
+        data=(data_max+row_idx)*100
+
+        probs=-probfcst["below"]
+        probs=probs.where(probsfcst["above"]<probsfcst["below"],probsfcst["above"])
+
+        tempsmooth=nan_gaussian_smooth(probs, sigma=1.2)*1.2
+
+        #back to xarray
+        smooth=probs.copy()
+        smooth[:]=tempsmooth
+
+
+        fig=plt.figure(figsize=(5,5))
+        pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
+
+        levels_dry=[33,40,50,60,70,100]
+        ncat=len(levels_dry)
+        cmap_dry = plt.get_cmap(_cmap_below)
+        cols_dry = cmap_dry(np.linspace(0.5, 0.9, ncat-1))
+        cmap_dry, norm_dry = colors.from_levels_and_colors(levels_dry, cols_dry, extend="neither")
+
+
+        levels_wet=[233,240,250,260,270,300]
+        ncat=len(levels_wet)
+        cmap_wet = plt.get_cmap(_cmap_above)
+        cols_wet = cmap_wet(np.linspace(0.5, 0.9, ncat-1))
+        cmap_wet, norm_wet = colors.from_levels_and_colors(levels_wet, cols_wet, extend="neither")
+
+
+        if gl.targetType=="grid":
+            cont=True
+
+            datadf=predictandhcst.iloc[0:1,:].copy()
+            datadf[:]=data
+            dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
+
+            m_dry=dataxr.plot(cmap=cmap_dry, vmin=33,vmax=100, add_colorbar=False, norm=norm_dry, ax=pl)
+            m_norm=dataxr.plot(cmap=cmap_norm, vmin=133,vmax=200, add_colorbar=False, norm=norm_norm, ax=pl)
+            m_wet=dataxr.plot(cmap=cmap_wet, vmin=233,vmax=300, add_colorbar=False, norm=norm_wet, ax=pl)
+
+        else:
+
+            data=data.reshape(1,-1)
+
+            data=pd.DataFrame(data, index=["probability"], columns=predictandhcst.columns)
+            geodata=geodata.copy().join(data.T)
+
+            m_dry=geodata.plot(column="probability", cmap=cmap_dry, legend=False, ax=pl, norm=norm_dry, vmin=33, vmax=100)
+            m_norm=geodata.plot(column="probability", cmap=cmap_norm, legend=False, ax=pl, norm=norm_norm, vmin=133, vmax=200)
+            m_wet=geodata.plot(column="probability", cmap=cmap_wet, legend=False, ax=pl, norm=norm_wet, vmin=233, vmax=300)
+
+            geodata.boundary.plot(ax=pl)
+
+
+        cbar_label="below\nnormal"
+        ax=fig.add_axes([0.82,0.25,0.02,0.15])
+        cbar = plt.cm.ScalarMappable(norm=norm_dry, cmap=cmap_dry)
+        ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
+
+        ticklabels=levels_dry
+        ax_cbar.ax.set_yticklabels([x-0 for x in ticklabels])
+        ax_cbar.ax.tick_params(labelsize=6)
+        ax_cbar.ax.tick_params(size=0)
+
+
+
+        cbar_label="normal"
+        ax=fig.add_axes([0.82,0.45,0.02,0.1])
+        cbar = plt.cm.ScalarMappable(norm=norm_norm, cmap=cmap_norm)
+        ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
+
+        ticklabels=levels_norm
+        ax_cbar.ax.set_yticklabels([x-100 for x in ticklabels])
+        ax_cbar.ax.tick_params(labelsize=6)
+        ax_cbar.ax.tick_params(size=0)
+
+
+        cbar_label="above\nnormal"
+        ax=fig.add_axes([0.82,0.60,0.02,0.15])     
+        cbar = plt.cm.ScalarMappable(norm=norm_wet, cmap=cmap_wet)        
+        ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
+
+        ticklabels=levels_wet
+        ax_cbar.ax.set_yticklabels([x-200 for x in ticklabels])
+        ax_cbar.ax.tick_params(labelsize=6)
+        ax_cbar.ax.tick_params(size=0)
+
+
+        if not overlayvector is None:
+            overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
+
+        title="Tercile probabilities"
+
+        pl.set_title(title)
+
+        pl.text(0,-0.01,annotation,fontsize=6, transform=pl.transAxes, va="top")
+
+        plt.subplots_adjust(right=0.8)
+        outfile=Path(mapsdir,"{}_tercile-probability_{}.jpg".format(gl.config['predictandVar'], forecastid))
+
+        plt.savefig(outfile)
     
     
     

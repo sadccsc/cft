@@ -1,4 +1,4 @@
-name: cft-v5.0
+name: cft-v5.1
 channels:
   - conda-forge
 dependencies:
@@ -19,3 +19,8 @@ dependencies:
   - netcdf4
   - geocube
   - dask
+  - statsmodels
+  - descartes
+  - untangle
+  - gdal
+  - libgdal-hdf5

@@ -32,7 +32,7 @@ From version 4.0.0, the CFT code is maintained at:  https://github.com/sadc-csc/
 prior to that - it was maintained at https://github.com/taxmanyana/cft
 
 
-Basic functionality of v5.0:
+Basic functionality of v5:
 ------------
 Five modules:
 data download (new in v.5)
@@ -114,39 +114,50 @@ Not yet implemented skill scores:
 
 Other modules - zoning, verification, synthesis
 ------------
-Not updated in v5.0 , thus not described here explicitly
+
+In v5.1 zoning module has been adapted to run under v5 environment.
+
+Other packages were not updated in v5.0 , thus not described here explicitly
 
 
 Requirements:
 ------------
 python 3.10 or higher installed with conda package manager
 python packages:
-numpy
-pandas
-geojson
-xarray with netcdf libraries
-rioxarray
-geopandas
-scikit-learn
-rasterstats
-matplotlib
-cartopy
-pyqt
-scipy
-cftime
-dask
+  - pandas
+  - numpy
+  - geojson
+  - xarray
+  - rioxarray
+  - scikit-learn
+  - rasterstats
+  - matplotlib
+  - cartopy
+  - pyqt
+  - geopandas
+  - scipy
+  - cftime
+  - netcdf4
+  - geocube
+  - dask
+  - statsmodels
+  - descartes
+  - untangle
+  - gdal
+  - libgdal-hdf5
+
 
 Installation
 ------------
 1. Install Anaconda  (instructions t.b.d.)
 2. Download and unzip CFT release files
 3. Open terminal (in Linux or Mac) or Anaconda Prompt (windows), navigate to the directory in which you unzipped CFT files (using cd Dir commands - instructions to follow) 
-4. if you installed cft-v5.0.2 or earlier, you have to unistall the old environments. Check the old envs using:
+4. if you installed cft-v5.0.9 or earlier, you have to unistall the old environment. Check the old envs using:
 conda  env list
 5. remove old envs with:
-conda env remove --name cft-v5.0.1
+conda env remove --name cft-v5.0
 repeat for all cft envs that are installed on your computer
-6. Install new env (versions v5.0.3 and later will use one env called cft-v5.0) using:
+6. Install new env (versions v5.1.0 and later will use one env called cft-v5.1) using:
 install_win.bat (on Windows)
 install_mac.sh (on Mac)
 install_linux.sh ( on Linux)
@@ -162,11 +173,12 @@ alternatively:
 - navigate to your CFT directory (using cd commands)
 - type:
       cft.bat
+
 alternatively:
 - open Anaconda Prompt
 - navigate to your CFT directory (using cd commands)
 - type:
-   conda activate cft-v5.0
+   conda activate cft-v5.1
    python cft.py
 
 
@@ -181,12 +193,12 @@ alternatively:
 - open terminal
 - navigate to your CFT directory (using cd commands)
 - type: 
-   conda activate cft-v5.0
+   conda activate cft-v5.1
    python cft.py
 
 
 
-Still to do in v5.0
+Still to do in v5.1
 ------------
 in dowload.py:
 - catch errors in download when data are not availble or iridl is down
@@ -198,18 +210,15 @@ in forecast.py
 - divergent scale for probability maps
 - save tercile and cem categories as geojson
 - include skill-masked plots
-- add annotations to maps and figures
 - save model configuration to output directory
 - add "too dry to forecast" colour to plots
-- limit CCA forecast if fewer than X locations/zones
 
-# wish list:
+# long-term wish list:
 - implement download from CDS, and if not - implement download of CDS data from IRIDL - both require users to set up account
 - multimodel forecast
-- filling missing values in predictand
-- regridding of gridded predictand to a coarser resolution if domain too large
+- filling missing values in predictand (station data)
+- QC of station data
+- interpolation of station data to grid
 - optimize skill calculation on gridded data - it takes much longer than calculations of the model
-- parameters that are not defined through gui to be read from json file (in this way, advanced users can change them)
-
 
 

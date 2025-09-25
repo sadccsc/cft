@@ -690,13 +690,12 @@ def aggregatePredictand(_data, _geodata, _poly):
     #dropping columns that are empty
     
     cols_to_drop = _aggregated.columns[_aggregated.isna().all()]
-    
-    if len(cols_to_drop)>0:
-        showMessage("\tSome polygons do not fall over predictand data", "ERROR")
-        #return None, None
     # Find columns to keep (those not all NaN)
-    
     cols_to_keep = _aggregated.columns[~_aggregated.isna().all()]
+    if len(cols_to_drop)>0:
+        showMessage("\tSome polygons do not fall over predictand data", "NONCRITICAL")
+        #return None, None
+        showMessage("\tRetaining {} feature(s) out of {}".format(len(cols_to_keep),_aggregated.shape[1]), "NONCRITICAL")
 
     # Drop the NaN-only columns from df
     _aggregated = _aggregated[cols_to_keep]

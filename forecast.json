@@ -16,16 +16,16 @@
     "predictorVar": "sst",
     "predictorCode": "SST",
     "crossval": "KF",
-    "preproc": "CCA",
+    "preproc": "PCR",
     "regression": "Trees",
-    "timeAggregation": "mean",
+    "timeAggregation": "sum",
     "predictandFileName": "/work/code/csc/cft/stress_testing_data/lesotho/CombinedENACTSmonthly.nc",
     "predictandVar": "precip",
     "predictandCategory": "rainfall",
     "predictandMissingValue": "-999",
     "zonesFile": "/work/code/csc/cft/sadc_cft_current/example_data/sadc_djf_zones.geojson",
     "zonesAttribute": "ID",
-    "zonesAggregate": false,
+    "zonesAggregate": true,
     "regridPredictand": false,
-    "overlayFile": "/work/code/csc/cft/sadc_cft_current/example_data/sadc_countries_simple.geojson"
+    "overlayFile": ""
 }

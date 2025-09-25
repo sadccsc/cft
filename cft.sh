@@ -17,6 +17,6 @@ CONDA_BASE=$(dirname $(dirname "$CONDA_EXE"))
 # Source conda.sh from base
 source "$CONDA_BASE/etc/profile.d/conda.sh"
 
-conda activate cft-v5.0
+conda activate cft-v5.1
 python cft.py
 

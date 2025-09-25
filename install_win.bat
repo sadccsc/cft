@@ -2,7 +2,7 @@
 
 REM Define environment name here
 REM note that it has to be the same name as that defined in .yml file
-set ENV_NAME=cft-v5.0
+set ENV_NAME=cft-v5.1
 set ENV_FILE=environment.yml
 set SCRIPT_DIR=%~dp0
 set DESKTOP=%USERPROFILE%\Desktop

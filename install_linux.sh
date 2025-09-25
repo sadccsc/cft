@@ -1,5 +1,5 @@
 #! /bin/bash
-env=cft-v5.0
+env=cft-v5.1
 
 # Check if mamba is installed
 if ! command -v mamba &> /dev/null; then

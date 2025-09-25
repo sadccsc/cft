@@ -205,6 +205,9 @@ def computeModel():
             ff.showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to 'No preprocessing'", "ERROR")
             #2-D predictor, no need to PCR or CCA
             return    
+        if predictandHcst.shape[1]==1 and  gl.config['preproc']=="CCA":
+            ff.showMessage("CCA selected, but predictand has only 1 feature. Please check data or use a different pre-processor", "ERROR")
+            return    
     
     #setting up regressor
     if gl.config['preproc']=="PCR":

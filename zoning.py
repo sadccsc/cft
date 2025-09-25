@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+originally developed in 2019-2020
 @author: thembani
+
+September 2025:
+adapted to work in the cft v5 framework 
+@author P.Wolski wolski@csag.uct.ac.za
+
 """
 from functions import functions_zoning as ff
 import matplotlib.pyplot as plt
@@ -20,6 +26,7 @@ from descartes import PolygonPatch
 from netCDF4 import Dataset
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import QThread, QObject, QDate, QTime, QDateTime, Qt
+
 qtCreatorFile = "zoning.ui"
 settingsfile = 'zoning.json'
 csvheader = 'Year,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'
@@ -129,6 +136,7 @@ def smooth(shp,out,name,smooth_size):
 
 def create_nc(outfile, zonegrid, lats, lons):
     global config
+    print(outfile)
     rows = len(lats)
     cols = len(lons)
     startyr = str(config.get('startyr'))
@@ -136,18 +144,21 @@ def create_nc(outfile, zonegrid, lats, lons):
     period = config.get('period').get('season')[int(config.get('period').get('indx'))]
     title = 'Rasterized zonal map ' + period + ' ' + startyr + ' - ' + endyr 
     timenow = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
+    print("here")
     output = Dataset(outfile, 'w', format='NETCDF4')
+    print("here")
     output.description = title
     output.comments = 'Created ' + timenow
     output.source = 'CFT'
     output.history = 'Created ' + timenow
     lat = output.createDimension('lat', rows)
     lon = output.createDimension('lon', cols)
-    T = output.createDimension('T', 1)
-    initial_date = output.createVariable('target', np.float64, ('T',))
+    #T = output.createDimension('T', 1)
+    #initial_date = output.createVariable('target', np.float64, ('T',))
     latitudes = output.createVariable('lat', np.float32, ('lat',))
     longitudes = output.createVariable('lon', np.float32, ('lon',))
-    zones = output.createVariable('Zones', np.uint8, ('T', 'lat', 'lon'))
+    #zones = output.createVariable('Zones', np.uint8, ('T', 'lat', 'lon'))
+    zones = output.createVariable('Zones', np.uint8, ('lat', 'lon'))
     latitudes.units = 'degree_north'
     latitudes.axis = 'Y'
     latitudes.long_name = 'Latitude'
@@ -156,16 +167,17 @@ def create_nc(outfile, zonegrid, lats, lons):
     longitudes.axis = 'X'
     longitudes.long_name = 'Longitude'
     longitudes.standard_name = 'Longitude'
-    initial_date.units = 'days since ' + timenow
-    initial_date.axis = 'T'
-    initial_date.calendar = 'standard'
-    initial_date.standard_name = 'time'
-    initial_date.long_name = 'zoning date'
+    #initial_date.units = 'days since ' + timenow
+    #initial_date.axis = 'T'
+    #initial_date.calendar = 'standard'
+    #initial_date.standard_name = 'time'
+    #initial_date.long_name = 'zoning date'
     latitudes[:] = lats
     longitudes[:] = lons
     zones[:] = zonegrid
     zones.units = 'Zone ID'
     output.close()
+    print("done")
 
 def sizeof_fmt(num, suffix="B"):
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:

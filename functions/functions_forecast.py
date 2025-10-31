@@ -21,7 +21,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.model_selection import cross_val_score, RepeatedKFold, LeaveOneOut, LeavePOut, KFold, cross_val_predict
 
-from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, mean_squared_error, explained_variance_score
+from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, mean_squared_error, explained_variance_score, mean_absolute_error
 
 from sklearn.base import BaseEstimator, RegressorMixin
 
@@ -456,7 +456,6 @@ def readPredictand():
                 minlon=np.floor(np.min(lons.data))
                 maxlon=np.ceil(np.max(lons.data))
                 numlon=int((maxlon-minlon)/gl.deep_config["gridSize"])+1
-                print("params",minlon,maxlon,numlon)
 
                 new_lon = np.linspace(minlon, maxlon, numlon)
                 new_lat = np.linspace(minlat, maxlat, numlat)
@@ -586,10 +585,14 @@ def readNetcdf(ncfile, ncvar):
     dat["time"]=newtime
     
     if "units" in dat.attrs:
-        datunits=dat.attrs["units"]
-        showMessage("\tFound units: {}".format(datunits),"RUNTIME")
+        gl.config['predictandUnit']=dat.attrs["units"]
+        showMessage("\tFound units: {}".format(gl.config['predictandUnit']),"RUNTIME")
     else:
-        datunits="unknown"
+        if gl.config["predictandCategory"]=="rainfall":
+            gl.config['predictandUnit']="mm"
+        else:
+            gl.config['predictandUnit']="deg C"
+            
 
     datdates=pd.to_datetime(dat.time)
     firstdatdate=datdates.strftime('%Y-%m-%d')[0]
@@ -848,7 +851,11 @@ def getFcstAnomalies(_det_fcst,_ref_data):
     absanom=_det_fcst-_ref_data.mean()
     percanom=(_det_fcst-_ref_data.mean())/_ref_data.mean()*100
     percnorm=_det_fcst/_ref_data.mean()*100
-    output=pd.concat([_det_fcst,absanom,percanom,percnorm], keys=["value","absolute_anomaly","percent_anomaly","percent_normal"], names=["category"], axis=1)
+    
+    if gl.config["predictandCategory"] =='rainfall':
+        output=pd.concat([_det_fcst,absanom,percanom,percnorm], keys=["value","absolute_anomaly","percent_anomaly","percent_normal"], names=["category"], axis=1)
+    else:
+        output=pd.concat([_det_fcst,absanom], keys=["value","absolute_anomaly"], names=["category"], axis=1)
     output.index.name="time"
     return output
 
@@ -1187,36 +1194,47 @@ def groc_score(probs, obs):
 
 def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
     #iterating through stations/locations
-    index=["correlation",
-       "MAPE",
-       "RMSE",
-       "ROC_above",
-       "ROC_normal",
-       "ROC_below",
-       "rpss", 
-       "ignorance", 
-       "hss",
-       "2afc",
-       "brier", 
-       "effintrate",
-       "groc"]
 
     allscores=[]
     for entry in _det_hcst.columns:
+        index=[]
+        scoreslist=[]
         
         roc_score_above = np.round(roc_auc_score(_obs_tercile[entry]=="above", _prob_hcst["above"][entry]),2)
+        scoreslist.append(roc_score_above)
+        index.append("ROC_above")
+          
         roc_score_below = np.round(roc_auc_score(_obs_tercile[entry]=="below", _prob_hcst["below"][entry]),2)
+        scoreslist.append(roc_score_below)
+        index.append("ROC_below")
+        
         roc_score_normal = np.round(roc_auc_score(_obs_tercile[entry]=="normal", _prob_hcst["normal"][entry]),2)
+        scoreslist.append(roc_score_normal)
+        index.append("ROC_normal")
+        
         cor=np.round(np.corrcoef(_det_hcst[entry].values,_predictand_hcst[entry].values.astype(float))[0][1],2)
+        scoreslist.append(cor)
+        index.append("correlation")
+
         #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
         ev=np.round(explained_variance_score(_det_hcst[entry],_predictand_hcst[entry]))
-        mape=np.round(mean_absolute_percentage_error(_det_hcst[entry],_predictand_hcst[entry]),2)
+        
+        if gl.config["predictandCategory"] =='rainfall':        
+            mape=np.round(mean_absolute_percentage_error(_det_hcst[entry],_predictand_hcst[entry]),2)
+            scoreslist.append(mape)
+            index.append("MAPE")
+        else:
+            mae=np.round(mean_absolute_error(_det_hcst[entry],_predictand_hcst[entry]),2)
+            scoreslist.append(mae)
+            index.append("MAE")
+        
         rmse=np.round((mean_squared_error(_det_hcst[entry],_predictand_hcst[entry])**0.5),2)
+        scoreslist.append(rmse)
+        index.append("RMSE")
 
         #prep data for rpss
         _prob_clim=_prob_hcst.copy()
-
-
+        _prob_clim[:]=0.33
         obsterc=_obs_tercile[entry]
         obsterc=obsterc.map(lambda x: cat2num[x]).values
         if isinstance(entry, tuple):
@@ -1228,33 +1246,49 @@ def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
             pclim=_prob_clim.loc[:,_prob_clim.columns.get_level_values(1)==entry].values
             phcst=_prob_hcst.loc[:,_prob_hcst.columns.get_level_values(1)==entry]
 
-
         phcst.columns = phcst.columns.droplevel(1)
         #have to reorder so that below is 0, normal is 1, above is 2 as per cat2num
         phcst=phcst.loc[:,["below","normal","above"]].values
 
         #calculate rpss
-        rpss=np.round(rpss_score(phcst, pclim,obsterc),2)
+        rpss=rpss_score(phcst, pclim,obsterc)
+        rpss=np.round(rpss,2)
+        scoreslist.append(rpss)
+        index.append("rpss")
+
 
         # ignorance score
         ignorance=np.round(ignorance_score(phcst,obsterc),2)
+        scoreslist.append(ignorance)
+        index.append("ignorance")
         
         hss=np.round(heidke_skill_score(phcst,obsterc),2)
+        scoreslist.append(hss)
+        index.append("hss")
 
         twoafc=np.round(two_afc_multicategory(phcst, obsterc),2)
+        scoreslist.append(twoafc)
+        index.append("2afc")
         
         brier=np.round(brier_skill_score(phcst, obsterc),2)
+        scoreslist.append(brier)
+        index.append("brier")
         
         effintrate=np.round(effective_interest_rate(phcst,obsterc),2)
+        scoreslist.append(effintrate)
+        index.append("effintrate")
         
         groc=np.round(groc_score(phcst,obsterc),2)
+        scoreslist.append(groc)
+        index.append("groc")
         
-        # reliability diagram - plot
 
-        entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss, ignorance, hss, twoafc, brier, effintrate, groc], index=index)
+        #entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss, ignorance, hss, twoafc, brier, effintrate, groc], index=index)
+        
+        entryscores=pd.Series(scoreslist, index=index)
 
         allscores.append(entryscores)
-        
+
     scores=pd.concat(allscores, axis=1, keys=_det_hcst.columns)
     scores.index.name = "category"
     return(scores)
@@ -1607,13 +1641,13 @@ def sanitize_string(value, replacement="_", max_length=255):
     return value[:max_length] if max_length else value
 
 
-def getCmap(d):
-    vmin=d["vmin"]
-    vmax=d["vmax"]
-    nlev=d["nlev"]
-    cmap=d["cmap"]
-    extend=d["extend"]
-    whitelev=d["whitelev"]
+def getCmap(vmin,vmax,nlev,cmap,extend,whitelev):
+#    vmin=d["vmin"]
+#    vmax=d["vmax"]
+#    nlev=d["nlev"]
+#    cmap=d["cmap"]
+#    extend=d["extend"]
+#    whitelev=d["whitelev"]
     levels = np.linspace(vmin,vmax,nlev)    
     cmap_rb = plt.get_cmap(cmap)
     if extend=="both":
@@ -1675,7 +1709,8 @@ colormaps={"percent_normal":{
         "cmap":"BrBG",
         "vmin":0,
         "vmax":200,
-        "cbar_label":"mm",
+        "symmetric":False,
+        "cbar_label":"%",
         "levels":None,
         "whitelev":[9,10],
         "tick_labels":None,
@@ -1684,10 +1719,11 @@ colormaps={"percent_normal":{
         "categorized":True,
         "nlev":11,
         "title":"Forecast value",
-        "cmap":plt.cm.YlGnBu,
-        "vmin":0,
+        "cmap":{"rainfall":plt.cm.YlGnBu, "temperature":plt.cm.RdBu_r},
+        "vmin":"auto",
         "vmax":"auto",
-        "cbar_label":"mm",
+        "symmetric":False,
+        "cbar_label":"unit",
         "levels":None,
         "whitelev":[],
         "tick_labels":None,
@@ -1696,10 +1732,11 @@ colormaps={"percent_normal":{
         "categorized":True,
         "nlev":21,
         "title":"Forecast anomaly",
-        "cmap":plt.cm.BrBG,
-        "vmin":-50,
-        "vmax":50,
-        "cbar_label":"mm",
+        "cmap":{"rainfall":plt.cm.BrBG, "temperature":plt.cm.RdBu_r},
+        "vmin":"auto",
+        "vmax":"auto",
+        "symmetric":True,
+        "cbar_label":"unit",
         "levels":None,
         "whitelev":[10,11],
         "tick_labels":None,
@@ -1709,9 +1746,10 @@ colormaps={"percent_normal":{
         "nlev":21,
         "title":"Forecast anomaly as percent of normal",
         "cmap":plt.cm.BrBG,
-        "vmin":-100,
-        "vmax":100,
-        "cbar_label":"percent",
+        "vmin":"auto",
+        "vmax":"auto",
+        "symmetric":True,
+        "cbar_label":"%",
         "levels":None,
         "whitelev":[9,10],
         "tick_labels":None,
@@ -1723,6 +1761,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":-0.5,
         "vmax":0.5,
+        "symmetric":True,
         "cbar_label":"-",
         "levels":None,
         "whitelev":[10,11],
@@ -1735,7 +1774,21 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.Grays,
         "vmin":0,
         "vmax":"auto",
-        "cbar_label":"percent",
+        "symmetric":False,
+        "cbar_label":"%",
+        "levels":None,
+        "whitelev":[],
+        "tick_labels":None,
+        "extend":"max"},
+    "MAE":{
+        "categorized":True,
+        "nlev":11,
+        "title":"Mean absolute error\n(hindcast)",
+        "cmap":plt.cm.Grays,
+        "vmin":0,
+        "vmax":"auto",
+        "symmetric":False,
+        "cbar_label":"unit",
         "levels":None,
         "whitelev":[],
         "tick_labels":None,
@@ -1747,7 +1800,8 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.Grays,
         "vmin":0,
         "vmax":"auto",
-        "cbar_label":"mm",
+        "symmetric":False,
+        "cbar_label":"unit",
         "levels":None,
         "whitelev":[],
         "tick_labels":None,
@@ -1759,6 +1813,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1771,6 +1826,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1783,6 +1839,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1795,6 +1852,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1803,14 +1861,15 @@ colormaps={"percent_normal":{
            
     "rpss":{
         "categorized":True,
-        "nlev":11,
+        "nlev":21,
         "title":"RPSS score\n(hindcast)",
         "cmap":plt.cm.RdBu,
         "vmin":-1,
         "vmax":1,
+        "symmetric":True,
         "cbar_label":"score",
         "levels":None,
-        "whitelev":[4,5],
+        "whitelev":[],
         "tick_labels":None,
         "extend":"neither"},
     "ignorance":{
@@ -1820,6 +1879,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.Greys_r,
         "vmin":0,
         "vmax":"auto",
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1832,6 +1892,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":-1,
         "vmax":1,
+        "symmetric":True,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1844,6 +1905,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1856,6 +1918,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":-1,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1868,6 +1931,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":-1,
         "vmax":1,
+        "symmetric":False,
         "cbar_label":"score",
         "levels":None,
         "whitelev":[],
@@ -1880,6 +1944,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "vcenter":0.33,
         "cbar_label":"probability",
         "levels":[0, 0.15, 0.20,0.25, 0.3, 0.33, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
@@ -1893,6 +1958,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "vcenter":0.33,
         "cbar_label":"probability",
         "levels":[0, 0.15, 0.20,0.25, 0.3, 0.33, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
@@ -1906,6 +1972,7 @@ colormaps={"percent_normal":{
         "cmap":plt.cm.RdBu,
         "vmin":0,
         "vmax":1,
+        "symmetric":False,
         "vcenter":0.33,
         "cbar_label":"probability",
         "levels":[0, 0.15, 0.20,0.25, 0.3, 0.33, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
@@ -1919,6 +1986,7 @@ colormaps={"percent_normal":{
         "cmap":colors.ListedColormap(['#d2b48c', 'yellow','#0bfffb', 'blue']),
         "vmin":0,
         "vmax":4,
+        "symmetric":False,
         "cbar_label":"category",
         "levels":np.array([1,2,3,4])-0.5,
         "whitelev":[],
@@ -1928,9 +1996,10 @@ colormaps={"percent_normal":{
         "categorized":False,        
         "nlev":None,
         "title":"Forecast category (tercile)",
-        "cmap":colors.ListedColormap(['#d2b48c', '0.8','blue']),
+        "cmap":{"rainfall": colors.ListedColormap(['#d2b48c', '0.8','blue']), "temperature": colors.ListedColormap(['blue', '0.8','red'])},
         "vmin":0,
         "vmax":3,
+        "symmetric":False,
         "cbar_label":"category",
         "levels":np.array([1,2,3])-0.5,
         "whitelev":[],
@@ -1939,23 +2008,24 @@ colormaps={"percent_normal":{
 }
 
 skillMasks={
-"ROC_above":["ROC_above",0.5,"<"]
+    "ROC_above":["ROC_above",0.5,"<"]
 }
 
 def nice_minmax(x,y=None, symmetric=False):
     # 1. Get global min and max
     if y is None:
-        data_min = np.min(x)
-        data_max = np.max(x)        
+        data_min = np.nanmin(x)
+        data_max = np.nanmax(x)        
     else:
-        data_min = min(np.min(x), np.min(y))
-        data_max = max(np.max(x), np.max(y))
+        data_min = min(np.nanmin(x), np.nanmin(y))
+        data_max = max(np.nanmax(x), np.nanmax(y))
+        
 
     # 2. Add padding
     padding = 0.05 * (data_max - data_min)
     raw_min = data_min - padding
     raw_max = data_max + padding
-
+    
     # 3. Round to "nice" numbers (nearest power of 10 multiples)
     def nice_limits(vmin, vmax):
         rng = vmax - vmin
@@ -1963,7 +2033,7 @@ def nice_minmax(x,y=None, symmetric=False):
         step = 10 ** exp
         vmin = np.floor(vmin / step) * step
         vmax = np.ceil(vmax / step) * step
-        return vmin, vmax
+        return [vmin, vmax]
 
     lims = nice_limits(raw_min, raw_max)
     if symmetric:
@@ -2061,8 +2131,13 @@ def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
             plt.close()
 
 def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
-    _cmap_above="BrBG"
-    _cmap_below="BrBG_r"
+    if gl.config["predictandCategory"]=="rainfall":
+        _cmap_above="BrBG"
+        _cmap_below="BrBG_r"
+    else:
+        _cmap_above="RdBu_r"
+        _cmap_below="RdBu"
+    
     cbar_label_dry="probablity [%]\nbelow normal"
     cbar_label_norm="probablity [%]\nnormal"
     cbar_label_wet="probablity [%]\nabove normal"
@@ -2214,7 +2289,6 @@ def plotSmoothTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecas
         data=probfcst.stack(future_stack=True).droplevel(0).T
         data.unstack().to_xarray().transpose("category","lat","lon")
 
-        print(data)
         
         datadf=predictandhcst.iloc[0:1,:].copy()
         datadf[:]=data
@@ -2337,7 +2411,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
         scoresxr=_scores.unstack().to_xarray().transpose("category","lat","lon")
         for score in scoresxr.category.values:
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
-            #showMessage("plotting {}".format(outfile))
+            showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
@@ -2345,29 +2419,38 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             cm=colormaps[score]
             title=cm["title"]
             cmap=cm["cmap"]
+            
+            if isinstance(cmap, dict):
+                cmap=cmap[gl.config["predictandCategory"]]
+                
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
+            nlev=cm["nlev"]
+            whitelev=cm["whitelev"]
+            symmetric=cm["symmetric"]
             
             dat2plot=scoresxr.sortby("lat").sortby("lon").sel(category=score)
             
             if vmax=="auto":
                 if vmin=="auto":
-                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,True)
+                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,symmetric)
                 else:
                     vmax=nice_max(dat2plot.data.flatten())
             cm["vmin"]=vmin
             cm["vmax"]=vmax
             
             cbar_label=cm["cbar_label"]
+            if cbar_label=="unit":
+                cbar_label=gl.config["predictandUnit"]
+                
             extend=cm["extend"]
             tick_labels=cm["tick_labels"]
             
             # add colorbar
             if cm["categorized"]:
-                cmap,norm,levels=getCmap(cm)
+                cmap,norm,levels=getCmap(vmin,vmax,nlev,cmap,extend,whitelev)
             else:
-                cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
             m=dat2plot.plot(cmap=cmap, vmin=vmin,vmax=vmax, add_colorbar=colorbar)
@@ -2433,7 +2516,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             
             # add colorbar
             if cm["categorized"]:
-                cmap,norm,levels=getCmap(cm)
+                cmap,norm,levels=getCmap(vmin,vmax,nlev,cmap,extend,whitelev)
             else:
                 cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
@@ -2499,7 +2582,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             
             # add colorbar
             if cm["categorized"]:
-                cmap,norm,levels=getCmap(cm)
+                cmap,norm,levels=getCmap(vmin,vmax,nlev,cmap,extend,whitelev)
             else:
                 cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)

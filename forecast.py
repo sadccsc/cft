@@ -312,14 +312,16 @@ def computeModel():
     # and hindcast
     tercHcst=ff.getTercCategory(probHcst)
     
-    #CEM categories
-    ff.showMessage("Calculating CEM categories")
-    
-    #forecast
-    cemFcst=ff.getCemCategory(probFcst)
-    
-    #hindcast
-    cemHcst=ff.getCemCategory(probHcst)
+    if gl.config['predictandCategory']=="rainfall":
+
+        #CEM categories
+        ff.showMessage("Calculating CEM categories")
+
+        #forecast
+        cemFcst=ff.getCemCategory(probFcst)
+
+        #hindcast
+        cemHcst=ff.getCemCategory(probHcst)
     
     
     #calculating skill
@@ -340,36 +342,41 @@ def computeModel():
         detfcst_plot=detFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         probfcst_plot=probFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         tercfcst_plot=tercFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
-        cemfcst_plot=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         scores_plot=scores.copy()
         
         #these are for writing
         probfcst_write=probFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         probhcst_write=probHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         tercfcst_write=tercFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
-        cemhcst_write=cemHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         detfcst_write=detFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         dethcst_write=cvHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         scores_write=scores.T.to_xarray().sortby("lat").sortby("lon")
         fileExtension="nc"
+        
+        if gl.config['predictandCategory']=="rainfall":   
+            cemhcst_write=cemHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+            cemfcst_plot=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        
     else:
         #these are for plotting maps
         detfcst_plot=detFcst.stack(future_stack=True).droplevel(0).T
         probfcst_plot=probFcst.stack(future_stack=True).droplevel(0).T
         tercfcst_plot=tercFcst.stack(future_stack=True).droplevel(0).T
-        cemfcst_plot=cemFcst.stack(future_stack=True).droplevel(0).T
         scores_plot=scores.copy()
         
         #these are for writing
         detfcst_write=detfcst_plot.copy()
         probfcst_write=probfcst_plot.copy()
         tercfcst_write=tercfcst_plot.copy()
-        cemfcst_write=cemfcst_plot.copy()
         dethcst_write=cvHcst.copy()
         probhcst_write=probHcst.copy()
         scores_write=scores.copy()
         fileExtension="csv"
         
+        if gl.config['predictandCategory']=="rainfall":   
+            cemfcst_write=cemfcst_plot.copy()
+            cemfcst_plot=cemFcst.stack(future_stack=True).droplevel(0).T
+            
     ff.showMessage("Writing output files...")
     outputFile=Path(outputDir, "{}_deterministic-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     ff.writeOutput(np.round(detfcst_write,2), outputFile)
@@ -401,9 +408,10 @@ def computeModel():
 
     ff.plotMaps(detfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation,overlayVector)
     ff.plotMaps(probfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-    ff.plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
     ff.plotMaps(tercfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
 
+    if gl.config['predictandCategory']=="rainfall":    
+        ff.plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
     
     ff.showMessage("Plotting skill maps...")    
     #plotting skill scores

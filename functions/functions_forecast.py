@@ -2124,7 +2124,7 @@ def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, a
         m_norm=geodata.plot(column="probability", cmap=cmap_norm, legend=False, ax=pl, norm=norm_norm, vmin=133, vmax=200)
         m_wet=geodata.plot(column="probability", cmap=cmap_wet, legend=False, ax=pl, norm=norm_wet, vmin=233, vmax=300)
 
-        geodata.boundary.plot(ax=pl)
+        #geodata.boundary.plot(ax=pl)
 
 
     cbar_label="below\nnormal"

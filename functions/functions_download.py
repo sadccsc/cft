@@ -16,12 +16,7 @@ from PyQt5.QtWidgets import QFileDialog
 from cftime import num2date
 import traceback
 from pathlib import Path
-
-from functions.functions_download import *
-
-gl.maxLeadTime=6
-gl.configFile="download.json"    
-gl.keepRaw=False
+import logging
 
 msgColors={"ERROR": "red",
            "INFO":"blue",
@@ -32,121 +27,331 @@ msgColors={"ERROR": "red",
 
 seasons=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan-Mar","Feb-Apr","Mar-May","Apr-Jun","May-Jul","Jun-Aug","Jul-Sep","Aug-Oct","Sep-Nov","Oct-Dec","Nov-Jan","Dec-Feb"]
 
-months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-
-indexSources={
-"IOD_JMA": ["IOD (Dipole Mode Index) from JMA", "https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/DMI/anomaly"],
-"Nino3_JMA":["Nino3 from JMA","https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_3/anomaly"],
-"Nino4_JMA": ["Nino4 from JMA","https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_4/anomaly"]
+seasonmonths={
+    "Jan":[1],
+    "Feb":[2],
+    "Mar":[3],
+    "Apr":[4],
+    "May":[5],
+    "Jun":[6],
+    "Jul":[7],
+    "Aug":[8],
+    "Sep":[9],
+    "Oct":[10],
+    "Nov":[11],
+    "Dec":[12],
+    "Jan-Mar":[1,2,3],
+    "Feb-Apr":[2,3,4],
+    "Mar-May":[3,4,5],
+    "Apr-Jun":[4,5,6],
+    "May-Jul":[5,6,7],
+    "Jun-Aug":[6,7,8],
+    "Jul-Sep":[7,8,9],
+    "Aug-Oct":[8,9,10],
+    "Sep-Nov":[9,10,11],
+    "Oct-Dec":[10,11,12],
+    "Nov-Jan":[11,12,1],
+    "Dec-Feb":[12,1,2]
 }
 
-predictandSources={
-"PRCP_CHIRPSp25_IRIDL":["CHIRPS 0.25 deg rainfall from IRI data library",
-                     "https://iridl.ldeo.columbia.edu/SOURCES/.UCSB/.CHIRPS/.v2p0/.daily-improved/.global/.0p25/.prcp/{}/mul/T/(1 Jan {})/(31 Dec {})/RANGE/T/({} {}-{})/seasonalAverage/Y/({})/({})/RANGEEDGES/X/({})/({})/RANGEEDGES/-999/setmissing_value/data.nc", "sum", 1981],
-}
+monthNames = np.array(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
 
 
-predictorSources={
-"SST_ERSSTv5_IRIDL":["Sea Surface temperature ERSST v5",
-                         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1854],
-"GPH500_NCEP-NCAR_IRIDL":["Geopotential height at 500mbar, NCEP-NCAR CDAS-1",
-                         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.PressureLevel/.phi/P/(500)VALUES/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1949],
-    
-"MSL_NCEP-NCAR_IRIDL":["Mean sea level pressure, NCEP-NCAR CDAS-1",
-                       "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.MSL/.pressure/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", "1949"]
-        
-}
 
-fcstpredSources={
-    "SST_GEOSS2S_IRIDL": ["SST forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",1981,True],
-    "SST_CCSM4_IRIDL": ["SST forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981, True],
-    "SST_CFSv2_IRIDL": ["SST forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "PRCP_GEOSS2S_IRIDL": ["Rainfall forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "PRCP_CCSM4_IRIDL": ["Rainfall forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "PRCP_CFSv2_IRIDL": ["Rainfall forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "z500_GEOSS2S_IRIDL": ["z500 forecasted by GEOSS2S (NASA)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.h500/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.h500/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "z200_CCSM4_IRIDL": ["z200 forecasted by COLA-RSMAS-CCSM4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.gz/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "z200_CFSv2_IRIDL": ["z200 forecasted by CFSv2 (NCEP)", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.hgt/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,True],
-    "SST_SEAS51_IRIDL": ["SST forecasted by SEAS51 (ECMWF)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,False],    
-    "SST_CPS3_IRIDL": ["SST forecasted by CPS3 (JMA)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981, False],
-    "SST_System9_IRIDL": ["SST forecasted by System9 (MeteoFrance)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981, False],
-    "SST_SPSv4_IRIDL": ["SST forecasted by SPSv4 (CMCC)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981,False],           
-}
-
-#    "SST_CanSIPS-IC4_IRIDL": ["SST forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-#    "PRCP_CanSIPS-IC4_IRIDL": ["Rainfall forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-#    "z500_CanSIPS-IC4_IRIDL": ["z500 forecasted by CanSIPS-IC4", "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.CanSIPS-IC4/.HINDCAST/.MONTHLY/.hgt/[M]/average/SOURCES/.Models/.NMME/.CanSIPS-IC4/.FORECAST/.MONTHLY/.hgt/[M]/average/appendstream/P/500/500/RANGEEDGES/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-
-#    "SST_SEAS51_IRIDL": ["SST forecasted by SEAS51 (ECMWF)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-#    "SST_GCFS2p2_IRIDL": ["SST forecasted by GCFS2p2 (DWD)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.DWD/.GCFS2p2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.DWD/.GCFS2p2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-#    "SST_CPS3_IRIDL": ["SST forecasted by CPS3 (JMA)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-#    "SST_System9_IRIDL": ["SST forecasted by System9 (MeteoFrance)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],
-#    "SST_SPSv4_IRIDL": ["SST forecasted by SPSv4 (CMCC)", "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/[L]//keepgrids/average/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc", 1981],           
-
-#GFDL-SPEAR - ending in July 2025
-
-
-def showMessage(_message, _type="RUNTIME"):
+def showMessage(message, msgType="RUNTIME"):
     #this print messages to log window, which are generated outside of the threaded function
-    _color=msgColors[_type]
-    _message = "<pre><font color={}>{}</font></pre>".format(_color, _message)
-    gl.window.log(_message)
+    color=msgColors[msgType]
+    message = "<pre><font color={}>{}</font></pre>".format(color, message)
+    gl.window.log(message)
+
 
     
-def downloadUrl(_url, timeout=60):
+def downloadUrl(url, timeout=60):
     #requesting data
-    showMessage("waiting for:\n{}".format(_url))
+    showMessage("waiting for:\n{}".format(url))
     
     try:
-        response=requests.get(_url, timeout=(10,None))
+        response=requests.get(url, timeout=(10,None))
         # If it returns a response object, you can also check:
         # response.raise_for_status()  # raises error for HTTP 4xx/5xx
         return response
     except requests.exceptions.Timeout:
-        showMessage(f"Timeout error while downloading: {_url}", "ERROR")
+        showMessage(f"Timeout error while downloading: {url}", "ERROR")
     except requests.exceptions.ConnectionError:
-        showMessage(f"Connection error while downloading: {_url}. Are you connected to internet?", "ERROR")
+        showMessage(f"Connection error while downloading: {url}. Are you connected to internet?", "ERROR")
     except requests.exceptions.HTTPError as e:
-        showMessage(f"HTTP error {e.response.status_code} while downloading: {_url}", "ERROR")
+        showMessage(f"HTTP error {e.response.status_code} while downloading: {url}", "ERROR")
     except requests.exceptions.RequestException as e:
         showMessage(f"General request error: {e}", "ERROR")
-    return None
+    return False
+
+
+
     
-def month2int(_str):
+def month2int(s):
     #converts month string to non-pythonic integer month number
-    return (np.where(np.array(months)==_str)[0][0])+1  
+    return (np.where(np.array(monthNames)==s)[0][0])+1  
 
-def getLeadTime():
-    srcMonth=month2int(gl.config['predictorMonth'])
-    tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
-    tgtYear=int(gl.config['fcstTargetYear'])
-    tgtDate=pd.to_datetime("{}-{}-01".format(tgtYear,tgtMonth))
-    
-    leadTime=(tgtMonth+12-srcMonth)%12
-    if leadTime<1:
-        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the minimum allowed lead time of 1. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime)
-        showMessage(msg,"ERROR")
-        return None
-    if leadTime>gl.maxLeadTime:
-        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, gl.maxLeadTime)
-        showMessage(msg,"ERROR")
-        return None
-    gl.leadTime=leadTime
-    
-    srcDate=tgtDate-pd.offsets.MonthBegin(leadTime)
 
-    gl.predictorDate=srcDate
-    
-    return leadTime
 
-def is_number(s):
+
+def isNumber(s):
     try:
         float(s)
         return True
     except ValueError:
         return False
 
+
+
+class GuiLogHandler(logging.Handler):
+    #forwards Python logging output to the GUI log window via showMessage,
+    #instead of it printing straight to the terminal (e.g. cdsapi's request/queue/download status messages)
+    def emit(self, record):
+        try:
+            msg=self.format(record)
+        except Exception:
+            msg=record.getMessage()
+        if record.levelno>=logging.ERROR:
+            msgType="ERROR"
+        elif record.levelno>=logging.WARNING:
+            msgType="NONCRITICAL"
+        else:
+            msgType="INFO"
+        showMessage(msg, msgType)
+
+_guiLogHandlerInstalled=False
+
+
+
+def installGuiLogHandler():
+    #routes Python's logging output (including cdsapi's own status messages, which otherwise
+    #print straight to the terminal) through showMessage() instead. Safe to call more than once.
+    global _guiLogHandlerInstalled
+    if _guiLogHandlerInstalled:
+        return
+    rootLogger=logging.getLogger()
+    handler=GuiLogHandler()
+    handler.setFormatter(logging.Formatter("[%(name)s] %(message)s"))
+    rootLogger.addHandler(handler)
+    rootLogger.setLevel(logging.INFO)
+    _guiLogHandlerInstalled=True
+
+
+
+def requireCdsapi():
+    showMessage("checking if cdsapi available...")
+    try:
+        import cdsapi
+        installGuiLogHandler()
+        showMessage("cdsapi available")
+        return cdsapi.Client()
+    except Exception as exc:
+        showMessage(
+            "CDS downloads require the cdsapi package and a configured CDS API key. "
+            "Install with: python -m pip install cdsapi. "
+            "Then configure your CDS API credentials using the Copernicus CDS instructions. "
+            "Original error: {}".format(exc),
+            "ERROR",
+        )
+        return None
+
+
+
+def cdsRetrieve(client, dataset, request, outfile):
+    try:
+        client.retrieve(dataset, request, str(outfile))
+        return True
+    except Exception as exc:
+        showMessage(
+            f"CDS request failed. This is likely an unavailable/restricted initialization date, invalid area selection, or CDS access limitation. Original error: {exc}\nCDS request:{request}, dataset:{dataset}",
+            "ERROR",
+        )
+        return False
+
+
+def availableDataYears(fYear, month, latency=35):
+    #full month's data becomes available mid of the next month
+    lastDate=pd.Timestamp.today()-pd.offsets.Day(latency)
+    #use whichever is later: the year data first became available, or the year the user requested
+    dates=pd.date_range(f"01 {month} {fYear}", lastDate, freq="MS")
+    dates=dates[dates.month==month]
+    years=dates.year.values
+    return years
+
+
+
+def transformData(ds,transform,variable):
+    da=ds[variable]
+    add,multiply,units=transform
+    da=(da*multiply)+add
+    da.attrs["units"]=units
+    ds=da.to_dataset(name=variable)
+    return ds
+
+
+
+def cdsDownloadReanalysis(client, dataset, productType, variable, transform, area, months, years, outfile):
+    #builds and submits a CDS request across the given months/years, then verifies the result.
+    #returns True on full success, False on any failure (CDS submission failed, or the
+    #downloaded file could not be opened) - caller should stop in either case
+
+    showMessage("creating cds request...")
+
+    request = {
+            "product_type": productType,
+            "variable": variable,
+            "year": [str(y) for y in years],
+            "month": [str(m).zfill(2) for m in months],
+            "time": "00:00",
+            "area": area,
+            "data_format": "netcdf",
+            "download_format": "unarchived",
+    }
+
+    showMessage("Submitting request to CDS...")
+
+    result=cdsRetrieve(client, dataset, request, outfile)
+
+    if not result:
+        return False
+
+    showMessage("Download successful.", "SUCCESS")
+
+    showMessage("Checking integrity of downloaded file...")
+
+    try:
+        ds=xr.open_dataset(outfile)
+        showMessage("Downloaded file opens successfully.", "SUCCESS")
+        ds.close()
+        
+        if len(transform)>0:
+            ds=transformData(ds,transform,variable)
+            ds.to_netcdf(outfile)
+            
+        return True
+
+    except Exception as exc:
+        showMessage(
+            f" Downloaded file {outfile} cannot be opened. You might need to remove it and try downloading again. Original error: {exc}",
+            "ERROR",
+        )
+        return False
+
+
+def cdsDownloadForecast(client, dataset, originatingCentre, system, pressureLevel, variable, area, month, years, outfile):
+
+    #builds and submits a CDS request for a single month across the given years, then verifies the result.
+    #returns True on full success, False on any failure (CDS submission failed, or the
+    #downloaded file could not be opened) - caller should stop in either case
+    showMessage("creating cds request...")
+
+    request = {
+            "originating_centre": originatingCentre,
+            "system": system,
+            "variable": variable,
+            "pressure_level": pressureLevel,
+            "product_type": "monthly_mean",
+            "year": [str(y) for y in years],
+            "month": [str(month).zfill(2)],
+            "leadtime_month": ["1","2","3","4","5","6"],
+            "area": area,
+            "data_format": "netcdf",
+    }
+
+    showMessage("Submitting request to CDS...")
+
+    result=cdsRetrieve(client, dataset, request, outfile)
+
+    if not result:
+        return False
+
+    showMessage("Download successful.", "SUCCESS")
+
+    showMessage("Checking integrity of downloaded file...")
+    try:
+        ds=xr.open_dataset(outfile)
+        ds.close()
+        showMessage("Downloaded file opens successfully.", "SUCCESS")
+        return True
+
+    except Exception as exc:
+        showMessage(
+            f" Downloaded file {outfile} cannot be opened. You might need to remove it and try downloading again. Original error: {exc}",
+            "ERROR",
+        )
+        return False
+
+
+
+def areaTag(south, north, west, east):s
+    #compact, filename-safe encoding of a lat/lon box, so that locally cached files
+    #downloaded for a different area are never mistaken for the requested one
+    #each value gets its own hemisphere letter (S/N for latitude, W/E for longitude)
+    #and is scaled to tenths of a degree so no decimal point is needed, e.g. -34.0 -> S340
+
+    def latPart(v):
+        v=float(v)
+        return "{}{}".format("s" if v<0 else "n", round(abs(v)*10))
+    def lonPart(v):
+        v=float(v)
+        return "{}{}".format("w" if v<0 else "e", round(abs(v)*10))
+    return "{}{}{}{}".format(latPart(south), latPart(north), lonPart(west), lonPart(east))
+
+
+def ensureDownloadsDir(downloadsDir):
+    #makes sure the output directory exists, creating it if needed.
+    #returns True if ready to proceed, False if it could not be created (message already shown)
+    if os.path.exists(downloadsDir):
+        return True
+    showMessage("output directory {} does not exist. creating...".format(downloadsDir))
+    try:
+        os.makedirs(downloadsDir)
+        showMessage("done")
+        return True
+    except Exception:
+        showMessage("Output directory could not be created. Make sure that the directory is correctly defined and try again.", "ERROR")
+        return False
+
+
+def validateDomain(south, north, west, east):
+    #checks that a lat/lon bounding box is complete, numeric, and correctly ordered.
+    #returns True if valid, False otherwise (message already shown)
+    for x in [south, north, west, east]:
+        if x=="":
+            showMessage("\nplease define coordinates of requested domain", "ERROR")
+            return False
+    if not all(isNumber(x) for x in [south, north, west, east]):
+        showMessage("\nLat and Lon values should be numeric.", "ERROR")
+        return False
+    if not (float(north)>float(south) and float(east)>float(west)):
+        showMessage("\nLat and Lon values should be numeric.", "ERROR")
+        return False
+    return True
+
+
+def skipIfExists(outfile, overwrite):
+    #returns True (caller should skip/return) if the file already exists and overwrite is off
+    if overwrite is False and os.path.exists(outfile):
+        showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
+        return True
+    return False
+
+
+def decodeIridlTime(ds, timevar):
+    #IRIDL netcdf files encode time as days-since-a-reference-date with a named calendar;
+    #this decodes that coordinate (e.g. 'T' for predictand/predictor, 'S' for forecast predictor)
+    #into actual cftime dates
+    timeRaw = ds[timevar].values
+    units = ds[timevar].attrs.get('units', 'days since 1900-01-01')
+    calendar = ds[timevar].attrs.get('calendar', 'standard')
+    if calendar == '360':
+        calendar = '360_day'
+    return num2date(timeRaw, units=units, calendar=calendar)
     
+
+
+
     
 def downloadPredictand():
     #read data from gui
@@ -155,162 +360,109 @@ def downloadPredictand():
     #save config to json file
     saveConfig()
     
-    _downloadsdir=gl.config['downloadDir']
+    downloadsDir=gl.config['downloadDir']
    
-    _predictandcode=gl.config['predictandCode']
-    _overwrite=gl.config['predictandOverwrite']
-    _predictandyear=gl.config['fcstTargetYear']
-    _predictandseas=gl.config['fcstTargetSeas']
-    
-    firstyear=gl.config['firstDataYear']
+    predictandCode=gl.config['predictandCode']
+    overwrite=gl.config['predictandOverwrite']
+    predictandSeas=gl.config['fcstTargetSeas']
     
     south=gl.config['predictandMinLat']
     north=gl.config['predictandMaxLat']
     west=gl.config['predictandMinLon']
     east=gl.config['predictandMaxLon']
 
-    if not os.path.exists(_downloadsdir):
-        showMessage("output directory {} does not exist. creating...".format(_downloadsdir))
-        try:
-            os.makedirs(_downloadsdir)
-            showMessage("done")
-        except:
-            showMessage("Output directory could not be created. Make sure that the directory is correctly defined and try again.", "ERROR")
-            return
-    
-    
-    if _predictandcode=="":
+    if not ensureDownloadsDir(downloadsDir):
+        return
+
+    if predictandCode=="":
         showMessage("\nplease select variable to download", "ERROR")
         return
 
-    if _predictandyear=="":
-        showMessage("\nplease provide predicand's year", "ERROR")
-        return
-    
-    if not is_number(_predictandyear):
-        showMessage("\npredictand year should be numeric", "ERROR")
-        return
-    
-    if _predictandseas=="":
+    if predictandSeas=="":
         showMessage("\nplease provide predictand's season", "ERROR")
         return
-    
-    if firstyear=="":
-        showMessage("\nplease provide first data year", "ERROR")
-        return
-    
-    if not is_number(firstyear):
-        showMessage("\nfirst data year should be numeric", "ERROR")
-        return
-        
-    check=[]
-    for _x in [east,west,south,north]:
-        check.append(is_number(_x))
-    if not all(check):
-            showMessage("\nLat and Lon values should be numeric.", "ERROR")
-            return
-        
-    check=[float(east)>float(west), float(north)>float(south)]
-    if not all(check):
-            showMessage("\nLat and Lon values should be numeric.", "ERROR")
-            return    
 
-                     
-            
-            
-    showMessage("\ndownloading {}".format(_predictandcode))
-    
-    
-    _source=_predictandcode.split("_")[-1]
-    
-    url=predictandSources[_predictandcode][1]
-    
-    temporalaggregation=predictandSources[_predictandcode][2]
-    
-    firstavailyear=predictandSources[_predictandcode][3]
-    
-    if float(firstavailyear)>float(firstyear):
-        showMessage("\nAdjusting requested first year to first year for which data are available. {} -> {}".format(firstyear, firstavailyear), "NONCRITICAL")
-        firstyear=firstavailyear
-    
+    if not validateDomain(south, north, west, east):
+        return
 
-    #simply - monthly target will have three letters, seasonal target - 7
-    if len(_predictandseas)==3:
-        #monthly
-        multiply=1
-        basetime="mon"
-    else:
-        basetime="seas"
-        if temporalaggregation=="sum":
-            #seasonal with sum
-            multiply=3
-        else:
-            #seasonal with mean
+    showMessage("\ndownloading {}".format(predictandCode))
+    
+    
+    source=predictandCode.split("_")[-1]
+
+    #months needed for the requested predictand season, shared by both IRIDL and CDS branches
+    months=seasonmonths[predictandSeas]
+     
+    area=[north, west, south, east]
+    areaStr=areaTag(south, north, west, east)
+
+
+    if source=="IRIDL":
+
+        url=gl.predictandSources[predictandCode][1]
+        
+        temporalAggregation=gl.predictandSources[predictandCode][2]
+        
+        firstAvailYear=gl.predictandSources[predictandCode][3]
+        
+        availableYears=availableDataYears(int(firstAvailYear), months[-1])
+
+        firstAvailYear=availableYears[0]
+        lastAvailYear=availableYears[-1]
+
+        #a single-month target has one entry in months, a seasonal target has several
+        if len(months)==1:
             multiply=1
+            baseTime="mon"
+        else:
+            baseTime="seas"
+            multiply = 3 if temporalAggregation=="sum" else 1
 
-    
-    if _source=="IRIDL":
 
-        #defined internally, can be included in the variable-source dictionary
-        firstmonth=_predictandseas[0:3]
-        first_date=pd.to_datetime("01 {} {}".format(firstmonth, firstyear))
-        
-        finalyear=_predictandyear
-        finalmonth=_predictandseas[-3:]
-        
-        last_date=pd.to_datetime("01 {} {}".format(finalmonth, finalyear))
+        lastDate=pd.Timestamp(year=int(lastAvailYear), month=months[-1], day=1)
         
         
-        daterange="{}{}-{}{}".format(_predictandseas[0:3],firstyear, _predictandseas[-3:], finalyear)
-        showMessage("requesting date range: {}".format(daterange))
+        dateRange="{}{}-{}{}".format(monthNames[months[0]-1],firstAvailYear, monthNames[months[-1]-1], lastAvailYear)
+        showMessage("requesting date range: {}".format(dateRange))
 
         
-        outfile=Path(_downloadsdir,"{}_{}_{}-{}.nc".format(_predictandcode, gl.config['fcstTargetSeas'], first_date.strftime("%Y%m"), last_date.strftime("%Y%m")))
+        outfile=Path(downloadsDir,"{}_{}_{}_{}-{}.nc".format(predictandCode, predictandSeas, areaStr, firstAvailYear, lastAvailYear))
 
-    
-        if _overwrite is False:
-            if os.path.exists(outfile):
-                showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
-                return
-        
+        if skipIfExists(outfile, overwrite):
+            return
 
-        
-        url=url.format(multiply,firstyear, finalyear, _predictandseas, firstyear, finalyear, south,north,west,east)
+        url=url.format(multiply,firstAvailYear, lastAvailYear, predictandSeas, firstAvailYear, lastAvailYear, south,north,west,east)
 
         response=downloadUrl(url)
         
-        if response is None:
+        if response is False:
             showMessage("failed to download data")
             return
         else:
             
-            data_stream = io.BytesIO(response.content)
+            dataStream = io.BytesIO(response.content)
 
             # Open with xarray
-            ds = xr.open_dataset(data_stream, decode_times=False)
-            
-            time_raw = ds['T'].values
-            units = ds['T'].attrs.get('units', 'days since 1900-01-01')
-            calendar = ds['T'].attrs.get('calendar', 'standard')
-            if calendar == '360':
-                calendar = '360_day'
-            
-            time_cftime = num2date(time_raw, units=units, calendar=calendar)
+            ds = xr.open_dataset(dataStream, decode_times=False)
+
+            timeCftime = decodeIridlTime(ds, 'T')
             
             #iridl dates are mid of the season or mid month, aligning them with our notation
             #first month first year, and last month last year
-            if basetime=="seas":
+            if baseTime=="seas":
                 #back two months
-                firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin(2)
+                firstDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[0].year, timeCftime[0].month))-pd.offsets.MonthBegin(2)
                 #forward one month
-                lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))+pd.offsets.MonthBegin(1)
+                lastDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[-1].year, timeCftime[-1].month))+pd.offsets.MonthBegin(1)
             else:
                 #for montly data, it will be the first of the first month and the first of the last month
-                firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin()
-                lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))-pd.offsets.MonthBegin()
+                firstDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[0].year, timeCftime[0].month))-pd.offsets.MonthBegin()
+                lastDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[-1].year, timeCftime[-1].month))-pd.offsets.MonthBegin()
             
-            if lastdatadate<last_date:
-                showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}".format(lastdatadate.strftime("%b %Y"), daterange), "NONCRITICAL")
+            if lastDataDate<lastDate:
+                showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}".format(lastDataDate.strftime("%b %Y"), dateRange), "NONCRITICAL")
+                outfile=Path(downloadsDir,"{}_{}_{}_{}-{}.nc".format(predictandCode, gl.config['fcstTargetSeas'], areaStr, firstDataDate.strftime("%Y"), lastDataDate.strftime("%Y")))
+
             else:
                 showMessage("All fine", "NONCRITICAL")
                 
@@ -318,10 +470,38 @@ def downloadPredictand():
             with open(outfile, "wb") as outf:
                 outf.write(response.content)
             showMessage("Saved downloaded data to {}".format(outfile), "SUCCESS")
+
+
+    elif source=="CDS":
+
+        predictandTitle, predictandDataset, predictandProductType, predictandVariable, predictandAggregation, predictandTransform, firstAvailYear = gl.predictandSources[predictandCode]
+
+        #checking if cds available
+        client = requireCdsapi()
+        if client is None:
+            return
+
+
+
+        availableYears=availableDataYears(int(firstAvailYear), months[-1], 40)
+
+        firstAvailYear=availableYears[0]
+        lastAvailYear=availableYears[-1]
+
+        outfile=Path(f"{downloadsDir}/{predictandCode}_{predictandSeas}_{areaStr}_{firstAvailYear}-{lastAvailYear}.nc")
+
+        if skipIfExists(outfile, overwrite):
+            return
+
+        result=cdsDownloadReanalysis(client, predictandDataset, predictandProductType, predictandVariable, predictandTransform, area, months, availableYears, outfile)
+
+        if result is False:
+            return
     
     else:
-        showMessage("\nSource {} not available. Exiting...".format(_source), "ERROR")
+        showMessage("\nSource {} not available. Exiting...".format(source), "ERROR")
         
+
     
     
     
@@ -334,142 +514,101 @@ def downloadGriddedPredictor():
     #save config to json file
     saveConfig()
     
-    _downloadsdir=gl.config['downloadDir']
+    downloadsDir=gl.config['downloadDir']
    
-    _predictorcode=gl.config['predictorCode']
-    _overwrite=gl.config['predictorOverwrite']
-    _predictoryear=gl.config['predictorYear']
-    _predictormonth=gl.config['predictorMonth']
+    predictorCode=gl.config['predictorCode']
+    overwrite=gl.config['predictorOverwrite']
+    predictorYear=gl.config['predictorYear']
+    predictorMonth=gl.config['predictorMonth']
     
-    firstyear=gl.config['firstDataYear']
     
     south=gl.config['predictorMinLat']
     north=gl.config['predictorMaxLat']
     west=gl.config['predictorMinLon']
     east=gl.config['predictorMaxLon']
 
-    
-    for _x in [south,north,west,east]:
-        if _x=="":
-            showMessage("\nplease define coordinates of requested domain", "ERROR")
-            return
-         
-    if not os.path.exists(_downloadsdir):
-        try:
-            os.makedirs(_downloadsdir)
-            showMessage("done")
-        except:
-            showMessage("Output directory could not be created. Make sure that the directory is correctly defined and try again.", "ERROR")
-            return
-    
-    if _predictorcode=="":
+    if not ensureDownloadsDir(downloadsDir):
+        return
+
+    if predictorCode=="":
         showMessage("\nplease select variable to download", "ERROR")
         return
 
-    if _predictoryear=="":
+    if predictorYear=="":
         showMessage("\nplease provide predictor's year", "ERROR")
         return
     
-    if not is_number(_predictoryear):
+    if not isNumber(predictorYear):
         showMessage("\npredictor year should be numeric", "ERROR")
         return
     
-    if _predictormonth=="":
+    if predictorMonth=="":
         showMessage("\nplease provide predictor's month", "ERROR")
         return
-    
-    if firstyear=="":
-        showMessage("\nplease provide first data year", "ERROR")
+
+    if not validateDomain(south, north, west, east):
         return
+
+    #setting up domain string
+    area=[north, west, south, east]
+    areaStr=areaTag(south, north, west, east)
+
+
+    showMessage("\ndownloading {}".format(predictorCode))
     
-    if not is_number(firstyear):
-        showMessage("\nfirst data year should be numeric", "ERROR")
-        return
-    
-    check=[]
-    for _x in [east,west,south,north]:
-        check.append(is_number(_x))
-    if not all(check):
-            showMessage("\nLat and Lon values should be numeric.", "ERROR")
-            return
-        
-    check=[float(east)>float(west), float(north)>float(south)]
-    if not all(check):
-            showMessage("\nLat and Lon values should be numeric.", "ERROR")
-            return    
+    source=predictorCode.split("_")[-1] 
+
+    #the gridded predictor is always requested for a single month, never a season
+    month=month2int(predictorMonth)
+    monthName=monthNames[month-1]
+
+    if source=="IRIDL":
+
+        url=gl.obspredSources[predictorCode][1]
+
+        firstAvailYear=gl.obspredSources[predictorCode][2]
+
+        availableYears=availableDataYears(int(firstAvailYear), month, 40)
+
+        if int(predictorYear)>availableYears[-1]:
+             showMessage(f"Requested data will contain data till {availableYears[-1]}, and does not include data for {predictorYear}{predictorMonth}", "ERROR")
+             return
  
+        lastDate=pd.Timestamp(year=int(predictorYear), month=month, day=1)
 
-    showMessage("\ndownloading {}".format(_predictorcode))
-    
-    _source=_predictorcode.split("_")[-1] 
-    
-    firstavailyear=predictorSources[_predictorcode][2]
-    
-    if float(firstavailyear)>float(firstyear):
-        showMessage("\nAdjusting requested first year to first year for which data are available. {} -> {}".format(firstyear, firstavailyear), "NONCRITICAL")
-        firstyear=firstavailyear    
-        
-        
-    #always mon 
-    basetime="mon"
-    
-    if _source=="IRIDL":
+        dateRange="{}{}-{}{}".format(monthName,firstAvailYear, monthName, predictorYear)
+        showMessage("requesting date range: {}".format(dateRange))
 
-        #defined internally, can be included in the variable-source dictionary
-        firstmonth=_predictormonth
-        first_date=pd.to_datetime("01 {} {}".format(firstmonth, firstyear))
+        outfile=Path(downloadsDir,"{}_{}_{}_{}-{}.nc".format(predictorCode, monthName, areaStr, firstAvailYear, predictorYear))
         
-        lastyear=_predictoryear
-        lastmonth=_predictormonth
-        
-        last_date=pd.to_datetime("01 {} {}".format(lastmonth, lastyear))
-        
-        
-        daterange="{}{}-{}{}".format(_predictormonth,firstyear, _predictormonth, lastyear)
-        showMessage("requesting date range: {}".format(daterange))
+        if skipIfExists(outfile, overwrite):
+            return
 
-        outfile=Path(_downloadsdir,"{}_{}_{}-{}.nc".format(_predictorcode, basetime, first_date.strftime("%Y%m"), last_date.strftime("%Y%m")))
-        
-        if _overwrite is False:
-            if os.path.exists(outfile):
-                showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
-                return
-
-        #"http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/
-        # (Jan 1982)/(Dec 2021)/RANGE/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/
-        # X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc"
-        url=predictorSources[_predictorcode][1]
-        url=url.format(_predictormonth, firstyear, lastyear, south,north,west,east)
+        url=url.format(predictorMonth, firstAvailYear, predictorYear, south,north,west,east)
 
         response=downloadUrl(url)
         
-        if response is None:
+        if response is False:
             showMessage("failed to download data")
             return
         else:
             
-            data_stream = io.BytesIO(response.content)
+            dataStream = io.BytesIO(response.content)
 
             # Open with xarray
-            ds = xr.open_dataset(data_stream, decode_times=False)
-            
-            time_raw = ds['T'].values
-            units = ds['T'].attrs.get('units', 'days since 1900-01-01')
-            calendar = ds['T'].attrs.get('calendar', 'standard')
-            if calendar == '360':
-                calendar = '360_day'
-            
-            time_cftime = num2date(time_raw, units=units, calendar=calendar)
-            
+            ds = xr.open_dataset(dataStream, decode_times=False)
+
+            timeCftime = decodeIridlTime(ds, 'T')
+
             #iridl dates are mid of the season or mid month, aligning them with our notation
             #first month first year, and last month last year
-            #back two months
-            firstdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[0].year, time_cftime[0].month))-pd.offsets.MonthBegin(2)
-            #forward one month
-            lastdatadate=pd.to_datetime("{}-{}-15".format(time_cftime[-1].year, time_cftime[-1].month))+pd.offsets.MonthBegin(1)
+            firstDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[0].year, timeCftime[0].month))
+            lastDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[-1].year, timeCftime[-1].month))
 
-            if lastdatadate<last_date:
-                showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}".format(last_date.strftime("%b %Y"), daterange), "NONCRITICAL")
+            if lastDataDate<lastDate:
+                showMessage("Downloaded data contains data till {}, and thus does not fully cover the the requested period {}. Keeping file, adjusting its name...".format(lastDataDate.strftime("%b %Y"), dateRange), "NONCRITICAL")
+                #adjusting outfile name
+                outfile=Path(downloadsDir,"{}_{}_{}_{}-{}.nc".format(predictorCode, monthName, areaStr, firstDataDate.strftime("%Y"), lastDataDate.strftime("%Y")))
             else:
                 showMessage("All fine", "NONCRITICAL")
                 
@@ -477,8 +616,52 @@ def downloadGriddedPredictor():
             with open(outfile, "wb") as outf:
                 outf.write(response.content)
             showMessage("Saved downloaded data to {}".format(outfile), "SUCCESS")
-            
+
+
+
+    elif source=="CDS":
+
+        predictorTitle, predictorDataset, predictorProductType, predictorVariable, predictorAggregation, predictorTransform, firstAvailYear = gl.obspredSources[predictorCode]
+
+
+        #checking if cds available
+        client = requireCdsapi()
+
+        if client is None:
+            return
+
+        showMessage("checking if data available locally...")
+
+        #data for given month available only after the 10th
+
+        availableYears=availableDataYears(int(firstAvailYear), month, 40)
+
+        if int(predictorYear)>availableYears[-1]:
+             showMessage(f"Requested data will contain data till {availableYears[-1]}, and does not include data for {predictorYear}{predictorMonth}", "ERROR")
+             return
         
+        firstAvailYear=availableYears[0]
+        lastAvailYear=availableYears[-1]
+        outfile=Path(f"{downloadsDir}/{predictorCode}_{monthName}_{areaStr}_{firstAvailYear}-{lastAvailYear}.nc")
+
+        if skipIfExists(outfile, overwrite):
+            return
+
+        result=cdsDownloadReanalysis(client, predictorDataset, predictorProductType, predictorVariable, area, [month], availableYears, outfile)
+
+        if result is False:
+            return
+
+    else:
+        showMessage("\nSource {} not available. Exiting...".format(source), "ERROR")
+        
+
+
+
+
+
+
+
 def downloadFcstPredictor():
     
     readGui()
@@ -486,203 +669,162 @@ def downloadFcstPredictor():
     #save config to json file
     saveConfig()
     
-    _downloadsdir=gl.config['downloadDir']
+    downloadsDir=gl.config['downloadDir']
     
-    _predictorcode=gl.config['fcstpredCode']
-    _overwrite=gl.config['fcstpredOverwrite']
-    _predictoryear=gl.config['predictorYear']
-    _predictormonth=gl.config['predictorMonth']
+    predictorCode=gl.config['fcstpredCode']
+    overwrite=gl.config['fcstpredOverwrite']
+    predictorYear=gl.config['fcstpredYear']
+    predictorMonth=gl.config['fcstpredMonth']
     
-    firstyear=gl.config['firstDataYear']
     
     south=gl.config['fcstpredMinLat']
     north=gl.config['fcstpredMaxLat']
     west=gl.config['fcstpredMinLon']
     east=gl.config['fcstpredMaxLon']
     
-
     
+    if not ensureDownloadsDir(downloadsDir):
+        return
     
-    for _x in [south,north,west,east]:
-        if _x=="":
-            showMessage("\nplease define coordinates of requested domain", "ERROR")
-            return
-    
-    if not os.path.exists(_downloadsdir):
-        try:
-            os.makedirs(_downloadsdir)
-            showMessage("done")
-        except:
-            showMessage("Output directory could not be created. Make sure that the directory is correctly defined and try again.", "ERROR")
-            return
-    
-    if _predictorcode=="":
+    if predictorCode=="":
         showMessage("\nplease select variable to download", "ERROR")
         return
 
-    if _predictoryear=="":
+    if predictorYear=="":
         showMessage("\nplease provide predictor's year", "ERROR")
         return
     
-    if not is_number(_predictoryear):
+    if not isNumber(predictorYear):
         showMessage("\npredictor year should be numeric", "ERROR")
         return
     
-    if _predictormonth=="":
+    if predictorMonth=="":
         showMessage("\nplease provide predictor's month", "ERROR")
         return
-    
-    if firstyear=="":
-        showMessage("\nplease provide first data year", "ERROR")
+
+    if not validateDomain(south, north, west, east):
         return
+
+    area=[north, west, south, east]
+    areaStr=areaTag(south, north, west, east)
+
+
+    showMessage("\ndownloading {}".format(predictorCode))
     
-    if not is_number(firstyear):
-        showMessage("\nfirst data year should be numeric", "ERROR")
-        return
+    source=predictorCode.split("_")[-1]
     
-    check=[]
-    for _x in [east,west,south,north]:
-        check.append(is_number(_x))
-    if not all(check):
-            showMessage("\nLat and Lon values should be numeric.", "ERROR")
+   
+ 
+    #the gridded forecast predictor is always requested for a single month, never a season
+    month=month2int(predictorMonth)
+    monthName=monthNames[month-1]
+
+
+    if source=="IRIDL":
+
+        predictorDate=pd.to_datetime("{}-{}-15".format(predictorYear, predictorMonth))
+
+        url=gl.fcstpredSources[predictorCode][1]
+        firstAvailYear=gl.fcstpredSources[predictorCode][2]
+
+        # this is just about password-free access to IRIDL data
+        isAvailable=gl.fcstpredSources[predictorCode][3]
+        if not isAvailable:
+            showMessage("The data were not downloaded. To download these data from IRIDL, these data require one to sign a license and to log onto IRI server. To do so - copy the url below, paste it to your browser and this will bring you to the website where you can log in and sign the license\n{}".format(url), "ERROR")
             return
         
-    check=[float(east)>float(west), float(north)>float(south)]
-    if not all(check):
-            showMessage("\nLat and Lon values should be numeric.", "ERROR")
-            return    
+
+        availableYears=availableDataYears(int(firstAvailYear), month, 10)
+
+        firstAvailYear=availableYears[0]
+        
+        if int(predictorYear)>availableYears[-1]:
+             showMessage(f"Requested data will contain data till {availableYears[-1]}, and does not include data for {predictorYear}{predictorMonth}", "ERROR")
+             return
  
+        leadTimeStart=0.5
+        leadTimeEnd=5.5
 
-    showMessage("\ndownloading {}".format(_predictorcode))
-    
-    _source=_predictorcode.split("_")[-1]
-    
-    _predictortime=pd.to_datetime("{}-{}-01".format(_predictoryear, _predictormonth))
-    
-    #this accounts for difference between predictor time and dynamical forecast time 
-    _forecasttime=_predictortime+pd.offsets.MonthBegin(1)
-    _forecastyear=_forecasttime.year
-    _forecastmon=months[_forecasttime.month-1]
+        dateRange="{}{}-{}{}".format(predictorMonth,firstAvailYear, predictorMonth, predictorYear)
+        showMessage("requesting date range: {}".format(dateRange))
 
-    url=fcstpredSources[_predictorcode][1]
-    firstavailyear=fcstpredSources[_predictorcode][2]
-    available=fcstpredSources[_predictorcode][3]
-    
-    if float(firstavailyear)>float(firstyear):
-        showMessage("\nAdjusting requested first year to first year for which data are available. {} -> {}".format(firstyear, firstavailyear), "NONCRITICAL")
-        firstyear=firstavailyear
+        outfile=Path(downloadsDir,"{}_{}_{}_{}-{}.nc".format(predictorCode, predictorMonth, areaStr, firstAvailYear, predictorYear))
         
-    #this is with respect to predictor month, not forecast month
-    leadtime=getLeadTime()
+        if skipIfExists(outfile, overwrite):
+            return
 
+        url=url.format(predictorMonth, firstAvailYear, predictorYear,leadTimeStart,leadTimeEnd,south,north,west,east)
 
-    #this is with respect to forecast month, thus -1, and takes into account IRIDL notation, thus +0.5
-    leadtimestart=leadtime-1+0.5
-
-    if len(gl.config['fcstTargetSeas'])==3:
-        basetime="mon"
-        leadtimeend=leadtime-1+0.5
-    else:
-        basetime="seas"
-        leadtimeend=leadtime-1+2.5
-
-    leadtimefile=(leadtimestart+leadtimeend)/2
-
-
-    if _source=="IRIDL":
-
-        
-        #defined internally, can be included in the variable-source dictionary
-        firstmonth=_predictormonth
-        first_date=pd.to_datetime("01 {} {}".format(firstmonth, firstyear))
-
-        lastyear=_predictoryear
-        lastmonth=_predictormonth
-
-        last_date=pd.to_datetime("01 {} {}".format(lastmonth, lastyear))
-
-
-        daterange="{}{}-{}{}".format(_predictormonth,firstyear, _predictormonth, lastyear)
-        showMessage("requesting date range: {}".format(daterange))
-
-
-        outfile=Path(_downloadsdir,"{}_{}_{}-{}.nc".format(_predictorcode, gl.config['fcstTargetSeas'], first_date.strftime("%Y%m"), last_date.strftime("%Y%m")))
-        
-        if _overwrite is False:
-            if os.path.exists(outfile):
-                showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
-                return
-
-
-        url=url.format(_forecastmon, firstyear, _forecastyear,leadtimestart,leadtimeend,south,north,west,east)
-
-        if not available:
-            showMessage("The data were not downloaded. To download these data from IRIDL, these data require one to sign a license and to log onto IRI server. To do so - copy the url below, paste it to your browser and this will bring you to the website where you can log in and sign the license\n{}".format(url), "ERROR")
-            return None
-           
+          
         response=downloadUrl(url)
 
-        if response is None:
+        if response is False:
             showMessage("failed to download forecast data")
             return
 
         else:
 
-            data_stream = io.BytesIO(response.content)
+            dataStream = io.BytesIO(response.content)
 
             # Open with xarray 
             # chunks argument prevents error with time conversion, requires dask to be installed, though
             try:
                 
-                ds = xr.open_dataset(data_stream, decode_times=False, chunks={})
+                ds = xr.open_dataset(dataStream, decode_times=False, chunks={})
             except:
                 showMessage("Could not read downloaded data. This might be a result of a temporary problem with IRIDL server. Wait a couple of minutes and re-download the data. If the same error occurs - copy and paste the following url into a browser to identify the problem: \n{}".format(url), "ERROR")
                 return
-            
-            
-            #renaming to time as later functions do not work with T which is used by iri files
-            ds=ds.rename({"S":"time", "X":"lon", "Y":"lat", "L":"lead_time"})
 
+            timeCftime = decodeIridlTime(ds, 'S')
 
-            if ds["time"].attrs['calendar'] == '360':
-                ds["time"].attrs['calendar'] = '360_day'
+            firstDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[0].year, timeCftime[0].month))
+            lastDataDate=pd.to_datetime("{}-{}-15".format(timeCftime[-1].year, timeCftime[-1].month))
 
-            #decoding dates
-            ds = xr.decode_cf(ds, use_cftime=True)
-
-            #converting calendar
-            ds=ds.convert_calendar("standard", align_on="date")
-
-            #substituting initial condition time for forcast reference time
-            #ds.time will be set on 1st of the month, newtime will be the last day of the previous month
-            newtime=pd.to_datetime(ds.time)-pd.offsets.MonthBegin()
-            ds["time"]=newtime
-
-            #collapsing Lead time variable
-            for var in ds.data_vars:
-                ds[var] = ds[var].mean("lead_time")
-            #adding atribute
-            basetimetext={"mon":"mean monthly value for the forecast target month", "seas":"mean seasonal value for the forecast target season"}
-            ds.attrs["description"]="Data time is set to the last day of the month for which initialization data are available. The forecast reference time, i.e. month when forecast is issued is the first day of the subsequent month"
-            ds.attrs["value"]=basetimetext[basetime]
-            ds.attrs["forecast_target"]=gl.config['fcstTargetSeas']        
-            ds.attrs["forecast_reference_time"]="01 {}".format(_forecastmon)
-        
-            #iridl will not complain if available data does not cover the entire requested period
-            #need to check if data for forecast is available.
-            lastdatatime=pd.to_datetime(ds["time"].values[-1])
-            firstdatatime=pd.to_datetime(ds["time"].values[0])
-
-            if _predictortime !=lastdatatime:
-                showMessage("Downloaded data contains data till {}, and thus does not include data required for forecast, i.e. for {}".format(lastdatatime.strftime("%b %Y"), _predictortime.strftime("%b %Y")), "ERROR")
-                return
+            if predictorDate>lastDataDate:
+                showMessage("Downloaded data contains data till {}, and thus does not include data required for forecast, i.e. for {}. Keeping file but renaming it...".format(lastDataDate.strftime("%b %Y"), predictorDate.strftime("%b %Y")), "ERROR")
+                outfile=Path(downloadsDir,"{}_{}_{}_{}-{}.nc".format(predictorCode, predictorMonth, areaStr, firstDataDate.strftime("%Y"), lastDataDate.year))
+                #return
             else:
                 showMessage("All fine", "NONCRITICAL")
                 
             # on successful response - writing file
             ds.to_netcdf(outfile)
             showMessage("Saved downloaded data to {}".format(outfile), "SUCCESS")
+
+    elif source=="CDS":
+
+        predictorTitle, predictorDataset, predictorOriginatingCentre, predictorSystem, predictorVariable, predictorPressureLevel, predictorAggregation,predictorTransform,firstAvailYear=gl.fcstpredSources[predictorCode]
+
+        #checking if cds available
+        client = requireCdsapi()
+
+        if client is None:
+            return
+
+        showMessage("checking if data available locally...")
+
+        availableYears=availableDataYears(int(firstAvailYear), month, 10)
+
+        if int(predictorYear)>availableYears[-1]:
+             showMessage(f"Requested data will contain data till {availableYears[-1]}, and does not include data for {predictorYear}{predictorMonth}", "ERROR")
+             return
+ 
+        firstAvailYear=availableYears[0]
+        lastAvailYear=availableYears[-1]
+        outfile=Path(f"{downloadsDir}/{predictorCode}_{monthName}_{areaStr}_{firstAvailYear}-{lastAvailYear}.nc")
+
+        if skipIfExists(outfile, overwrite):
+            return
+
+        result=cdsDownloadForecast(client, predictorDataset, predictorOriginatingCentre, predictorSystem, predictorPressureLevel, predictorVariable, area, month, availableYears, outfile)
+
+        if result is False:
+            return
+
+    else:
+        showMessage("\nSource {} not available. Exiting...".format(source), "ERROR")
             
+
 
 def downloadIndexPredictor():
     
@@ -691,59 +833,46 @@ def downloadIndexPredictor():
     #save config to json file
     saveConfig()
     
-    _downloadsdir=gl.config['downloadDir']
-    _indexcode=gl.config['indexCode']
-    _overwrite=gl.config['indexOverwrite']
-    _predictoryear=gl.config['predictorYear']
-    _predictormonth=gl.config['predictorMonth']
+    downloadsDir=gl.config['downloadDir']
+    indexCode=gl.config['indexCode']
+    overwrite=gl.config['indexOverwrite']
+    predictorYear=gl.config['predictorYear']
+    predictorMonth=gl.config['predictorMonth']
     
-    firstyear=gl.config['firstDataYear']
+    if not ensureDownloadsDir(downloadsDir):
+        return
     
-    if not os.path.exists(_downloadsdir):
-        try:
-            os.makedirs(_downloadsdir)
-            showMessage("done")
-        except:
-            showMessage("Output directory could not be created. Make sure that the directory is correctly defined and try again.", "ERROR")
-            return
-    
-    if _indexcode=="":
+    if indexCode=="":
         showMessage("\nplease select variable to download", "ERROR")
         return
 
-    if _predictoryear=="":
+    if predictorYear=="":
         showMessage("\nplease provide predictor's year", "ERROR")
         return
     
-    if not is_number(_predictoryear):
+    if not isNumber(predictorYear):
         showMessage("\npredictor year should be numeric", "ERROR")
         return
     
-    if _predictormonth=="":
+    if predictorMonth=="":
         showMessage("\nplease provide predictor's month", "ERROR")
         return
     
-    if firstyear=="":
-        showMessage("\nplease provide first data year", "ERROR")
-        return
-    
-    if not is_number(firstyear):
-        showMessage("\nfirst data year should be numeric", "ERROR")
-        return
-    
-    showMessage("\ndownloading {}".format(_indexcode))
+    showMessage("\ndownloading {}".format(indexCode))
 
-    _predictordate=pd.to_datetime("01 {} {}".format(_predictormonth, _predictoryear))+pd.offsets.MonthEnd()
-    _url=indexSources[_indexcode][1]
-    _source=_indexcode.split("_")[-1]
+    predictorDate=pd.to_datetime("01 {} {}".format(predictorMonth, predictorYear))+pd.offsets.MonthEnd()
+    url=gl.indexSources[indexCode][1]
+    source=indexCode.split("_")[-1]
 
     
     #requesting data
-    response=downloadUrl(_url)
-    
+    response=downloadUrl(url)
+    if response is False:
+        showMessage("Failed to download data", "ERROR") 
+        return
 
     #index-specific processing
-    if _source=="JMA":
+    if source=="JMA":
         #processing raw data
         data=response.text.split("\n")
         data=np.array([x.split() for x in data[1:-1]])
@@ -753,39 +882,33 @@ def downloadIndexPredictor():
         #creating and populating dataframe
         dates=pd.date_range("{}-01-01".format(years[0]), periods=len(data), freq="ME")
         
-        _index=_indexcode.split("_")[0]
-        output=pd.DataFrame(data, index=dates, columns=[_index]).astype(float)
+        indexName=indexCode.split("_")[0]
+        output=pd.DataFrame(data, index=dates, columns=[indexName]).astype(float)
         output[output==99.90]=np.nan
         output=output[~np.isnan(output).values]
         
-    first_date=output.index[0].strftime("%Y%m")
-    last_date=output.index[-1].strftime("%Y%m")
-    firstavailyear=output.index[0].year
-    lastavailyear=output.index[-1].year
+    firstDate=output.index[0].strftime("%Y%m")
+    lastDate=output.index[-1].strftime("%Y%m")
+    firstAvailYear=output.index[0].year
+    lastAvailYear=output.index[-1].year
     
-    showMessage("downloaded data covers the period of {} to {}".format(first_date, last_date))
+    showMessage("downloaded data covers the period of {} to {}".format(firstDate, lastDate))
 
-    showMessage("checking if predictor date {} in data...".format(_predictordate.strftime("%b %Y")))
-    if not _predictordate in output.index:
-        showMessage("predictor date {} not in data!".format(_predictordate.strftime("%b %Y")),"NONCRITICAL")
+    showMessage("checking if predictor date {} in data...".format(predictorDate.strftime("%b %Y")))
+    if not predictorDate in output.index:
+        showMessage("predictor date {} not in data!".format(predictorDate.strftime("%b %Y")),"NONCRITICAL")
 
     
-    if float(firstavailyear)>float(firstyear):
-        showMessage("\nAdjusting requested first year to first year for which data are available. {} -> {}".format(firstyear, firstavailyear), "NONCRITICAL")
-        firstyear=firstavailyear
-        
-    output=output[str(firstyear):str(lastavailyear)]
-    first_date=output.index[0].strftime("%Y%m")
+    output=output[str(firstAvailYear):str(lastAvailYear)]
+    firstDate=output.index[0].strftime("%Y%m")
         
         
     #defining file names
-    #rawfile=Path(_downloadsdir,"{}_{}-{}.txt".format(_indexcode, first_date, last_date))
-    outfile=Path(_downloadsdir,"{}_{}-{}.csv".format(_indexcode, first_date, last_date))
+    #rawfile=Path(downloadsDir,"{}_{}-{}.txt".format(indexCode, firstDate, lastDate))
+    outfile=Path(downloadsDir,"{}_{}-{}.csv".format(indexCode, firstDate, lastDate))
     
-    if _overwrite is False:
-        if os.path.exists(outfile):
-            showMessage("file {} exists, and overwrite is OFF. Skipping...".format(outfile),"NONCRITICAL")
-            return
+    if skipIfExists(outfile, overwrite):
+        return
           
     # on successful response - writing raw file
     #with open(rawfile, "w") as outf:
@@ -796,45 +919,65 @@ def downloadIndexPredictor():
     output.to_csv(outfile)
     showMessage("saved csv data to {}".format(outfile), "SUCCESS")
 
-            
-            
+
+def loadDataSources():            
+    #reading data source dictionary
+    try:
+        with open(gl.sourcesFile) as f:
+            sourcesDict = json.load(f)
+            #at this stage, just keys of properties are needed.
+        indexSources = sourcesDict['indexSources']
+        predictandSources = sourcesDict['predictandSources']
+        obspredSources = sourcesDict['obspredSources']
+        fcstpredSources = sourcesDict['fcstpredSources']
+        return indexSources,predictandSources,obspredSources,fcstpredSources
+    except:
+        showMessage("Could not read {}, check if it is a valid json file".format(gl.sourcesFile), "ERROR")
+        return {},{},{},{}
+           
             
 def populateGui():
     
+    gl.indexSources,gl.predictandSources,gl.obspredSources,gl.fcstpredSources=loadDataSources()
+
     gl.window.comboBox1_var.clear()
     gl.window.comboBox1_var.addItem("", "")
-    for key, value in predictandSources.items():
+    for key, value in gl.predictandSources.items():
         gl.window.comboBox1_var.addItem(value[0], key)
         
     gl.window.comboBox2_var.clear()
     gl.window.comboBox2_var.addItem("", "")
-    for key, value in predictorSources.items():
+    for key, value in gl.obspredSources.items():
         gl.window.comboBox2_var.addItem(value[0], key)
         
     gl.window.comboBox3_var.clear()
     gl.window.comboBox3_var.addItem("", "")
-    for key, value in fcstpredSources.items():
+    for key, value in gl.fcstpredSources.items():
         gl.window.comboBox3_var.addItem(value[0], key)
     
     gl.window.comboBox4_var.clear()
     gl.window.comboBox4_var.addItem("", "")
-    for key, value in indexSources.items():
+    for key, value in gl.indexSources.items():
         gl.window.comboBox4_var.addItem(value[0], key)
 
     gl.window.comboBox_tgtseas.clear()
-    for key in seasons:
+    for key in seasonmonths.keys():
         gl.window.comboBox_tgtseas.addItem(key, key)
     
     gl.window.comboBox_srcmon.clear()
-    for key in months:
+    for key in monthNames:
         gl.window.comboBox_srcmon.addItem(key, key)
         
+    gl.window.comboBox_fcstsrcmon.clear()
+    for key in monthNames:
+        gl.window.comboBox_fcstsrcmon.addItem(key, key)
+
     gl.window.lineEditDirectory.setText(gl.config['downloadDir'])
-    gl.window.lineEdit_tgtyear.setText(str(gl.config['fcstTargetYear']))
     gl.window.comboBox_tgtseas.setCurrentText(gl.config['fcstTargetSeas'])
     gl.window.lineEdit_srcyear.setText(str(gl.config['predictorYear']))
-    gl.window.lineEdit_firstyear.setText(str(gl.config['firstDataYear']))
+    gl.window.lineEdit_fcstsrcyear.setText(str(gl.config['fcstpredYear']))
     gl.window.comboBox_srcmon.setCurrentText(gl.config['predictorMonth'])
+    gl.window.comboBox_fcstsrcmon.setCurrentText(gl.config['fcstpredMonth'])
     
     gl.window.lineEdit1_minlat.setText(str(gl.config['predictandMinLat']))
     gl.window.lineEdit1_minlon.setText(str(gl.config['predictandMinLon']))
@@ -857,11 +1000,11 @@ def makeConfig():
 
     gl.config['downloadDir']="../test_data"
     gl.config['predictorMonth'] = "Jun"
+    gl.config['fcstpredMonth'] = "Jun"
     gl.config['predictorYear'] = 2025
+    gl.config['fcstpredYear'] = 2025
     gl.config['fcstTargetSeas']="Dec"
-    gl.config['fcstTargetYear']=2025
     
-    gl.config['firstDataYear']=1981
 
     gl.config['predictandCode']=""
     gl.config['predictandOverwrite']=False
@@ -899,10 +1042,10 @@ def readGui():
     gl.config['downloadDir']=gl.window.lineEditDirectory.text()
         
     gl.config['predictorMonth'] = gl.window.comboBox_srcmon.currentData()
+    gl.config['fcstpredMonth'] = gl.window.comboBox_fcstsrcmon.currentData()
     gl.config['predictorYear'] = gl.window.lineEdit_srcyear.text()
+    gl.config['fcstpredYear'] = gl.window.lineEdit_fcstsrcyear.text()
     gl.config['fcstTargetSeas']=gl.window.comboBox_tgtseas.currentData()
-    gl.config['fcstTargetYear']=gl.window.lineEdit_tgtyear.text()
-    gl.config['firstDataYear']=gl.window.lineEdit_firstyear.text()
 
     gl.config['predictandCode']=gl.window.comboBox1_var.currentData()
     gl.config['predictandOverwrite']=gl.window.checkBox1_overwrite.isChecked()

@@ -53,13 +53,37 @@ import unicodedata
 from scipy.interpolate import interp1d
 from scipy.stats import norm
 
-deep_config_file=Path("dictionaries", "deep_config.json")
-crossvalidator_config_file=Path("dictionaries", "crossvalidator_config.json")
-regressor_config_file=Path("dictionaries", "regressor_config.json")
-preprocessor_config_file=Path("dictionaries", "preprocessor_config.json")
+from scipy.ndimage import gaussian_filter
+
 
 months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+seasonmonths={
+    "Jan":[1],
+    "Feb":[2],
+    "Mar":[3],
+    "Apr":[4],
+    "May":[5],
+    "Jun":[6],
+    "Jul":[7],
+    "Aug":[8],
+    "Sep":[9],
+    "Oct":[10],
+    "Nov":[11],
+    "Dec":[12],
+    "Jan-Mar":[1,2,3],
+    "Feb-Apr":[2,3,4],
+    "Mar-May":[3,4,5],
+    "Apr-Jun":[4,5,6],
+    "May-Jul":[5,6,7],
+    "Jun-Aug":[6,7,8],
+    "Jul-Sep":[7,8,9],
+    "Aug-Oct":[8,9,10],
+    "Sep-Nov":[9,10,11],
+    "Oct-Dec":[10,11,12],
+    "Nov-Jan":[11,12,1],
+    "Dec-Feb":[12,1,2]
+}
 
 regressors = {
         "OLS": LinearRegression,
@@ -84,9 +108,422 @@ tgtSeass=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec
 timeAggregations={"sum","mean"}
 predictandCats=["rainfall","temperature", "other"]
 
+crossvalidators = {
+        "KF": KFold,
+        'LOO': LeaveOneOut,
+}
 
+
+
+
+def computeModelNoGui(config):
+    gl.config=config
+
+    readFunctionConfig()
+    
+    
+    #derived variables
+    
+    #set target type 
+    if gl.config["zonesAggregate"]:
+        gl.targetType="zones"
+    elif gl.config["predictandFileName"][-3:]=="csv":
+        gl.targetType="points"
+    else:
+        gl.targetType="grid"
+    
+    if len(gl.config["fcstTargetSeas"])>3:
+        gl.fcstBaseTime="seas"
+    else:
+        gl.fcstBaseTime="mon"
+    
+    #=======================================================================================================
+    #reading data
+    
+    #determine lead time
+    leadTime=getLeadTime()
+        
+    if leadTime is None:
+        ff.showMessage("Lead time could not be calculated, stopping early.", "ERROR")
+        return
+        
+    #reading predictors data
+    predictor,geoDataPredictor=readPredictor()
+    if predictor is None:
+        showMessage("Predictor could not be read, stopping early.", "ERROR")
+        return
+    
+    #reading predictand data - this will calculate seasonal from monthly if needed.
+    predictand0, geoData0=readPredictand()
+    if predictand0 is None:
+        ff.showMessage("Predictand could not be read, stopping early.", "ERROR")
+        return
+            
+    if np.max(predictand0)<0.01:
+        ff.showMessage(f"Predictand has values ranging between {np.min(predictand0)} and {np.max(predictand0)}. CFT cannot handle that, please rescale your data so that values have no more than 2 significant decimal digits", "ERROR")
+        return
+        
+    #aggregating to zones if required
+    if gl.config["zonesAggregate"]:
+        showMessage("Aggregating data to zones read from {} ...".format(gl.config["zonesFile"]))
+        
+        zonesVector=gpd.read_file(gl.config["zonesFile"])
+        
+        showMessage("checking validity of data from {} ...".format(gl.config["zonesFile"]))
+        
+        check=checkPolyValidity(zonesVector)
+        if not check:
+            showMessage("Vector file {} fails the validity check indicating that it is likely corrupted.".format(zonesVector), "ERROR")
+            return
+        
+        if not zonesVector[gl.config["zonesAttribute"]].is_unique:
+            showMessage("Selected vector attribute in regions map contains identical values. These values have to be unique for each zone, please check the zones vector file or the attribute you selected. Stopping early.", "ERROR")
+            return
+        
+        #retaining just the attribute as index
+        zonesVector=zonesVector[[gl.config["zonesAttribute"], 'geometry']].set_index(gl.config["zonesAttribute"])
+        
+        # calling the aggregation function   
+        predictand,geoData=aggregatePredictand(predictand0, geoData0, zonesVector)
+            
+        if predictand is None:
+            showMessage("Predictand could not be aggregated to zones. Make sure there is overlap between predictand data and zones vector. Stopping early.", "ERROR")
+            return
+        
+        #checking if result has data
+        if predictand.dropna(axis=1).empty:
+            showMessage("Predictand could not be aggregated to zones. Make sure there is overlap between predictand data and zones vector. Stopping early.", "ERROR")
+            return
+            
+    else:
+        zonesVector=None
+        predictand=predictand0.copy()
+        geoData=geoData0.copy()
+    
+    
+    
+    #reading overlay file
+    overlayVector=None
+    if gl.config["overlayFile"] != "":
+        if os.path.exists(gl.config["overlayFile"]):
+            overlayVector=gpd.read_file(gl.config["overlayFile"])
+            
+            
+    #=======================================================================================================
+    #preprocessing
+            
+    #defining target date for forecast. If seasonal - then this is the first month of the season.
+    fcstTgtDate=pd.to_datetime("01 {} {}".format(gl.config['fcstTargetSeas'][0:3], gl.config['fcstTargetYear']))
+    
+    #finding overlap of predictand and predictor
+    showMessage("Aligning predictor and predictand data...")
+    predictandHcst,predictorHcst=getHcstData(predictand,predictor)
+    
+    
+    predictorFcst=getFcstData(predictor)
+    if predictandHcst is None:
+        showMessage("Hindcast data for predictand could not be derived, stopping early.", "ERROR")
+        return
+    
+    
+    #calculaing observed terciles
+    #is there a need to do a strict control of overlap???
+    result=getObsTerciles(predictand, predictandHcst)
+    if result is None:
+        showMessage("Terciles could not be calculated, stopping early.", "ERROR")
+                
+    obsTercile,tercThresh=result
+    
+    
+    #check for locations with too many identical values - forecast and skill measures cannot be derived for such locations
+    max_counts = predictandHcst.apply(lambda col: col.value_counts().max())
+    bad=max_counts>0.2*predictandHcst.shape[0]
+    good=np.invert(bad)
+    
+    #listing bad locations
+    if len(bad)>0:
+        badnames=predictandHcst.loc[:,bad].columns
+        for name in badnames:
+            showMessage("cannot calculate forecast for {} - too many similar values in predictand".format(name), "NONCRITICAL")
+            
+    
+    #removing bad locations
+    predictandHcst=predictandHcst.loc[:,good]
+    tercThresh=tercThresh.loc[:,good]
+    obsTercile=obsTercile.loc[:,good]
+    
+    
+    #=======================================================================================================
+    #setting up forecast
+    
+    #setting up cross-validation
+    cvkwargs=gl.crossvalidator_config[gl.config['crossval']][1]
+    cv=crossvalidators[gl.config['crossval']](**cvkwargs)
+    
+    #arguments for regressor
+    kwargs=gl.regressor_config[gl.config['regression']][1]
+    
+    #arguments for preprocessor
+    args=gl.preprocessor_config[gl.config['preproc']][1]
+        
+    #checking compatibility between data and selected regressor
+    if gl.config['preproc']=="NONE":
+        if predictorHcst.shape[1]==1:
+            regressor = StdRegressor(regressor_name=gl.config['regression'], **args, **kwargs)
+        else:
+            #2-D predictor, no need to PCR or CCA
+            showMessage("2-D predictor, but no preprocessing requested. Please change pre-processor to either PCR or CCA", "ERROR")
+            return
+    else:
+        if predictorHcst.shape[1]==1:
+            showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to 'No preprocessing'", "ERROR")
+            #2-D predictor, no need to PCR or CCA
+            return    
+
+    
+    #setting up regressor
+    if gl.config['preproc']=="PCR":
+        #regession model
+        regressor = PCRegressor(regressor_name=gl.config['regression'], **args, **kwargs)
+        
+    if gl.config['preproc']=="CCA":
+        
+        regressor = CCARegressor(regressor_name=gl.config['regression'],**args, **kwargs)
+        #return
+    
+    #=======================================================================================================
+    #setting up output directory structure
+    
+    showMessage("Setting up directories to write to...")        
+    forecastID="{}_{}".format(gl.predictorDate.strftime("%Y%m"), gl.config['fcstTargetSeas'])
+    
+    predictorCode=Path(gl.config["predictorFileName"]).stem
+    
+    # this is directory where all output for a given forecast will be written
+    # Note - there is no signature of predictand in the structure of this directory, 
+    # so if predictand changes, output will be written into the same directory. 
+    forecastDir=Path(gl.config['rootDir'], forecastID, predictorCode,gl.targetType, "{}_{}_{}".format(gl.config["preproc"],gl.config["regression"],gl.config["crossval"]))
+    
+    #subdirectories for different type of output
+    mapsDir=Path(forecastDir, "maps")
+    timeseriesDir=Path(forecastDir, "timeseries")
+    outputDir=Path(forecastDir, "output")
+    diagsDir=Path(forecastDir, "diagnostics")
+    
+    dirs={"output":outputDir,
+          "maps":mapsDir,
+          "timeseries":timeseriesDir,
+          "diagnostics":diagsDir}
+    
+    #creating them
+    for adir in dirs.keys():
+        if not os.path.exists(dirs[adir]):
+            showMessage("{} directory {} does not exist. creating...".format(adir, dirs[adir]))
+            os.makedirs(dirs[adir])
+        else:
+            showMessage("{} will be written to {}".format(adir, dirs[adir]), "INFO")
+            
+
+    
+
+        
+    #=======================================================================================================
+    # calculating forecast
+    
+    # cross-validated hindcast
+    showMessage("Calculating cross-validated hindcast...")
+    cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv)
+    
+    # output of the above is a plain numpy array, needs to be converted to pandas
+    cvHcst=pd.DataFrame(cvHcst, index=predictandHcst.index, columns=predictandHcst.columns)
+    
+    # actual prediction - forecast
+    showMessage("Calculating deteriministic forecast...")
+    regressor.fit(predictorHcst,  predictandHcst)
+    
+    # output of regression is deterministic forecast
+    detFcst=regressor.predict(predictorFcst)
+    detFcst=pd.DataFrame(detFcst, index=[fcstTgtDate], columns=predictandHcst.columns)
+    
+    # hindcast based on full model - for diagnostics only - called est for estimated, 
+    # to avoid confusion actual forecast 
+    estHcst=regressor.predict(predictorHcst)
+    estHcst=pd.DataFrame(estHcst, index=predictandHcst.index, columns=predictandHcst.columns)
+    
+    #extract reference period from predictand data
+    refData=predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]
+    
+    #this adds anomalies to the dataframe
+    detFcst=getFcstAnomalies(detFcst,refData)
+    
+    # calculate anomalies on hindcast data
+    # for "full model" hindcast
+    estHcst=getFcstAnomalies(estHcst,refData)
+    
+    # for cross-validated hindcast
+    cvHcst=getFcstAnomalies(cvHcst,refData)
+    
+    
+    #deriving probabilistic prediction
+    showMessage("Calculating probabilistic hindcast and forecast using error variance...")
+    
+    #this one uses cross-validated hindcast for error
+    dist="normal"
+    result=probabilisticForecastCalibrated(cvHcst["value"], predictandHcst,detFcst["value"],tercThresh, dist=dist)
+    
+    if result is None:
+        showMessage("Probabilistic forecast could not be calculated", "ERROR")
+        return
+    
+    probFcst,probHcst,calibHcstCdf=result    
+        
+    #tercile forecast
+    showMessage("Calculating tercile forecast (highest probability category)")
+    
+    # forecast
+    tercFcst=getTercCategory(probFcst)
+    
+    # and hindcast
+    tercHcst=getTercCategory(probHcst)
+    
+    #CEM categories
+    showMessage("Calculating CEM categories")
+    
+    #forecast
+    cemFcst=getCemCategory(probFcst)
+    
+    #hindcast
+    cemHcst=getCemCategory(probHcst)
+    
+    
+    #calculating skill
+    showMessage("Calculating skill scores...")
+    scores=getSkill(probHcst,cvHcst["value"],predictandHcst,obsTercile)    
+    if scores is None:
+        showMessage("Skill could not be calculated", "ERROR")
+        return
+    
+    
+    #saving data
+    showMessage("Plotting forecast maps and saving output files...")    
+    #all dataframes have two levels of column multiindex 
+    #cvHcst.unstack().to_xarray().transpose("time","lat","lon").to_dataset(name=gl.config['predictandVar'])
+    
+    if gl.targetType=="grid":
+        #these are for plotting maps
+        detfcst_plot=detFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        probfcst_plot=probFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        tercfcst_plot=tercFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        cemfcst_plot=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        scores_plot=scores.copy()
+        
+        #these are for writing
+        probfcst_write=probFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        probhcst_write=probHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        tercfcst_write=tercFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        cemhcst_write=cemHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        detfcst_write=detFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        dethcst_write=cvHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        scores_write=scores.T.to_xarray().sortby("lat").sortby("lon")
+        fileExtension="nc"
+    else:
+        #these are for plotting maps
+        detfcst_plot=detFcst.stack(future_stack=True).droplevel(0).T
+        probfcst_plot=probFcst.stack(future_stack=True).droplevel(0).T
+        tercfcst_plot=tercFcst.stack(future_stack=True).droplevel(0).T
+        cemfcst_plot=cemFcst.stack(future_stack=True).droplevel(0).T
+        scores_plot=scores.copy()
+        
+        #these are for writing
+        detfcst_write=detfcst_plot.copy()
+        probfcst_write=probfcst_plot.copy()
+        tercfcst_write=tercfcst_plot.copy()
+        cemfcst_write=cemfcst_plot.copy()
+        dethcst_write=cvHcst.copy()
+        probhcst_write=probHcst.copy()
+        scores_write=scores.copy()
+        fileExtension="csv"
+        
+    showMessage("Writing output files...")
+    outputFile=Path(outputDir, "{}_deterministic-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(np.round(detfcst_write,2), outputFile)
+    
+    outputFile=Path(outputDir, "{}_probabilistic-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(np.round(probfcst_write,2),outputFile)
+    
+    outputFile=Path(outputDir, "{}_skill_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(scores_write, outputFile)
+    
+    outputFile=Path(outputDir, "{}_deterministic-hcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(np.round(dethcst_write,2),outputFile)
+    
+    outputFile=Path(outputDir, "{}_probabilistic-hcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(np.round(probhcst_write,2),outputFile)
+    
+    
+    showMessage("Plotting maps...")
+    
+    annotation="Forecast for: {} {}".format(gl.config['fcstTargetSeas'], gl.config['fcstTargetYear'])
+    annotation+="\nPredictors from: {} {}".format(gl.config['predictorMonth'], gl.config['predictorYear'])
+    annotation+="\nPredictor: {}".format(Path(gl.config["predictorFileName"]).stem)
+    annotation+="\nPredictand: {}".format(Path(gl.config["predictandFileName"]).stem)
+    annotation+="\nClimatological period: {}-{}".format(gl.config['climStartYr'], gl.config['climEndYr'])
+    
+    
+    #maskedscores=getSkillMask(scores_plot, scores_plot)
+
+    showMessage("Plotting tercile probabilities map...")    
+    #plotting
+    plotTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector)
+
+    showMessage("Plotting smooth tercile probabilities map...")
+    #return probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector
+
+    plotSmoothTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector, gl.deep_config["sigmaSmooth"], gl.deep_config["enhanceSmooth"])
+
+
+    showMessage("Plotting forecast...")
+
+    plotMaps(detfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation,overlayVector)
+    plotMaps(probfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+    plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+    plotMaps(tercfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+    
+    
+    showMessage("Plotting skill maps...")    
+    #plotting skill scores
+    plotMaps(scores_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+    
+    
+    showMessage("Plotting time series plots...") 
+    plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID, annotation)
+    
+    
+    showMessage("Plotting preprocessing diagnostics...")
+    if gl.config['preproc']=="PCR":
+        plotDiagsPCR(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
+    
+    if gl.config['preproc']=="CCA":
+        plotDiagsCCA(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
+    
+    showMessage("Plotting regression diagnostics...")
+    plotDiagsRegression(predictandHcst, cvHcst, estHcst, tercThresh, detFcst, diagsDir, forecastID, annotation)
+    
+    showMessage("Plotting calibration diagnostics...")
+    plotCalibDiags(calibHcstCdf, predictandHcst, cvHcst["value"], diagsDir, forecastID)
+    
+    showMessage("All done!", "SUCCESS")
+    showMessage("Inspect log above for potential errors!", "SUCCESS")    
+    showMessage("All output written to {}".format(forecastDir), "SUCCESS")    
+        
+    return True
 
 def readFunctionConfig():
+    
+    deep_config_file=Path("dictionaries", "deep_config.json")
+    crossvalidator_config_file=Path("dictionaries", "crossvalidator_config.json")
+    regressor_config_file=Path("dictionaries", "regressor_config.json")
+    preprocessor_config_file=Path("dictionaries", "preprocessor_config.json")
     
     gl.crossvalidator_config=readConfigFile(crossvalidator_config_file)
     if gl.crossvalidator_config is None:
@@ -313,7 +750,11 @@ def readPredictandCsv(csvfile):
     
     return dat, geoData
         
-    
+
+
+
+
+
 def readPredictor():
     
     predFile=gl.config["predictorFileName"]
@@ -338,7 +779,8 @@ def readPredictor():
         showMessage("only .csv and .nc files accepted, got {}".format(ext),"ERROR")
         return None,None
 
-    srcMonth=month2int(gl.config['predictorMonth'])
+    srcMonthName=gl.config['predictorMonth']
+    srcMonth=month2int(srcMonthName)
 
     #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     #this is where code is different for csv and netcdf formats
@@ -346,16 +788,65 @@ def readPredictor():
         predictor=readNetcdf(predFile, predVar)
         if predictor is None:
             return None,None
+
+
+        if "lead_time" in predictor.dims:
+            isForecast=True
+            showMessage("lead_time dimension present, processed as forecast predictor")
+        else:
+            isForecast=False
+            showMessage("lead_time dimension not found, processing as observed predictor")
+            
         #predictor is xarray
         predictor=predictor.sortby('lon').sortby("lat")
         
         predictor=predictor.sel(lat=slice(gl.config["predictorExtents"]["minLat"],gl.config["predictorExtents"]["maxLat"]), lon=slice(gl.config["predictorExtents"]["minLon"],gl.config["predictorExtents"]["maxLon"]) )
-        
+
+        if isForecast:
+            leadTime=getLeadTime()
+            #check if forecast file is indeed from the init month
+            firstdatamonth=predictor.time.dt.month.data[0]
+            
+            if firstdatamonth!=srcMonth:
+                showMessage(f"File should start on the requested initialization month, which is {srcMonthName}. File starts in {months[firstdatamonth-1]}","ERROR")
+                return None,None
+
+            #making sure requested lead_time is in data
+            leadtimes=np.ceil(predictor.lead_time.data).astype(int)
+            predictor["lead_time"]=leadtimes
+            
+            #resampling if necessary
+            if gl.fcstBaseTime=="seas":
+                lastleadTime=leadTime+2
+            else:
+                lastleadTime=leadTime
+            predictor=predictor.sel(lead_time=slice(leadTime, lastleadTime)).mean("lead_time")
+                            
+        else:
+            #making sure requested forecast month is in the data
+            # for observed predictor it should be one month behind the forecast srcMonth
+            obssrcMonth = (srcMonth - 2) % 12 + 1
+            obssrcMonthName=months[obssrcMonth-1]
+            if not obssrcMonth in predictor.time.dt.month:
+                availmonths=[months[x-1] for x in np.unique(predictor.time.dt.month)]
+                showMessage(f"file does not contain data for requested month. Observed predictor for forecast issued in {srcMonthName} should be from {obssrcMonthName}. got {availmonths}","ERROR")
+                return None,None
+            
+            #selecting this month    
+            predictor=predictor.sel(time=predictor.time.dt.month==obssrcMonth)
+
+            #aligning predictor data with forecast month - adding one month
+            predictor["time"]=pd.to_datetime(predictor.time.data)+pd.offsets.MonthBegin(1)
+
+
+        #processing for both forecast and observed
+
+        #by this time this should be just time,lat,lon - so, selecting the first time step
         geodata=predictor[0,:]
+        
         #preparing to convert xarray to pandas
         predictor=predictor.stack(location=("lat", "lon"))
-
-        #check for time steps in predictor, i.e. if predictor month was not wrongly selected by any chance.
+        
         #dropping nans alon location dimension
         predictor=predictor.dropna("location")
 
@@ -363,20 +854,13 @@ def readPredictor():
         predictor=predictor.to_pandas()
 
     else:
+        isForecast=False
         predictor=readPredictorCsv(predFile)
         geodata=None
-
         
-    #making sure requested month is in the data
-    if not srcMonth in predictor.index.month:
-        showMessage("file does not contain data for requested month ({})".format(gl.config['predictorMonth']),"ERROR")
-        return None,None
-    
-    predictor=predictor[predictor.index.month==srcMonth]    
     if predictor is None:
         return None,None
     
-   
     datdates=predictor.index
     firstdatdate=datdates.strftime('%Y-%m-%d')[0]
     lastdatdate=datdates.strftime('%Y-%m-%d')[-1]
@@ -401,45 +885,67 @@ def readPredictor():
     return predictor,geodata
 
 
+
+
+
+
+
+
 def readPredictand():
-    obsFile=gl.config["predictandFileName"]
-    if obsFile=="":
+    predictandFile=gl.config["predictandFileName"]
+    if predictandFile=="":
         showMessage("predictand file not defined","ERROR")
-        return
+        return None,None
         
-    showMessage("Reading predictand from {}...".format(obsFile), "INFO")
-    if not os.path.exists(obsFile):
+    showMessage("Reading predictand from {}...".format(predictandFile), "INFO")
+    if not os.path.exists(predictandFile):
         showMessage("file does not exist","ERROR")
-        return
+        return None,None
     
     showMessage("\tfile exists, reading...")
     
     #just to make sure...
 
-    ext=obsFile.split(".")[-1]
+    ext=predictandFile.split(".")[-1]
     if ext not in ["csv", "nc"]:
         showMessage("only .csv and .nc files accepted, got {}".format(ext),"ERROR")
-        return
+        return None,None
+
+        
+    tgtSeason=gl.config['fcstTargetSeas']
+    tgtMonths=seasonmonths[tgtSeason]
+    firstTgtMonth=tgtMonths[0]
+    firstTgtMonthName=months[firstTgtMonth-1]
+
+    
     #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     #this is where code is different for csv and netcdf formats
-    if gl.config["predictandFileName"][-2:]=="nc":
-        obsVar=gl.config["predictandVar"]
-        if obsVar=="":
+    if ext=="nc":
+        
+        predictandVar=gl.config["predictandVar"]
+        if predictandVar=="":
             showMessage("predictand variable not defined","ERROR")
-            return
-        obsdata=readNetcdf(obsFile, obsVar) #this returns xarray
-        if obsdata is None:
-            showMessage("could not read requested variable from file","ERROR")
-            return
+            return None,None
+
             
-        geoData=obsdata[0,:]
+        predictand=readNetcdf(predictandFile, predictandVar) #this returns xarray
+        if predictand is None:
+            showMessage("Could not read requested variable from file","ERROR")
+            return None,None
+
+
+        if "lead_time" in predictand.dims:
+            showMessage("Predictand should not have lead time dimension. You provided wrong file","ERROR")
+            return None,None
+        
+        geodata=predictand[0,:]
         
         if gl.config["regridPredictand"]:
             
             showMessage("Regridding predictand to {} deg grid".format(gl.deep_config["gridSize"]))
             
-            lats=geoData.lat
-            lons=geoData.lon
+            lats=geodata.lat
+            lons=geodata.lon
             
             #check if target resolution is higher than data to avoid downsampling
             
@@ -456,58 +962,77 @@ def readPredictand():
                 minlon=np.floor(np.min(lons.data))
                 maxlon=np.ceil(np.max(lons.data))
                 numlon=int((maxlon-minlon)/gl.deep_config["gridSize"])+1
-                print("params",minlon,maxlon,numlon)
 
                 new_lon = np.linspace(minlon, maxlon, numlon)
                 new_lat = np.linspace(minlat, maxlat, numlat)
 
                 target = xr.Dataset(coords={"y": new_lat, "x": new_lon}).rio.write_crs("epsg:4326")
 
-                obsdata=obsdata.rio.write_crs("epsg:4326")
-                obsdata.rio.write_nodata(np.nan, inplace=True)
-                obsdata=obsdata.rio.reproject_match(target,resampling=Resampling.bilinear)
-                obsdata=obsdata.rename({"x":"lon", "y":"lat"})
+                predictand=predictand.rio.write_crs("epsg:4326")
+                predictand.rio.write_nodata(np.nan, inplace=True)
+                predictand=predictand.rio.reproject_match(target,resampling=Resampling.bilinear)
+                predictand=predictand.rename({"x":"lon", "y":"lat"})
             
         #preparing to convert xarray to pandas
-        obsdata=obsdata.stack(location=("lat", "lon"))
+        predictand=predictand.stack(location=("lat", "lon"))
         
         #check for time steps in predictor, i.e. if predictor month was not wrongly selected by any chance.
         #dropping nans alon location dimension
-        obsdata=obsdata.dropna("location")
+        predictand=predictand.dropna("location")
         
         #converting to pandas
-        obsdata=obsdata.to_pandas()
+        predictand=predictand.to_pandas()
     else:
-        obsdata,geoData=readPredictandCsv(obsFile)
-        
-    if obsdata is None:
-        showMessage("could not read requested variable from file","ERROR")
-        return
+        predictand,geodata=readPredictandCsv(obsFile)
 
-    obsdata=obsdata.dropna()
-              
-    #resampling if necessary
-    if gl.fcstBaseTime=="seas":
+
+    availMonths=np.unique(predictand.index.month)
+    availMonthNames=[months[x-1] for x in availMonths]
+    
+    if gl.fcstBaseTime=="mon":
+        if not firstTgtMonth in availMonths:
+            showMessage(f"file does not contain data for requested month. Predicting {tgtSeason} but got {availMonthNames}","ERROR")
+            return None,None    
+        #selecting this month    
+        predictand=predictand[predictand.index.month==firstTgtMonth]                
+
+    else:
+        #checking if all three months of the season are in data
+        result = set(tgtMonths).issubset(availMonths)
+        
+        if not result:
+            #if not - check if middle month in data
+            if not (len(availMonths)==1 and tgtMonths[1] in availMonths):
+                showMessage(f"file does not contain data for requested months. Predicting {tgtSeason} but got {availMonthNames}","ERROR")
+                return None,None
+                
+        #resampling 
         showMessage("Resampling to seasonal...")
         if gl.config['timeAggregation']=="mean":
-             obsdata=obsdata.resample("QS-{}".format((gl.config['fcstTargetSeas'][0:3]).upper())).mean()
+            cont=True
+            predictand=predictand.resample(f"QS-{firstTgtMonthName}".upper()).mean()
         else:
-             obsdata=obsdata.resample("QS-{}".format((gl.config['fcstTargetSeas'][0:3]).upper())).mean()*3
+            cont=True
+            predictand=predictand.resample(f"QS-{firstTgtMonthName}".upper()).sum()
 
-    obsdata=obsdata.dropna()
+        #predictand=predictand[predictand.index.month==firstTgtMonth]         
+
     
+    
+    if predictand is None:
+        showMessage("could not read requested variable from file","ERROR")
+        return None,None
 
-    #select target season
-    tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
-    if not tgtMonth in obsdata.index.month:
-        showMessage("Predictand data do not contain data for requested month ({})".format(gl.config['fcstTargetSeas'][0:3]),"ERROR")
-        return
-    obsdata=obsdata[obsdata.index.month==tgtMonth]
-    if obsdata is None:
-        return        
+
+
+    
+    predictand=predictand.dropna()
+        
+    if predictand is None:
+        return None,None
 
     #check for climatological period
-    datdates=obsdata.index
+    datdates=predictand.index
     firstdatdate=datdates.strftime('%Y-%m-%d')[0]
     lastdatdate=datdates.strftime('%Y-%m-%d')[-1]
 
@@ -519,24 +1044,62 @@ def readPredictand():
     #check if covers climatological period
     if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
         showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
-        return
+        return None,None
     
-    obsdata=obsdata.astype("float")
+    predictand=predictand.astype("float")
 
-    return obsdata, geoData
+    return predictand, geodata
 
+        
+
+def compute_valid_times(init_times, lead_months):
+    """
+    Compute valid times for each (init_time, lead_month) combination.
+    Returns a 2D numpy array of datetime64.
+    """
+    valid_time = np.array([
+        [init + pd.DateOffset(months=int(lead)-1) for lead in lead_months]
+        for init in pd.DatetimeIndex(init_times)
+    ], dtype="datetime64[ns]")
+    return valid_time
+
+
+
+
+def flatten_leadtime(ds, init_dim="forecast_reference_time", lead_dim="forecastMonth"):
+    """
+    Convert forecast data with init_time + lead_month dims to data with time dimension.
     
+    Assumes no overlap between initializations.
+    """
+    # Compute the valid (wall-clock) time for each (init, lead) pair
+    valid_times = compute_valid_times(ds[init_dim], ds[lead_dim])  # xarray broadcasts automatically
+
+    # Stack into a single dimension
+    ds_stacked = ds.stack(
+        valid_time=(init_dim, lead_dim)
+    ).reset_index("valid_time").assign_coords(valid_time=valid_times.flatten())
+
+    # Sort by time and drop the now-redundant coords
+    ds_stacked = ds_stacked.sortby("valid_time").transpose("valid_time",...).reset_coords([init_dim,lead_dim], drop=True)
+
+    #renaming time dimension back to time
+    ds_stacked=ds_stacked.rename({"valid_time":"time"})
+
+    return ds_stacked
+
+
 
 def readNetcdf(ncfile, ncvar):
     try:
         #decode_times fixes the IRI netcdf calendar problem
-        ds = xr.open_dataset(ncfile, decode_times=False)
+        ds = xr.open_mfdataset(ncfile, decode_times=False)
     except:
         showMessage(("File cannot be read. please check if the file is properly formatted", "ERROR"))
         return
     
     #aligning coordinate names    
-    coordsubs={"lon":["longitude","X","Longitude","Lon"], "lat":["latitude","Y","Latitude","Lat"], "time":["T","S"]}
+    coordsubs={"lon":["longitude","X","Longitude","Lon"], "lat":["latitude","Y","Latitude","Lat"], "time":["T","S","forecast_reference_time", "valid_time"], "lead_time":["forecastMonth","L"]}
     for key in coordsubs.keys():
         for x in coordsubs[key]:
             if x in ds.coords.keys():
@@ -564,9 +1127,23 @@ def readNetcdf(ncfile, ncvar):
         showMessage(msg, "ERROR")
         return
 
+    # calculating ensemble mean, if needed
+    for dimName in ["number"]:
+        if dimName in dat.sizes.keys():
+            msg="\tFound dimension {} which indicates that file contains ensemble data. Calculating ensemble mean.".format(dimName)
+            dat=dat.mean(dimName)
+
+    # this will be data from CDS, which are on a monthly time step with init_time and lead_time dimensions. 
+#    for dimName in ["forecastMonth"]:
+#        if dimName in dat.sizes.keys():
+#            #making sure the init time dimension exists
+#            msg="\tFound dimension {} which indicates that file contains lead time data. Converting lead time to real time.".format(dimName)
+#            #calculating target months with defaults
+#            dat=flatten_leadtime(dat,"time","forecastMonth")
+    
     #dropping unnecessary dimensions
     for dimName in dat.sizes.keys():
-        if dimName not in ["lat","lon","time"]:
+        if dimName not in ["lat","lon","time","lead_time"]:
             if dat.sizes[dimName]==1:
                 msg="\tDropping redundand dimension of size 1: {}".format(dimName)
                 showMessage(msg, "RUNTIME")
@@ -581,10 +1158,13 @@ def readNetcdf(ncfile, ncvar):
     
     #this is probably not important at this moment
     #dat=dat.rio.write_crs("epsg:4326") #adding crs
-    #making sure time is aligned to 1th of the month
-    newtime=pd.to_datetime([x.replace(day=1) for x in pd.to_datetime(dat.time.values)])
-    dat["time"]=newtime
     
+    #making sure time is aligned to 1th of the month
+    newtime=pd.to_datetime([x.replace(day=1) for x in pd.to_datetime(dat.time.values)]).normalize()
+    
+    dat["time"]=newtime
+
+    #propagating units from original file
     if "units" in dat.attrs:
         datunits=dat.attrs["units"]
         showMessage("\tFound units: {}".format(datunits),"RUNTIME")
@@ -611,6 +1191,8 @@ def readNetcdf(ncfile, ncvar):
     ds.close()
     
     return(dat)
+
+
         
 def checkPolyValidity(_poly):
     for idx, geom in enumerate(_poly.geometry):
@@ -749,18 +1331,21 @@ def getHcstData(_predictand,_predictor):
     #drop nans
     
     #align time
+    #this shifts predictand time to the nominal forecast init time
     tgtTimeAdj=tgtTime-pd.offsets.MonthBegin(gl.leadTime)
+    
     _predictandOvlp=_predictand.copy()
     _predictandOvlp.index=tgtTimeAdj
 
-    
+    #finding intersection
     sel=np.intersect1d(tgtTimeAdj, srcTime)
     _predictorOvlp=_predictor.loc[sel]
     _predictandOvlp=_predictandOvlp.loc[sel]
+
+    #bringing back the original predictand time
     tgtTime=pd.to_datetime(_predictandOvlp.index)
     tgtTimeAdj=tgtTime+pd.offsets.MonthBegin(gl.leadTime)
     _predictandOvlp.index=tgtTimeAdj
-    
     
     return _predictandOvlp, _predictorOvlp
 
@@ -1271,6 +1856,7 @@ def saveConfig():
     with open(gl.configFile, "w") as f:
         json.dump(gl.config, f, indent=4)
         showMessage("saved config to: {}".format(gl.configFile), "INFO")
+    return gl.config
 
         
 
@@ -2060,6 +2646,11 @@ def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
             plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, name, forecastid))
             plt.close()
 
+
+
+
+
+
 def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
     _cmap_above="BrBG"
     _cmap_below="BrBG_r"
@@ -2082,7 +2673,7 @@ def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, a
     levels_dry=[33,40,50,60,70,100]
     ncat=len(levels_dry)
     cmap_dry = plt.get_cmap(_cmap_below)
-    cols_dry = cmap_dry(np.linspace(0.5, 0.9, ncat-1))
+    cols_dry = cmap_dry(np.linspace(0.53, 0.9, ncat-1))
     cmap_dry, norm_dry = colors.from_levels_and_colors(levels_dry, cols_dry, extend="neither")
 
 
@@ -2098,7 +2689,7 @@ def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, a
     levels_wet=[233,240,250,260,270,300]
     ncat=len(levels_wet)
     cmap_wet = plt.get_cmap(_cmap_above)
-    cols_wet = cmap_wet(np.linspace(0.5, 0.9, ncat-1))
+    cols_wet = cmap_wet(np.linspace(0.53, 0.9, ncat-1))
     cmap_wet, norm_wet = colors.from_levels_and_colors(levels_wet, cols_wet, extend="neither")
 
 
@@ -2175,31 +2766,10 @@ def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, a
     
     plt.savefig(outfile)
 
+    plt.close()
     
-def nan_gaussian_smooth(data, sigma=1):
-    """
-    Apply Gaussian filter to data with NaNs handled properly.
-    NaNs remain NaN in output, edges are preserved.
-    """
-    # Create weights (1 where data is valid, 0 where NaN)
-    data = np.array(data, dtype=float)
-    nan_mask = np.isnan(data)
-    data_filled = np.where(nan_mask, 0, data)
-    weights = np.where(nan_mask, 0, 1)
 
-    # Apply Gaussian filter to data and weights
-    smooth_data = gaussian_filter(data_filled, sigma=sigma, mode='nearest')
-    smooth_weights = gaussian_filter(weights, sigma=sigma, mode='nearest')
-
-    # Avoid division by zero
-    #with np.errstate(invalid='ignore'):
-    #    result = smooth_data / smooth_weights
-    result=smooth_data
-    result[nan_mask] = np.nan
-    return result
-
-
-def plotSmoothTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
+def plotSmoothTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None, sigma=2, enhanced=True):
     
     if gl.targetType!="grid":
         showMessage("can only do for gridded data. skipping...")
@@ -2207,126 +2777,132 @@ def plotSmoothTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecas
         
         #plotting now
         _cmap_above="BrBG"
-
+        _cmap_below="BrBG"
+        
         cbar_label_dry="probablity [%]\nbelow normal"
         cbar_label_wet="probablity [%]\nabove normal"
+        data=probfcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        probs=-data["below"]
+        probs=probs.where(data["above"]<data["below"],data["above"])
+        probs=probs.rio.write_crs("epsg:4326")
 
-        data=probfcst.stack(future_stack=True).droplevel(0).T
-        data.unstack().to_xarray().transpose("category","lat","lon")
-
-        print(data)
+        tempsmooth=nan_gaussian_smooth(probs, sigma=sigma)
         
-        datadf=predictandhcst.iloc[0:1,:].copy()
-        datadf[:]=data
-        dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
-
-        
-        #this is np.array with three rows - below,normal,above
-        data=probfcst.values.reshape(-1,predictandhcst.shape[1])
-        
-        row_idx = np.argmax(data, axis=0)
-        data_max=np.max(data, 0)
-        data=(data_max+row_idx)*100
-
-        probs=-probfcst["below"]
-        probs=probs.where(probsfcst["above"]<probsfcst["below"],probsfcst["above"])
-
-        tempsmooth=nan_gaussian_smooth(probs, sigma=1.2)*1.2
-
         #back to xarray
         smooth=probs.copy()
         smooth[:]=tempsmooth
-
-
+        
+        smooth=smooth.rio.write_crs("epsg:4326")
+        
         fig=plt.figure(figsize=(5,5))
         pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
-
-        levels_dry=[33,40,50,60,70,100]
+        
+        vmin_dry,vmax_dry=-1,-0.33
+        levels_dry=[-0.33,-0.40,-0.50,-0.60,-0.70,-1.00][::-1]
         ncat=len(levels_dry)
         cmap_dry = plt.get_cmap(_cmap_below)
-        cols_dry = cmap_dry(np.linspace(0.5, 0.9, ncat-1))
+        cols_dry = cmap_dry(np.linspace(0.1, 0.45, ncat-1))
         cmap_dry, norm_dry = colors.from_levels_and_colors(levels_dry, cols_dry, extend="neither")
-
-
-        levels_wet=[233,240,250,260,270,300]
+        
+        
+        vmin_wet,vmax_wet=0.33,1
+        levels_wet=[0.33,0.40,0.50,0.60,0.70,1.0]
         ncat=len(levels_wet)
         cmap_wet = plt.get_cmap(_cmap_above)
-        cols_wet = cmap_wet(np.linspace(0.5, 0.9, ncat-1))
+        cols_wet = cmap_wet(np.linspace(0.55, 0.9, ncat-1))
         cmap_wet, norm_wet = colors.from_levels_and_colors(levels_wet, cols_wet, extend="neither")
+        
 
-
-        if gl.targetType=="grid":
-            cont=True
-
-            datadf=predictandhcst.iloc[0:1,:].copy()
-            datadf[:]=data
-            dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
-
-            m_dry=dataxr.plot(cmap=cmap_dry, vmin=33,vmax=100, add_colorbar=False, norm=norm_dry, ax=pl)
-            m_norm=dataxr.plot(cmap=cmap_norm, vmin=133,vmax=200, add_colorbar=False, norm=norm_norm, ax=pl)
-            m_wet=dataxr.plot(cmap=cmap_wet, vmin=233,vmax=300, add_colorbar=False, norm=norm_wet, ax=pl)
-
+        if enhanced:
+            
+            scale = probs.std() / np.nanstd(smooth)   # or store this scale factor if data_filled isn't available later
+            #toplot=probs.copy()
+            toplot = np.clip(smooth * scale.data, -1, 1)
+                               
         else:
+            toplot=smooth
+            
+        m_wet=toplot.plot(cmap=cmap_wet, vmin=vmin_wet,vmax=vmax_wet, add_colorbar=False, norm=norm_wet, ax=pl)
+        m_dry=toplot.plot(cmap=cmap_dry, vmin=vmin_dry,vmax=vmax_dry, add_colorbar=False, norm=norm_dry, ax=pl)
+    
+        pl.contour(toplot.lon, toplot.lat, toplot[0,:], levels=[-1,-0.7,-0.6,-0.5,-0.4,-0.33,0.33,0.4,0.5,0.6,0.7,1], linewidths=1, colors="grey", linestyles="dashed")
+        
+        if not overlayvector is None:
+            overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
 
-            data=data.reshape(1,-1)
-
-            data=pd.DataFrame(data, index=["probability"], columns=predictandhcst.columns)
-            geodata=geodata.copy().join(data.T)
-
-            m_dry=geodata.plot(column="probability", cmap=cmap_dry, legend=False, ax=pl, norm=norm_dry, vmin=33, vmax=100)
-            m_norm=geodata.plot(column="probability", cmap=cmap_norm, legend=False, ax=pl, norm=norm_norm, vmin=133, vmax=200)
-            m_wet=geodata.plot(column="probability", cmap=cmap_wet, legend=False, ax=pl, norm=norm_wet, vmin=233, vmax=300)
-
-            geodata.boundary.plot(ax=pl)
-
-
+        
+        
         cbar_label="below\nnormal"
         ax=fig.add_axes([0.82,0.25,0.02,0.15])
         cbar = plt.cm.ScalarMappable(norm=norm_dry, cmap=cmap_dry)
         ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-
+        
         ticklabels=levels_dry
-        ax_cbar.ax.set_yticklabels([x-0 for x in ticklabels])
+        ax_cbar.ax.set_yticklabels([int(-x*100) for x in ticklabels])
         ax_cbar.ax.tick_params(labelsize=6)
         ax_cbar.ax.tick_params(size=0)
-
-
-
-        cbar_label="normal"
-        ax=fig.add_axes([0.82,0.45,0.02,0.1])
-        cbar = plt.cm.ScalarMappable(norm=norm_norm, cmap=cmap_norm)
-        ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-
-        ticklabels=levels_norm
-        ax_cbar.ax.set_yticklabels([x-100 for x in ticklabels])
-        ax_cbar.ax.tick_params(labelsize=6)
-        ax_cbar.ax.tick_params(size=0)
-
-
+        
+        
         cbar_label="above\nnormal"
         ax=fig.add_axes([0.82,0.60,0.02,0.15])     
         cbar = plt.cm.ScalarMappable(norm=norm_wet, cmap=cmap_wet)        
         ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-
+        
         ticklabels=levels_wet
-        ax_cbar.ax.set_yticklabels([x-200 for x in ticklabels])
+        ax_cbar.ax.set_yticklabels([int(x*100) for x in ticklabels])
         ax_cbar.ax.tick_params(labelsize=6)
         ax_cbar.ax.tick_params(size=0)
-
-
+        
+        
         if not overlayvector is None:
             overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
-
+        
         title="Tercile probabilities"
-
+        
         pl.set_title(title)
-
+        
         pl.text(0,-0.01,annotation,fontsize=6, transform=pl.transAxes, va="top")
-
+        
         plt.subplots_adjust(right=0.8)
-        outfile=Path(mapsdir,"{}_tercile-probability_{}.jpg".format(gl.config['predictandVar'], forecastid))
-
+        
+        outfile=Path(mapsdir,"{}_tercile-probability-smooth_{}.jpg".format(gl.config['predictandVar'], forecastid))
+        
         plt.savefig(outfile)
+        
+        plt.close()
+        
+
+
+
+def nan_gaussian_smooth(data, sigma=2):
+    """
+    Apply Gaussian filter to data with NaNs handled properly.
+    NaNs remain NaN in output, edges are preserved.
+    """
+    # Create weights (1 where data is valid, 0 where NaN)
+    data = np.array(data, dtype=float)
+    nan_mask = np.isnan(data)
+    #filling with 0
+    data_filled = np.where(nan_mask, 0, data)
+    
+    #values have to be float, because smoothing will generate fractions of weights
+    weights = np.where(nan_mask, 0., 1.)
+
+    # Apply Gaussian filter to data and weights
+    smooth_data = gaussian_filter(data_filled, sigma=sigma, mode='nearest')
+    smooth_weights = gaussian_filter(weights, sigma=sigma, mode='nearest')
+
+    # Avoid division by zero
+    with np.errstate(invalid='ignore'):
+
+        #calculate weighted smooth
+        smooth_data = smooth_data / smooth_weights
+
+    #mask the original nans
+    smooth_data[nan_mask]=np.nan
+    
+    return smooth_data
+
     
     
     
@@ -2348,6 +2924,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
+
             
             dat2plot=scoresxr.sortby("lat").sortby("lon").sel(category=score)
             

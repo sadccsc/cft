@@ -19,9 +19,10 @@ from pathlib import Path
 
 from functions.functions_download import *
 
+gl.keepRaw=False
 gl.maxLeadTime=6
 gl.configFile="download.json"    
-
+gl.sourcesFile="./dictionaries/data_sources.json"
 
             
 class Worker(QtCore.QThread):

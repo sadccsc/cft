@@ -33,7 +33,10 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_predict, KFold, LeaveOneOut
-from sklearn.metrics import mean_squared_error, roc_auc_score, mean_absolute_percentage_error, explained_variance_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, explained_variance_score
+
+import warnings
+warnings.filterwarnings("ignore")
 
 from cft import gl
 
@@ -1081,8 +1084,8 @@ def readNetcdf(ncfile, ncvar):
     try:
         #decode_times fixes the IRI netcdf calendar problem
         ds = xr.open_mfdataset(ncfile, decode_times=False)
-    except:
-        showMessage(("File cannot be read. please check if the file is properly formatted", "ERROR"))
+    except Exception as e:
+        showMessage((f"File cannot be read. please check if the file is properly formatted. Full error: {e}", "ERROR"))
         return
     
     #aligning coordinate names    
@@ -2956,6 +2959,8 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             cm=colormaps[score]
             title=cm["title"]
             cmap=cm["cmap"]
+
+            symmetric=cm["symmetric"]
             
             if isinstance(cmap, dict):
                 cmap=cmap[gl.config["predictandCategory"]]
@@ -2963,12 +2968,14 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
+            nlev=cm["nlev"]
+            whitelev=cm["whitelev"]
            
             dat2plot=scoresxr.sortby("lat").sortby("lon").sel(category=score)
             
             if vmax=="auto":
                 if vmin=="auto":
-                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,symmetric)
+                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,True)
                 else:
                     vmax=nice_max(dat2plot.data.flatten())
             cm["vmin"]=vmin
@@ -3032,6 +3039,8 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             vmax=cm["vmax"]
             
             levels=cm["levels"]
+            nlev=cm["nlev"]
+            whitelev=cm["whitelev"]
             
             if vmax=="auto":
                 if vmin=="auto":
@@ -3099,6 +3108,8 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
+            nlev=cm["nlev"]
+            whitelev=cm["whitelev"]
             
             
             if vmax=="auto":

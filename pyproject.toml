@@ -3,12 +3,12 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cft"
-version = "6.0.0"
+name = "sadc-cft"
+version = "6.0.2"
 description = "Climate Forecasting Tool package to support generation of seasonal forecast by SADC CSC and National Met Services"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "MIT"}
+license = "MIT"
 authors=[
 {name="Piotr Wolski", email="wolski@csag.uct.ac.za"},
 {name="Sunshine Gamedze",email="sgamedze@sadc.int"}
@@ -52,7 +52,7 @@ dependencies = [
 Homepage = "https://github.com/sadccsc/cft"
 
 [project.scripts]
-cft = "cft.cft:main"
+cft = "cft.__main__:main"
 forecast-tool = "cft.forecast:main"
 download-tool = "cft.download:main"
 synthesis-tool = "cft.synthesis:main"

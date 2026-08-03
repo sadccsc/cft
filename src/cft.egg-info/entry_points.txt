@@ -1,7 +1,0 @@
-[console_scripts]
-cft = cft.cft:main
-download-tool = cft.download:main
-forecast-tool = cft.forecast:main
-synthesis-tool = cft.synthesis:main
-verification-tool = cft.verification:main
-zoning-tool = cft.zoning:main

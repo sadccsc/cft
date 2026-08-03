@@ -1,0 +1,562 @@
+{"indexSources":{
+    "IOD_JMA": [
+        "IOD (Dipole Mode Index) from JMA", 
+        "https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/DMI/anomaly"
+    ],
+    "Nino3_JMA":[
+        "Nino3 from JMA",
+        "https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_3/anomaly"
+    ],
+    "Nino4_JMA":[
+        "Nino4 from JMA",
+        "https://ds.data.jma.go.jp/tcc/tcc/products/elnino/index/sstindex/base_period_9120/Nino_4/anomaly"
+    ]
+},
+"predictandSources":{
+    "PRCP_ERA5_CDS": [
+        "CDS ERA5 total precipitation monthly means",
+        "reanalysis-era5-single-levels-monthly-means",
+        "monthly_averaged_reanalysis",
+        "total_precipitation",
+        "sum",
+        [0,1000,"mm"],
+        1981
+    ],
+    "TG_ERA5_CDS": [
+        "CDS ERA5 2m temperature monthly means",
+        "reanalysis-era5-single-levels-monthly-means",
+        "monthly_averaged_reanalysis",
+        "2m_temperature",
+        "mean",
+        [],
+        1981
+    ],
+    "PRCP_CHIRPSp25_IRIDL":[
+        "CHIRPS 0.25 deg rainfall from IRI data library",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.UCSB/.CHIRPS/.v2p0/.daily-improved/.global/.0p25/.prcp/{}/mul/T/(1 Jan {})/(31 Dec {})/RANGE/T/({} {}-{})/seasonalAverage/Y/({})/({})/RANGEEDGES/X/({})/({})/RANGEEDGES/-999/setmissing_value/data.nc",
+        "sum",
+        [],
+        1981
+    ]
+},
+"obspredSources":{
+    "SST_ERA5_CDS": [
+        "CDS ERA5 sea surface temperature monthly means",
+        "reanalysis-era5-single-levels-monthly-means",
+        "monthly_averaged_reanalysis",
+        "sea_surface_temperature",
+        "mean",
+        [],
+        1981
+    ],
+    "PRCP_ERA5_CDS": [
+        "CDS ERA5 total precipitation monthly means",
+        "reanalysis-era5-single-levels-monthly-means",
+        "monthly_averaged_reanalysis",
+        "total_precipitation",
+        "sum",
+        [],
+        1981
+    ],
+    "TG_ERA5_CDS": [
+        "CDS ERA5 2m temperature monthly means",
+        "reanalysis-era5-single-levels-monthly-means",
+        "monthly_averaged_reanalysis",
+        "2m_temperature",
+        "mean",
+        [],
+        1981
+    ],
+    "SST_ERSSTv5_IRIDL":[
+        "Sea Surface temperature ERSST v5",
+        "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1854
+    ],
+    "GPH500_NCEP-NCAR_IRIDL":[
+        "Geopotential height at 500mbar, NCEP-NCAR CDAS-1",
+        "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.PressureLevel/.phi/P/(500)VALUES/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1949
+    ],
+    "MSL_NCEP-NCAR_IRIDL":[
+        "Mean sea level pressure, NCEP-NCAR CDAS-1",
+        "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.MSL/.pressure/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1949
+    ]
+},
+"fcstpredSources":{
+    "GPH850_SEAS51_CDS": [
+        "CDS seasonal forecast GPH850 - ECMWF SEAS51",
+        "seasonal-monthly-pressure-levels",
+        "ecmwf",
+        "51",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1981
+    ],
+    "GPH850_System9_CDS": [
+        "CDS seasonal forecast GPH850 - METEO_FRANCE System9",
+        "seasonal-monthly-pressure-levels",
+        "meteo_france",
+        "9",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_SPS4_CDS": [
+        "CDS seasonal forecast GPH850 - CMCC SPS4",
+        "seasonal-monthly-pressure-levels",
+        "cmcc",
+        "4",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_GCFS2.2_CDS": [
+        "CDS seasonal forecast GPH850 - DWD GCFS2.2",
+        "seasonal-monthly-pressure-levels",
+        "dwd",
+        "22",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_CFSv2_CDS": [
+        "CDS seasonal forecast GPH850 - NCEP CFSv2",
+        "seasonal-monthly-pressure-levels",
+        "ncep",
+        "2",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_CPS4_CDS": [
+        "CDS seasonal forecast GPH850 - JMA CPS4",
+        "seasonal-monthly-pressure-levels",
+        "jma",
+        "4",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_CanESM5_CDS": [
+        "CDS seasonal forecast GPH850 - ECCC CanESM5",
+        "seasonal-monthly-pressure-levels",
+        "eccc",
+        "4",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_GEM5.2-NEMO_CDS": [
+        "CDS seasonal forecast GPH850 - ECCC GEM5.2-NEMO",
+        "seasonal-monthly-pressure-levels",
+        "eccc",
+        "5",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "GPH850_ACCESS-S2_CDS": [
+        "CDS seasonal forecast GPH850 - BOM ACCESS-S2",
+        "seasonal-monthly-pressure-levels",
+        "bom",
+        "2",
+        "geopotential",
+        "850",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_SEAS51_CDS": [
+        "CDS seasonal forecast SST - ECMWF SEAS51",
+        "seasonal-monthly-single-levels",
+        "ecmwf",
+        "51",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1981
+    ],
+    "SST_System9_CDS": [
+        "CDS seasonal forecast SST - METEO_FRANCE System9",
+        "seasonal-monthly-single-levels",
+        "meteo_france",
+        "9",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_SPS4_CDS": [
+        "CDS seasonal forecast SST - CMCC SPS4",
+        "seasonal-monthly-single-levels",
+        "cmcc",
+        "4",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_GCFS2.2_CDS": [
+        "CDS seasonal forecast SST - DWD GCFS2.2",
+        "seasonal-monthly-single-levels",
+        "dwd",
+        "22",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_CFSv2_CDS": [
+        "CDS seasonal forecast SST - NCEP CFSv2",
+        "seasonal-monthly-single-levels",
+        "ncep",
+        "2",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_CPS4_CDS": [
+        "CDS seasonal forecast SST - JMA CPS4",
+        "seasonal-monthly-single-levels",
+        "jma",
+        "4",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_CanESM5_CDS": [
+        "CDS seasonal forecast SST - ECCC CanESM5",
+        "seasonal-monthly-single-levels",
+        "eccc",
+        "4",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_GEM5.2-NEMO_CDS": [
+        "CDS seasonal forecast SST - ECCC GEM5.2-NEMO",
+        "seasonal-monthly-single-levels",
+        "eccc",
+        "5",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_ACCESS-S2_CDS": [
+        "CDS seasonal forecast SST - BOM ACCESS-S2",
+        "seasonal-monthly-single-levels",
+        "bom",
+        "2",
+        "sea_surface_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "PRCP_SEAS51_CDS": [
+        "CDS seasonal forecast PRCP - ECMWF SEAS51",
+        "seasonal-monthly-single-levels",
+        "ecmwf",
+        "51",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1981
+    ],
+    "PRCP_System9_CDS": [
+        "CDS seasonal forecast PRCP - METEO_FRANCE System9",
+        "seasonal-monthly-single-levels",
+        "meteo_france",
+        "9",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_SPS4_CDS": [
+        "CDS seasonal forecast PRCP - CMCC SPS4",
+        "seasonal-monthly-single-levels",
+        "cmcc",
+        "4",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_GCFS2.2_CDS": [
+        "CDS seasonal forecast PRCP - DWD GCFS2.2",
+        "seasonal-monthly-single-levels",
+        "dwd",
+        "22",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_CFSv2_CDS": [
+        "CDS seasonal forecast PRCP - NCEP CFSv2",
+        "seasonal-monthly-single-levels",
+        "ncep",
+        "2",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_CPS4_CDS": [
+        "CDS seasonal forecast PRCP - JMA CPS4",
+        "seasonal-monthly-single-levels",
+        "jma",
+        "4",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_CanESM5_CDS": [
+        "CDS seasonal forecast PRCP - ECCC CanESM5",
+        "seasonal-monthly-single-levels",
+        "eccc",
+        "4",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_GEM5.2-NEMO_CDS": [
+        "CDS seasonal forecast PRCP - ECCC GEM5.2-NEMO",
+        "seasonal-monthly-single-levels",
+        "eccc",
+        "5",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "PRCP_ACCESS-S2_CDS": [
+        "CDS seasonal forecast PRCP - BOM ACCESS-S2",
+        "seasonal-monthly-single-levels",
+        "bom",
+        "2",
+        "total_precipitation",
+        "",
+        "sum",
+        [],
+        1993
+    ],
+    "TG_SEAS51_CDS": [
+        "CDS seasonal forecast 2m Temperature - ECMWF SEAS51",
+        "seasonal-monthly-single-levels",
+        "ecmwf",
+        "51",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1981
+    ],
+    "TG_System9_CDS": [
+        "CDS seasonal forecast 2m Temperature - METEO_FRANCE System9",
+        "seasonal-monthly-single-levels",
+        "meteo_france",
+        "9",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_SPS4_CDS": [
+        "CDS seasonal forecast 2m Temperature - CMCC SPS4",
+        "seasonal-monthly-single-levels",
+        "cmcc",
+        "4",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_GCFS2.2_CDS": [
+        "CDS seasonal forecast 2m Temperature - DWD GCFS2.2",
+        "seasonal-monthly-single-levels",
+        "dwd",
+        "22",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_CFSv2_CDS": [
+        "CDS seasonal forecast 2m Temperature - NCEP CFSv2",
+        "seasonal-monthly-single-levels",
+        "ncep",
+        "2",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_CPS4_CDS": [
+        "CDS seasonal forecast 2m Temperature - JMA CPS4",
+        "seasonal-monthly-single-levels",
+        "jma",
+        "4",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_CanESM5_CDS": [
+        "CDS seasonal forecast 2m Temperature - ECCC CanESM5",
+        "seasonal-monthly-single-levels",
+        "eccc",
+        "4",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_GEM5.2-NEMO_CDS": [
+        "CDS seasonal forecast 2m Temperature - ECCC GEM5.2-NEMO",
+        "seasonal-monthly-single-levels",
+        "eccc",
+        "5",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "TG_ACCESS-S2_CDS": [
+        "CDS seasonal forecast 2m Temperature - BOM ACCESS-S2",
+        "seasonal-monthly-single-levels",
+        "bom",
+        "2",
+        "2m_temperature",
+        "",
+        "mean",
+        [],
+        1993
+    ],
+    "SST_GEOSS2S_IRIDL": [
+        "IRIDL SST forecasted by GEOSS2S (NASA)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.sst/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "SST_CCSM4_IRIDL": [
+        "IRIDL SST forecasted by COLA-RSMAS-CCSM4",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981, 
+        true
+    ],
+    "SST_CFSv2_IRIDL": [
+        "IRIDL SST forecasted by CFSv2 (NCEP)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.sst/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "PRCP_GEOSS2S_IRIDL": [
+        "IRIDL Rainfall forecasted by GEOSS2S (NASA)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.prec/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.prec/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "PRCP_CCSM4_IRIDL": [
+        "IRIDL Rainfall forecasted by COLA-RSMAS-CCSM4",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "PRCP_CFSv2_IRIDL": [
+        "IRIDL Rainfall forecasted by CFSv2 (NCEP)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.prec/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "z500_GEOSS2S_IRIDL": [
+        "IRIDL z500 forecasted by GEOSS2S (NASA)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.HINDCAST/.MONTHLY/.h500/[M]/average/SOURCES/.Models/.NMME/.NASA-GEOSS2S/.FORECAST/.MONTHLY/.h500/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "z200_CCSM4_IRIDL": [
+        "IRIDL z200 forecasted by COLA-RSMAS-CCSM4",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.COLA-RSMAS-CCSM4/.MONTHLY/.gz/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "z200_CFSv2_IRIDL": [
+        "IRIDL z200 forecasted by CFSv2 (NCEP)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.Models/.NMME/.NCEP-CFSv2/.HINDCAST/.PENTAD_SAMPLES_FULL/.hgt/[M]/average/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],
+    "SST_SEAS51_IRIDL": [
+        "IRIDL SST forecasted by SEAS51 (ECMWF)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51_iri2/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        true
+    ],    
+    "SST_CPS3_IRIDL": [
+        "IRIDL SST forecasted by CPS3 (JMA)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.JMA/.CPS3/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        false
+    ],
+    "SST_System9_IRIDL": [
+        "IRIDL SST forecasted by System9 (MeteoFrance)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.Meteo_France/.System9/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        false
+    ],
+    "SST_SPSv4_IRIDL": [
+        "IRIDL SST forecasted by SPSv4 (CMCC)",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.hindcast/.sst/[M]/average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.CMCC/.SPSv4/.forecast/.sst/[M]/average/appendstream/S/(0000 1 {} {}-{})/VALUES/L/{}/{}/RANGEEDGES/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
+        1981,
+        false
+    ]
+}
+}

@@ -103,6 +103,100 @@ crossvalidators = {
 
 
 def computeModelNoGui(config):
+    """Run the full forecast pipeline for one predictor/predictand pair, without a GUI.
+
+    Reads the predictor and predictand data described in ``config``, aligns them
+    to a common hindcast period, optionally aggregates the predictand to zones,
+    fits the configured statistical model under cross-validation, and produces
+    deterministic, probabilistic, tercile, and 4-category (CEM) forecasts along
+    with cross-validated skill scores. All results - forecast/hindcast data,
+    skill scores, and diagnostic plots - are written to disk under
+    ``config['rootDir']``; this function does not return the forecast data itself.
+
+    On any failure (bad input data, incompatible predictor/pre-processor
+    combination, etc.) an error is logged via ``showMessage`` and the function
+    returns early.
+
+    Args:
+        config (dict): Forecast configuration. Expected keys:
+
+            * ``rootDir`` (str): base directory under which output is written.
+            * ``predictorYear`` (int): year of the predictor data to use.
+            * ``predictorMonth`` (str): three-letter month the predictor is
+              issued/observed in, e.g. ``'Jul'``.
+            * ``fcstTargetSeas`` (str): target season for the forecast, e.g.
+              ``'Aug-Oct'`` (or a single three-letter month for monthly forecasts).
+            * ``fcstTargetYear`` (int): year of the forecast target season.
+            * ``climStartYr`` / ``climEndYr`` (int): first/last year of the
+              climatological reference period used to compute anomalies and terciles.
+            * ``predictorExtents`` (dict): bounding box for the predictor domain,
+              with keys ``minLon``, ``maxLon``, ``minLat``, ``maxLat``.
+            * ``predictorFileName`` (str): path to the predictor NetCDF file.
+            * ``predictorVar`` / ``predictorCode`` (str): variable name / short
+              code identifying the predictor within that file.
+            * ``crossval`` (str): cross-validation method - ``'KF'`` (k-fold) or
+              ``'LOO'`` (leave-one-out).
+            * ``preproc`` (str): pre-processing approach - ``'PCR'``, ``'CCA'``,
+              or ``'NONE'`` (only valid for a 1-D predictor).
+            * ``regression`` (str): statistical model - one of ``'OLS'``,
+              ``'Lasso'``, ``'Ridge'``, ``'RF'``, ``'MLP'``, ``'Trees'``.
+            * ``timeAggregation`` (str): how the predictor is aggregated in time,
+              ``'mean'`` or ``'sum'``.
+            * ``predictandFileName`` (str): path to the predictand file (NetCDF
+              for gridded data, CSV for station data).
+            * ``predictandVar`` (str): predictand variable name.
+            * ``predictandCategory`` (str): predictand type, e.g. ``'rainfall'``
+              or ``'temperature'`` - affects how missing/invalid values are handled.
+            * ``predictandMissingValue`` (str): missing-value flag used in the
+              predictand file, e.g. ``'-999'``.
+            * ``zonesAggregate`` (bool): if True, aggregate the predictand to
+              zones before forecasting.
+            * ``zonesFile`` (str or None): path to a vector file of zone
+              boundaries, required if ``zonesAggregate`` is True.
+            * ``zonesAttribute`` (str): attribute in ``zonesFile`` used as the
+              unique zone identifier.
+            * ``regridPredictand`` (bool): whether to regrid the predictand onto
+              a common grid before use.
+            * ``overlayFile`` (str): optional vector file (e.g. admin boundaries)
+              overlaid on output maps; pass ``""`` for none.
+
+    Returns:
+        bool or None: ``True`` if the forecast ran to completion and all output
+        was written successfully. ``None`` if any step failed - check the log
+        (via ``showMessage``) for the specific reason.
+
+    Example:
+        >>> config = {
+        ...     'rootDir': '../test',
+        ...     'predictorYear': 2026,
+        ...     'predictorMonth': 'Jun',
+        ...     'fcstTargetSeas': 'Aug-Oct',
+        ...     'fcstTargetYear': 2026,
+        ...     'climEndYr': 2015,
+        ...     'climStartYr': 1994,
+        ...     'predictorExtents': {'minLon': -180.0, 'maxLon': 180.0,
+        ...                          'minLat': -60.0, 'maxLat': 60.0},
+        ...     'predictorFileName': 'GPH850_System9_CDS_Jun_1981-2026.nc',
+        ...     'predictorVar': 'z',
+        ...     'predictorCode': 'z',
+        ...     'crossval': 'KF',
+        ...     'preproc': 'PCR',
+        ...     'regression': 'OLS',
+        ...     'timeAggregation': 'mean',
+        ...     'predictandFileName': 'PRCP_CHIRPSp25_IRIDL_Aug-Oct_1981-2025.nc',
+        ...     'predictandVar': 'prcp',
+        ...     'predictandCategory': 'rainfall',
+        ...     'predictandMissingValue': '-999',
+        ...     'zonesFile': None,
+        ...     'zonesAttribute': 'Name',
+        ...     'zonesAggregate': False,
+        ...     'regridPredictand': False,
+        ...     'overlayFile': '',
+        ... }
+        >>> computeModelNoGui(config)
+        True
+    """
+
     gl.config=config
 
     readFunctionConfig()

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "sadc-cft"
@@ -46,9 +46,6 @@ dependencies = [
     "cdsapi",
 ]
 
-[project.optional-dependencies]
- 
-
 [project.urls]
 Homepage = "https://github.com/sadccsc/cft"
 
@@ -60,16 +57,10 @@ synthesis-tool = "cft.synthesis:main"
 verification-tool = "cft.verification:main"
 zoning-tool = "cft.zoning:main"
 
+[project.optional-dependencies]
+cds = ["cdsapi"]
+docs = ["sphinx", "sphinx-rtd-theme", "myst-parser"]
 
-# [project.scripts] or [project.gui-scripts] 
-# the firs will show terminal window alongside each app on Windows. 
-# No difference on Mac/Linux.
+[tool.hatch.build.targets.wheel]
+packages = ["src/cft"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-# adjust these globs once you know the real folder layout -
-# e.g. if functions_forecast.py's "dictionaries" folder actually lives
-# under cft/ rather than cft/functions/, move the entry accordingly
-cft = ["*.ui", "dictionaries/*.json", "*.ico"]

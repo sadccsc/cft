@@ -1,0 +1,14 @@
+name: docs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - gdal=3.13.2
+  - cartopy
+  - geopandas
+  - rasterio
+  - pip
+  - pip:
+      - sphinx
+      - sphinx-rtd-theme
+      - myst-parser

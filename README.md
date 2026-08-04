@@ -1,274 +1,228 @@
-# cft
-Climate Forecasting Toolbox
+# CFT — Climate Forecasting Toolbox
 
+A Python-based tool for statistical climate forecasting, developed by the SADC Climate Services Centre (CSC).
 
-INTRODUCTION
-------------
-The Climate Forecasting Toolbox is a Python based tool for statistical climate forecasting. 
+[![PyPI](https://img.shields.io/pypi/v/sadc-cft)](https://pypi.org/project/sadc-cft/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-CREDITS
-=======
-Piotr Wolski (wolski@csag.uct.ac.za)
-Sunshine Gamedze (sgamedze@sadc.int)
+## Table of Contents
 
-Oringinal developer (2017-2022):
-Thembani Moitlhobogi
+- [Introduction](#introduction)
+- [Modules](#modules)
+  - [Download](#download-module)
+  - [Forecast](#forecast-module)
+  - [Zoning, Verification, Synthesis](#other-modules--zoning-verification-synthesis)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage — GUI](#usage--gui)
+- [Usage — without GUI](#usage--without-gui)
+- [Credits](#credits)
+- [Development History](#development-history)
 
+## Introduction
 
+CFT is a Python-based tool for statistical climate forecasting. From version 5, it consists of five modules:
 
-Development history
-=======
-Current version is developed under funding from First Rains project.
+| Module | Since | Description |
+|---|---|---|
+| **Download** | v6.0 (CDS support added) | Downloads predictor/predictand data from CDS, IRIDL, and JMA |
+| **Forecast** | updated in v5 | Builds and cross-validates statistical seasonal forecast models |
+| **Zoning** | v3 | Spatial regionalization of station data into forecast zones |
+| **Verification** | v4 | Forecast skill verification |
+| **Synthesis** | v4 | Synthesis of forecast outputs |
 
-Development in 2023-2025 has been funded under SADC CSC ClimSA project.
+## Modules
 
-In November 2022, the software has been ported from the original personal github repo https://github.com/taxmanyana/cft to https://github.com/sadc-csc/cft
+### Download module
 
-Original version developed during 2010-2017 under funding from SADC CSC project SARCIS-DR.
+Downloads the following data types:
 
+1. **Gridded predictors from CDS** — SST, GPH, rainfall, and air temperature, from all models available on CDS as of July 2026 (except UKMO)
+2. **Gridded predictand from CDS** — rainfall and temperature from the CDS ERA5 dataset
+3. **Gridded predictors from IRIDL** *(legacy)* — SST
+4. **Gridded predictand from IRIDL** *(legacy)* — CHIRPS precipitation
+5. **Gridded forecast/hindcast data from IRIDL** *(legacy)* — SST, precipitation, and geopotential height, for three NMME models operational as of August 2025
+6. **Teleconnection indices from JMA** *(chosen for lowest latency)* — IOD, Niño3, Niño4
 
-SOURCE CODE
-------------
-From version 6.0.0, the CFT code is available as pip package https://pypi.org/project/sadc-cft/
-From version 4.0.0, the CFT code is maintained at:  https://github.com/sadc-csc
+Data are downloaded to a user-selected directory and converted to a format ingestible by the rest of CFT.
 
+### Forecast module
 
-Basic functionality of v5 and later:
-------------
-Five modules:
-data download (including from CDS from v6.0)
-forecast (updated in v5)
-zoning (since v3)
-verification (since v4)
-synthesis (since v4)
+**Predictand types:** gridded data, or station data
 
-Download module
-------------
-Downloads following data types from sources:
+**Predictor types:**
+- Observed teleconnection indices
+- Observed gridded data (SST)
+- Forecasted gridded fields *(not yet implemented)*
 
-1) gridded predictors from CDS:
-- SST, GPH, rainfall, air temperature from all models (save UKMO one) available on CDS in July 2026.
-2) gridded predictand from CDS:
-- rainfall and temperatures from CDS ERA5 dataset
-3) gridded predictors from IRIDL (legacy):
-- SST
-4) gridded predictand from IRIDL (legacy):
-- CHIPRS precipitation
-5) gridded forecast and hindcast data from IRIDL (legacy):
-- SST, precipitation and geopotential height for three models from NMME that were operational in August 2025
-6) teleconnection indices from JMA (because they have lowest latency)
-- IOD, Nino3, Nino4
+**Forecast output levels:**
+- **Grid** — if the predictand is gridded
+- **Zones** — if the predictand is gridded or station data; data are spatially aggregated into a zonal average and the forecast is generated for that average
+- **Points** — if the predictand is station data
 
-Data are downloaded to user-selected directory
-All data are converted to a format ingestible by CFT
+**Pre-processing approaches:**
 
+| Approach | Description | Applicable to |
+|---|---|---|
+| **PCR** | Gridded predictor is reduced to Principal Components (EOFs), used as predictors in the statistical model | Gridded predictor, any predictand |
+| **CCA** | Canonical components derived jointly from predictor and predictand | — |
+| **None** | No dimensionality reduction | Gridded predictor, any predictand |
 
-Forecast module
-------------
-Takes two types of data as predictand:
-    - gridded data
-    - station data
+**Statistical models:** OLS regression, MLP regression, Decision Trees, Random Forest, Lasso regression, Ridge regression
 
-Takes three types of data as predictor:
-    - observed teleconnection indices
-    - observed gridded data (SST)
-    - forecasted gridded fields (not yet implemented)
+**Forecast types:** deterministic, and tercile probabilistic. The tercile forecast is also presented as a 4-category forecast, splitting the normal category into normal-to-above and normal-to-below (no probabilities are allocated to these two split categories).
 
-Produces forecast for:
-    - grid - if predictand is gridded
-    - zones - if predictand is either gridded or station data, with spatial aggregation of data into zonal average, and generation of forecast for that zonal average
-    - points - if predictand is station data
+**Cross-validation:** all forecasts are cross-validated, using either leave-one-out or k-fold. Skill indices are calculated from out-of-fold predictions:
 
-Allows three pre-processing approaches:
-    - PCR - gridded predictor is processed to derive Principal Components (aka EOFs), and these are used in a statistical model as predictors. This can be applied to gridded predictor, and any type of predictand.
-    - CCA - canonical components are derived from predictor and predictand data
-    - no preprocessing - this can be applied to gridded predictor and any type of predictand.
-implements the following statistical models:
-    - OLS regression
-    - MLP regression
-    - Decision trees
-    - Random Forest
-    - Lasso regression
-    - Ridge regression
+- ROC score (above / below / normal)
+- RPSS
+- Correlation
+- Heidke skill score (highest-probability category)
+- Ignorance score
+- Reliability score
+- Brier skill score
+- 2AFC
 
-Two types of forecast are calculated:
-    - deterministic forecast
-    - tercile probabilistic forecast
+**Calibration:** probabilistic forecasts are calibrated via quantile mapping — a quantile transform is developed from overlapping hindcast and observed predictand data, then applied to both hindcast and forecast.
 
-Tercile forecast is also presented as a 4-category forecast, where normal category is split into normal-to-above and normal-to-below. No probabilities are allocated to these two categories. 
+### Other modules — Zoning, Verification, Synthesis
 
-All forecasts are cross-validated. 
+The zoning module was adapted to run under the v5 environment in v5.1.
 
-Two cross-validation approaches are possible:
-    - leave-one-out
-    - k-fold
+> **Note:** the verification and synthesis modules have not yet been updated to the same extent as the modules above, and aren't documented in detail here yet. *(more to follow)*
 
-Skill indices are calculated through cross-validation from out-of-fold predictions. The following skill indices are included:
-    - ROC score (above, below, normal) 
-    - RPSS
-    - correlation
-    - Heidke skill score for highest probability category
-    - ignorance score 
-    - reliability score
-    - Brier skill score
-    - 2AFC
+## Requirements
 
-Probabilistic forecast are calibrated using quantile mapping approach:
-    -  quantile transform is developed based on overlapping hindcast and observed predictand data 
-    - transform is applied to hindcast and forecast data
+- Python 3.12 (recommended for v6.0)
+- All Python package dependencies are installed automatically via pip — see [`pyproject.toml`](pyproject.toml) for the full list. Notably: `numpy`, `pandas`, `geopandas`, `xarray`, `rioxarray`, `scipy`, `shapely`, `rasterio`, `rasterstats`, `scikit-learn`, `netCDF4`, `cftime`, `geocube`, `GDAL`, `matplotlib`, `cartopy`, `PyQt5`, `cdsapi`.
 
+## Installation
 
+### 1. Set up a Python environment
 
-Other modules - zoning, verification, synthesis
-------------
+Installation should be done into a dedicated Python environment. You'll need one of:
 
-In v5.1 zoning module has been adapted to run under v5 environment.
+- [Anaconda](https://www.anaconda.com/download/success) (full framework, >1GB)
+- [Miniforge](https://github.com/conda-forge/miniforge) (installs both Conda and Mamba)
+- [Micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html) (lightweight; for advanced users)
 
-Other packages were not updated in v5.0 , thus not described here explicitly
+Once installed, create a dedicated environment:
 
-
-Requirements:
-------------
-python 3.12 
-python packages:
-    # scientific / data stack - used throughout functions_forecast.py
-    "numpy",
-    "pandas",
-    "geopandas",
-    "xarray",
-    "rioxarray",
-    "scipy",
-    "shapely",
-    "rasterio",
-    "rasterstats",
-    "scikit-learn",
-    "statsmodels",
-    "netCDF4",
-    "cftime",
-    "geojson",
-    "descartes",
-    "geocube",
-    "GDAL",          # provides the 'osgeo' module (zoning.py's ogr usage)
-    "requests",
-
-    # plotting / mapping
-    "matplotlib",
-    "cartopy",
-
-    # GUI
-    "PyQt5",
-
-    #CDS api
-    "cdsapi",
-
-Installation
-------------
-
-Python environment
-=======
-
-Installation should be done into a dedicated Python environment.
-
-This requires installation of either:
-    - Ancaconda framework (bulky, >1GB) https://www.anaconda.com/download/success
-    - Miniforge (installs both Conda and Mamba) - https://github.com/conda-forge/miniforge
-    - Micromamba (installs Mamba - lightweight, but for advanced users) https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html
-
-
-Once installed, create a python enviroment e.g.
-
+```bash
 mamba create --name cft-env python=3.12
+```
 
-note - it is recommended that python 3.12 is used for version 6.0
+### 2. Install GDAL first, separately
 
+`pip` does not reliably handle the GDAL system library, so it must be pre-installed via conda/mamba **before** installing the `sadc-cft` package itself:
 
-Prerequisites
-=======
-The sadc-cft package is installed with pip, but pip does not handle GDAL libraries well. These have to be preinstalled using conda or mamba:
-
-(one has to activate the cft environment first, of course)
+```bash
 mamba activate cft-env
-
-(and then:)
 mamba install -c conda-forge gdal=3.13.2
+```
 
-Installation with pip
-=======
-Once gdal is installed, sadc-cft package is installed using pip.
+### 3. Install CFT with pip
 
+```bash
 pip install sadc-cft
+```
 
+### 4. Confirm the installation
 
-confirm that installation is complete:
-
-python cft
-
-
-How to use - GUI
-------------
-
-The main GUI of sadc-cft can be invoked as follows:
-
-(one has to activate the cft environment first, of course)
-mamba activate cft-env
-
-(and then simply:)
-cft
-
-(or:)
-
+```bash
 python -m cft
+```
 
-Individual components (forecast, verification, synthesis, zoning and download) can be started directly as follows:
+This should launch the main CFT GUI.
 
->forecast-tool
+## Usage — GUI
 
-(or:)
+Activate the environment first, as always:
 
+```bash
+mamba activate cft-env
+```
+
+**Launch the main GUI:**
+```bash
+cft
+```
+or equivalently:
+```bash
+python -m cft
+```
+
+**Launch an individual module directly** (forecast, verification, synthesis, zoning, download):
+```bash
+forecast-tool
+```
+or equivalently:
+```bash
 python -m cft.forecast
+```
+(substitute `download-tool` / `verification-tool` / `synthesis-tool` / `zoning-tool`, or `cft.download` / `cft.verification` / `cft.synthesis` / `cft.zoning`, as needed)
 
+## Usage — without GUI
 
-How to use - without GUI
-------------
+Individual components can be called directly from Python, without launching any GUI:
 
-individual packages can be invoked in Python without GUI. 
-
-from cft.forecast import computeModelNoGui
-
-and then run as follows:
+```python
+from cft.functions.functions_forecast import computeModelNoGui
 
 computeModelNoGui(config)
+```
 
-where config is a dictionary containing forecast model configuration entries e.g. 
+where `config` is a dictionary of forecast model settings, for example:
 
-config={'rootDir': '../test',
- 'predictorYear': 2026,
- 'predictorMonth': 'Jun',
- 'fcstTargetSeas': 'Aug-Oct',
- 'fcstTargetYear': 2026,
- 'climEndYr': 2015,
- 'climStartYr': 1994,
- 'predictorExtents': {'minLon': -180.0,
-  'maxLon': 180.0,
-  'minLat': -60.0,
-  'maxLat': 60.0},
- 'predictorFileName': '/work/code/csc/cft/test/GPH850_System9_CDS_Jun_s300s200e150e250_1981-2026.nc',
- 'predictorVar': 'z',
- 'predictorCode': 'z',
- 'crossval': 'KF',
- 'preproc': 'PCR',
- 'regression': 'OLS',
- 'timeAggregation': 'mean',
- 'predictandFileName': '../test/PRCP_CHIRPSp25_IRIDL_Aug-Oct_s340s200e150e250_1981-2025.nc',
- 'predictandVar': 'prcp',
- 'predictandCategory': 'temperature',
- 'predictandMissingValue': '-999',
- 'zonesFile': None,
- 'zonesAttribute': 'Name',
- 'zonesAggregate': False,
- 'regridPredictand': False,
- 'overlayFile': '../gis/sadc/gadm41_ZAF_1.json'
+```python
+config = {
+    'rootDir': '../test',
+    'predictorYear': 2026,
+    'predictorMonth': 'Jun',
+    'fcstTargetSeas': 'Aug-Oct',
+    'fcstTargetYear': 2026,
+    'climEndYr': 2015,
+    'climStartYr': 1994,
+    'predictorExtents': {
+        'minLon': -180.0,
+        'maxLon': 180.0,
+        'minLat': -60.0,
+        'maxLat': 60.0,
+    },
+    'predictorFileName': '/work/code/csc/cft/test/GPH850_System9_CDS_Jun_s300s200e150e250_1981-2026.nc',
+    'predictorVar': 'z',
+    'predictorCode': 'z',
+    'crossval': 'KF',
+    'preproc': 'PCR',
+    'regression': 'OLS',
+    'timeAggregation': 'mean',
+    'predictandFileName': '../test/PRCP_CHIRPSp25_IRIDL_Aug-Oct_s340s200e150e250_1981-2025.nc',
+    'predictandVar': 'prcp',
+    'predictandCategory': 'temperature',
+    'predictandMissingValue': '-999',
+    'zonesFile': None,
+    'zonesAttribute': 'Name',
+    'zonesAggregate': False,
+    'regridPredictand': False,
+    'overlayFile': '../gis/sadc/gadm41_ZAF_1.json',
 }
+```
 
-(more to follow...)
+*(more to follow...)*
 
+## Credits
+
+- **Piotr Wolski** (wolski@csag.uct.ac.za)
+- **Sunshine Gamedze** (sgamedze@sadc.int)
+
+
+**Original developer (2017–2022):** Thembani Moitlhobogi
+
+## Development History
+
+- **2010–2017:** original version developed under funding from the SADC CSC project SARCIS-DR.
+- **2023–2025:** development funded under the SADC CSC ClimSA project.
+- **November 2022:** code ported from the original personal repo ([taxmanyana/cft](https://github.com/taxmanyana/cft)) to the institutional repo, [sadc-csc/cft](https://github.com/sadc-csc).
+- **Current version:** developed under funding from the First Rains project.
+
+**Source code:** maintained at [github.com/sadc-csc](https://github.com/sadc-csc) since v4.0.0. From v6.0.0, also available as a pip package: [pypi.org/project/sadc-cft](https://pypi.org/project/sadc-cft/).

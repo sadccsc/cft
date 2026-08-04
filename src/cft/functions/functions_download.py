@@ -179,12 +179,12 @@ def availableDataYears(fYear, month, latency=35):
 
 
 
-def transformData(ds,transform,variable):
-    da=ds[variable]
-    add,multiply,units=transform
+def transformData(ds,transform):
+    add,multiply,units,ncvar=transform
+    da=ds[ncvar]
     da=(da*multiply)+add
     da.attrs["units"]=units
-    ds=da.to_dataset(name=variable)
+    ds=da.to_dataset(name=ncvar)
     return ds
 
 
@@ -224,9 +224,15 @@ def cdsDownloadReanalysis(client, dataset, productType, variable, transform, are
         ds.close()
         
         if len(transform)>0:
-            ds=transformData(ds,transform,variable)
-            ds.to_netcdf(outfile)
-            
+            print("transform", transform)
+            ds=transformData(ds,transform)
+            tmpfile = str(outfile) + ".tmp"
+            ds.to_netcdf(tmpfile)
+            ds.close()
+            os.replace(tmpfile, outfile)   # atomic on POSIX and Windows
+        else:
+            ds.close()
+                    
         return True
 
     except Exception as exc:
@@ -248,7 +254,6 @@ def cdsDownloadForecast(client, dataset, originatingCentre, system, pressureLeve
             "originating_centre": originatingCentre,
             "system": system,
             "variable": variable,
-            "pressure_level": pressureLevel,
             "product_type": "monthly_mean",
             "year": [str(y) for y in years],
             "month": [str(month).zfill(2)],
@@ -256,6 +261,8 @@ def cdsDownloadForecast(client, dataset, originatingCentre, system, pressureLeve
             "area": area,
             "data_format": "netcdf",
     }
+    if pressureLevel:
+        request["pressure_level"]=pressureLevel
 
     showMessage("Submitting request to CDS...")
 
@@ -490,6 +497,16 @@ def downloadPredictand():
 
         if skipIfExists(outfile, overwrite):
             return
+
+        print(client)
+        print(predictandDataset)
+        print(predictandProductType)
+        print(predictandVariable)
+        print(predictandTransform)
+        print(area)
+        print(months)
+        print(availableYears)
+        print(outfile)
 
         result=cdsDownloadReanalysis(client, predictandDataset, predictandProductType, predictandVariable, predictandTransform, area, months, availableYears, outfile)
 

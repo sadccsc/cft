@@ -19,7 +19,7 @@
         "monthly_averaged_reanalysis",
         "total_precipitation",
         "sum",
-        [0,1000,"mm"],
+        [0,1000,"mm", "tp"],
         1981
     ],
     "TG_ERA5_CDS": [
@@ -35,7 +35,6 @@
         "CHIRPS 0.25 deg rainfall from IRI data library",
         "https://iridl.ldeo.columbia.edu/SOURCES/.UCSB/.CHIRPS/.v2p0/.daily-improved/.global/.0p25/.prcp/{}/mul/T/(1 Jan {})/(31 Dec {})/RANGE/T/({} {}-{})/seasonalAverage/Y/({})/({})/RANGEEDGES/X/({})/({})/RANGEEDGES/-999/setmissing_value/data.nc",
         "sum",
-        [],
         1981
     ]
 },

@@ -662,7 +662,7 @@ def downloadGriddedPredictor():
         if skipIfExists(outfile, overwrite):
             return
 
-        result=cdsDownloadReanalysis(client, predictorDataset, predictorProductType, predictorVariable, area, [month], availableYears, outfile)
+        result=cdsDownloadReanalysis(client, predictorDataset, predictorProductType, predictorVariable, predictorTransform, area, [month], availableYears, outfile)
 
         if result is False:
             return

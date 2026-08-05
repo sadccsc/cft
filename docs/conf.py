@@ -51,6 +51,4 @@ autodoc_mock_imports = [
     "rioxarray",
     "geocube",
     "netCDF4",
-    "shapely",
-    "sklearn",
 ]

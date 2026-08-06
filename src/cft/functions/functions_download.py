@@ -190,9 +190,46 @@ def transformData(ds,transform):
 
 
 def cdsDownloadReanalysis(client, dataset, productType, variable, transform, area, months, years, outfile):
-    #builds and submits a CDS request across the given months/years, then verifies the result.
-    #returns True on full success, False on any failure (CDS submission failed, or the
-    #downloaded file could not be opened) - caller should stop in either case
+    """Submit a CDS reanalysis request, download the result, and verify it.
+
+    Builds a CDS API request for the given months/years, submits it via
+    :func:`cdsRetrieve`, and saves the result to ``outfile``. On success, the
+    downloaded file is opened to confirm it's readable; if ``transform`` is
+    non-empty, the data is also transformed and the file rewritten in place
+    (via an atomic write - a temporary file is written first, then swapped in
+    with ``os.replace``, so ``outfile`` is never left partially written).
+
+    Args:
+        client: An authenticated ``cdsapi.Client`` instance created by cdsapi.client().
+
+        dataset (str): CDS dataset name, e.g. ``"reanalysis-era5-single-levels"``.
+
+        productType (str): CDS ``product_type`` request parameter.
+
+        variable (str or list of str): CDS variable name(s) to request.
+
+        transform (tuple): A 4-element sequence ``(add, multiply, units, ncvar)``
+            passed to :func:`transformData` - rescales variable ``ncvar`` as
+            ``(value * multiply) + add`` and relabels its units. Pass an empty
+            list/tuple to skip transformation and keep the raw downloaded data
+            (all variables, unmodified) as-is. 
+
+        area (list of float): Bounding box as ``[north, west, south, east]``.
+
+        months (list of int): Months to request (1-12); zero-padded automatically.
+
+        years (list of int): Years to request.
+
+        outfile (str or Path): Path the downloaded (and, if applicable,
+            transformed) NetCDF file is written to.
+
+    Returns:
+        bool: True if the request succeeded and the resulting file is valid
+        (and was transformed successfully, if requested). False if the CDS
+        submission failed, or the downloaded file could not be opened/transformed
+        - in either case, the caller should stop rather than continue.
+    """
+
 
     showMessage("creating cds request...")
 
@@ -244,10 +281,50 @@ def cdsDownloadReanalysis(client, dataset, productType, variable, transform, are
 
 
 def cdsDownloadForecast(client, dataset, originatingCentre, system, pressureLevel, variable, area, month, years, outfile):
+    """Submit a CDS seasonal forecast request for one month, download it, and verify it.
 
-    #builds and submits a CDS request for a single month across the given years, then verifies the result.
-    #returns True on full success, False on any failure (CDS submission failed, or the
-    #downloaded file could not be opened) - caller should stop in either case
+    Builds a CDS API request for the given month across the given years,
+    requesting all six forecast lead-time months (1-6), submits it via
+    :func:`cdsRetrieve`, and saves the result to ``outfile``. Unlike
+    :func:`cdsDownloadReanalysis`, no data transformation is applied here -
+    the downloaded file is only opened to confirm it's readable.
+
+    Args:
+        client: An authenticated ``cdsapi.Client`` instance, created by cdsapi.client().
+
+        dataset (str): CDS seasonal forecast dataset name, e.g.
+            ``"seasonal-monthly-single-levels"`` or
+            ``"seasonal-monthly-pressure-levels"``.
+
+        originatingCentre (str): CDS ``originating_centre`` code identifying
+            the forecast system's producing centre, e.g. ``"ecmwf"``.
+
+        system (str): CDS ``system`` version number for that centre, e.g. ``"51"``.
+
+        pressureLevel (str): Pressure level to request, e.g. ``"850"``, for
+            datasets that need one. Pass an empty string for
+            single-level variables - the ``pressure_level`` key is only added
+            to the request when this is set.
+
+        variable (str or list of str): CDS variable name(s) to request.
+
+        area (list of float): Bounding box as ``[north, west, south, east]``.
+
+        month (int): Forecast initialization month (1-12); zero-padded
+            automatically. Unlike :func:`cdsDownloadReanalysis`, only a single
+            month is requested at a time.
+
+        years (list of int): Initialization years to request.
+
+        outfile (str or Path): Path the downloaded NetCDF file is written to.
+
+    Returns:
+        bool: True if the request succeeded and the resulting file opens
+        correctly. False if the CDS submission failed, or the downloaded file
+        could not be opened - in either case, the caller should stop rather
+        than continue.
+    """
+
     showMessage("creating cds request...")
 
     request = {
@@ -517,9 +594,6 @@ def downloadPredictand():
         showMessage("\nSource {} not available. Exiting...".format(source), "ERROR")
         
 
-    
-    
-    
     
     
 def downloadGriddedPredictor():

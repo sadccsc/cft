@@ -69,17 +69,17 @@
     "SST_ERSSTv5_IRIDL":[
         "Sea Surface temperature ERSST v5",
         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCDC/.ERSST/.version5/.sst/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
-        1854
+        1981
     ],
     "GPH500_NCEP-NCAR_IRIDL":[
         "Geopotential height at 500mbar, NCEP-NCAR CDAS-1",
         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.PressureLevel/.phi/P/(500)VALUES/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
-        1949
+        1981
     ],
     "MSL_NCEP-NCAR_IRIDL":[
         "Mean sea level pressure, NCEP-NCAR CDAS-1",
         "http://iridl.ldeo.columbia.edu/SOURCES/.NOAA/.NCEP-NCAR/.CDAS-1/.MONTHLY/.Intrinsic/.MSL/.pressure/T/({} {}-{})/VALUES/T/12/STEP/Y/{}/{}/RANGEEDGES/X/{}/{}/RANGEEDGES/-999/setmissing_value/data.nc",
-        1949
+        1981
     ]
 },
 "fcstpredSources":{

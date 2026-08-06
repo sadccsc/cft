@@ -204,6 +204,7 @@ def main():
         gl.config["regridPredictand"]=False
     
         gl.config["overlayFile"]=""
+        gl.config["plotMaps"]=True
 
 
 
@@ -362,6 +363,8 @@ def main():
         gl.config["regridPredictand"]=gl.window.checkBox_regridpredictand.isChecked()
     
         gl.config["overlayFile"]=gl.window.lineEdit_overlayfile.text()
+
+        gl.config["plotMaps"]=True
     
         
         temp={}
@@ -419,6 +422,10 @@ def main():
         else:
             gl.fcstBaseTime="mon"
             
+       # variables fixed in gui
+            gl.config["plotMaps"]=True
+
+
         return True
 
     \
@@ -479,99 +486,6 @@ def main():
             return        
 
 
-
-    def checkInputs():
-    
-        if gl.config["rootDir"]=="":
-            showMessage("output directory cannot be empty", "ERROR")
-            return
-        else:
-            if not os.path.exists(gl.config["rootDir"]):
-                showMessage("output directory does not exist", "ERROR")
-                return    
-        
-        if not is_number(gl.config["predictorYear"]):
-            showMessage("predictor year should be numeric", "ERROR")
-            return
-        
-        if not is_number(gl.config["fcstTargetYear"]):
-            showMessage("predictand year should be numeric", "ERROR")
-            return
-        
-        if not is_number(gl.config["climEndYr"]):
-            showMessage("last year of climatological period should be numeric", "ERROR")
-            return
-        
-        if not is_number(gl.config["climStartYr"]):
-            showMessage("first year of climatological period should be numeric", "ERROR")
-            return
-        
-        if gl.config["predictandFileName"]=="":
-            showMessage("predictand file cannot be empty", "ERROR")
-            return
-        elif not os.path.exists(gl.config["predictandFileName"]):
-            showMessage("predictand file does not exist", "ERROR")
-            return
-        
-        if gl.config["predictandVar"]=="":
-            showMessage("predictand variable cannot be empty", "ERROR")
-            return
-        
-        if gl.config["zonesAggregate"]:
-            if gl.config["zonesFile"]!="":
-                if not os.path.exists(gl.config["zonesFile"]):
-                    showMessage("Aggregation to zones is selected. But zones file does not exist", "ERROR")
-                    return    
-            
-            if gl.config["zonesAttribute"]=="":
-                showMessage("Aggregation to zones is selected.  But zones variable is empty", "ERROR")
-                return
-            
-        if gl.config["overlayFile"]!="":
-            if not os.path.exists(gl.config["overlayFile"]):
-                showMessage("overlay file does not exist", "ERROR")
-                return
-            
-        file=gl.config['predictorFileName']
-        var=gl.config['predictorVar']
-        code=gl.config['predictorCode']
-    
-        extents=gl.config['predictorExtents']
-        south=extents["minLat"]
-        north=extents["maxLat"]
-        west=extents["minLon"]
-        east=extents["maxLon"]        
-    
-        if file=="":
-            showMessage("predictor file cannot be empty", "ERROR")
-            return
-        elif not os.path.exists(file):
-            showMessage("predictor file does not exist", "ERROR")
-            return
-    
-        if var=="":
-            showMessage("predictor variable cannot be empty. Please repeat selection of predictor file", "ERROR")
-            return
-    
-        if code=="":
-            showMessage("predictor code cannot be empty. Please repeat selection of predictor file or add code to the input box manually", "ERROR")
-            return
-    
-        check=[]
-        for _x in [east,west,south,north]:
-            check.append(is_number(_x))
-        if not all(check):
-                showMessage("\nLat and Lon values should be numeric.", "ERROR")
-                return
-    
-        check=[float(east)>float(west), float(north)>float(south)]
-        if not all(check):
-                showMessage("\nLat and Lon values should be numeric.", "ERROR")
-                return    
-            
-        return True
-
-    
     def is_number(s):
         try:
             float(s)
@@ -602,12 +516,6 @@ def main():
         
         #read config from gui
         check=readGUI()
-        if check is None:
-            showMessage("Errors in user input, stopping early.", "ERROR")
-            return
-        
-        #check user inputs
-        check=checkInputs()
         if check is None:
             showMessage("Errors in user input, stopping early.", "ERROR")
             return

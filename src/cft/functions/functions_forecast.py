@@ -126,27 +126,27 @@ def computeModelNoGui(config):
               issued/observed in, e.g. ``'Jul'``.
             * ``fcstTargetSeas`` (str): target season for the forecast, e.g.
               ``'Aug-Oct'`` (or a single three-letter month for monthly forecasts).
-            * ``fcstTargetYear`` (int): year of the forecast target season.
+            * ``fcstTargetYear`` (int): year of the first month of the forecast target season.
             * ``climStartYr`` / ``climEndYr`` (int): first/last year of the
               climatological reference period used to compute anomalies and terciles.
             * ``predictorExtents`` (dict): bounding box for the predictor domain,
               with keys ``minLon``, ``maxLon``, ``minLat``, ``maxLat``.
-            * ``predictorFileName`` (str): path to the predictor NetCDF file.
-            * ``predictorVar`` / ``predictorCode`` (str): variable name / short
-              code identifying the predictor within that file.
+            * ``predictorFileName`` (str): path to the predictor NetCDF or CSV file.
+            * ``predictorVar`` (str): variable name identifying the predictor within that file.
+            * ``predictorCode`` (str): variable name to be used in plotting figures
             * ``crossval`` (str): cross-validation method - ``'KF'`` (k-fold) or
               ``'LOO'`` (leave-one-out).
             * ``preproc`` (str): pre-processing approach - ``'PCR'``, ``'CCA'``,
               or ``'NONE'`` (only valid for a 1-D predictor).
             * ``regression`` (str): statistical model - one of ``'OLS'``,
               ``'Lasso'``, ``'Ridge'``, ``'RF'``, ``'MLP'``, ``'Trees'``.
-            * ``timeAggregation`` (str): how the predictor is aggregated in time,
+            * ``timeAggregation`` (str): how the predictand is aggregated in time,
               ``'mean'`` or ``'sum'``.
             * ``predictandFileName`` (str): path to the predictand file (NetCDF
               for gridded data, CSV for station data).
             * ``predictandVar`` (str): predictand variable name.
             * ``predictandCategory`` (str): predictand type, e.g. ``'rainfall'``
-              or ``'temperature'`` - affects how missing/invalid values are handled.
+              or ``'temperature'`` - affects color scales in plots.
             * ``predictandMissingValue`` (str): missing-value flag used in the
               predictand file, e.g. ``'-999'``.
             * ``zonesAggregate`` (bool): if True, aggregate the predictand to
@@ -155,10 +155,10 @@ def computeModelNoGui(config):
               boundaries, required if ``zonesAggregate`` is True.
             * ``zonesAttribute`` (str): attribute in ``zonesFile`` used as the
               unique zone identifier.
-            * ``regridPredictand`` (bool): whether to regrid the predictand onto
-              a common grid before use.
+            * ``regridPredictand`` (bool): whether to regrid the predictand onto a coarser grid
             * ``overlayFile`` (str): optional vector file (e.g. admin boundaries)
               overlaid on output maps; pass ``""`` for none.
+            * ``plotMaps`` (bool): whether or not output maps are created
 
     Returns:
         bool or None: ``True`` if the forecast ran to completion and all output
@@ -192,6 +192,7 @@ def computeModelNoGui(config):
         ...     'zonesAggregate': False,
         ...     'regridPredictand': False,
         ...     'overlayFile': '',
+        ...     'plotMaps': True,
         ... }
         >>> computeModelNoGui(config)
         True
@@ -199,9 +200,16 @@ def computeModelNoGui(config):
 
     gl.config=config
 
+    #reading inputs
     readFunctionConfig()
     
-    
+    #checking inputs
+    result=checkInputs()
+
+    if result is None:
+        showMessage("Check of input fields failed. Look above for errors, fix and try again.", "ERROR")
+        return
+ 
     #derived variables
     
     #set target type 
@@ -219,14 +227,14 @@ def computeModelNoGui(config):
     
     #=======================================================================================================
     #reading data
-    
+     
     #determine lead time
     leadTime=getLeadTime()
         
     if leadTime is None:
         showMessage("Lead time could not be calculated, stopping early.", "ERROR")
         return
-        
+       
     #reading predictors data
     predictor,geoDataPredictor=readPredictor()
     if predictor is None:
@@ -298,8 +306,13 @@ def computeModelNoGui(config):
     #finding overlap of predictand and predictor
     showMessage("Aligning predictor and predictand data...")
     predictandHcst,predictorHcst=getHcstData(predictand,predictor)
-    
-    
+
+    novlpYears=predictandHcst.shape[0]
+
+    if novlpYears<20:
+        showMessage(f"Only {novlpYears} of overlap years between predictand and predictor. Minimum allowed is 20.", "ERROR")
+        return None
+ 
     predictorFcst=getFcstData(predictor)
     if predictandHcst is None:
         showMessage("Hindcast data for predictand could not be derived, stopping early.", "ERROR")
@@ -311,7 +324,8 @@ def computeModelNoGui(config):
     result=getObsTerciles(predictand, predictandHcst)
     if result is None:
         showMessage("Terciles could not be calculated, stopping early.", "ERROR")
-                
+        return
+            
     obsTercile,tercThresh=result
     
     
@@ -552,51 +566,58 @@ def computeModelNoGui(config):
     
     #maskedscores=getSkillMask(scores_plot, scores_plot)
 
-    showMessage("Plotting tercile probabilities map...")    
-    #plotting
-    plotTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector)
+    if gl.config["plotMaps"]:
+        showMessage("Plotting tercile probabilities map...")    
+        #plotting
+        plotTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector)
 
-    showMessage("Plotting smooth tercile probabilities map...")
-    #return probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector
+        showMessage("Plotting smooth tercile probabilities map...")
+        #return probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector
 
-    plotSmoothTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector, gl.deep_config["sigmaSmooth"], gl.deep_config["enhanceSmooth"])
+        plotSmoothTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector, gl.deep_config["sigmaSmooth"], gl.deep_config["enhanceSmooth"])
 
 
-    showMessage("Plotting forecast...")
+        showMessage("Plotting forecast...")
 
-    plotMaps(detfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation,overlayVector)
-    plotMaps(probfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-    plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-    plotMaps(tercfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-    
-    
-    showMessage("Plotting skill maps...")    
-    #plotting skill scores
-    plotMaps(scores_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-    
-    
-    showMessage("Plotting time series plots...") 
-    plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID, annotation)
-    
-    
-    showMessage("Plotting preprocessing diagnostics...")
-    if gl.config['preproc']=="PCR":
-        plotDiagsPCR(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
-    
-    if gl.config['preproc']=="CCA":
-        plotDiagsCCA(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
-    
-    showMessage("Plotting regression diagnostics...")
-    plotDiagsRegression(predictandHcst, cvHcst, estHcst, tercThresh, detFcst, diagsDir, forecastID, annotation)
-    
-    showMessage("Plotting calibration diagnostics...")
-    plotCalibDiags(calibHcstCdf, predictandHcst, cvHcst["value"], diagsDir, forecastID)
-    
+        plotMaps(detfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation,overlayVector)
+        plotMaps(probfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+        plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+        plotMaps(tercfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+        
+        
+        showMessage("Plotting skill maps...")    
+        #plotting skill scores
+        plotMaps(scores_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+        
+        
+        showMessage("Plotting time series plots...") 
+        plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID, annotation)
+        
+        
+        showMessage("Plotting preprocessing diagnostics...")
+        if gl.config['preproc']=="PCR":
+            plotDiagsPCR(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
+        
+        if gl.config['preproc']=="CCA":
+            plotDiagsCCA(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
+        
+        showMessage("Plotting regression diagnostics...")
+        plotDiagsRegression(predictandHcst, cvHcst, estHcst, tercThresh, detFcst, diagsDir, forecastID, annotation)
+        
+        showMessage("Plotting calibration diagnostics...")
+        plotCalibDiags(calibHcstCdf, predictandHcst, cvHcst["value"], diagsDir, forecastID)
+    else:
+        showMessage("skipping plotting maps and diagnostics, as requested")
+        
     showMessage("All done!", "SUCCESS")
     showMessage("Inspect log above for potential errors!", "SUCCESS")    
     showMessage("All output written to {}".format(forecastDir), "SUCCESS")    
         
     return True
+
+
+
+
 
 def readFunctionConfig():
     baseDir = Path(__file__).resolve().parent.parent
@@ -740,7 +761,7 @@ def readPredictandCsv(csvfile):
             years=np.unique(ds[sel].Year.values)
             firstyear,lastyear=(np.min(years),np.max(years))
             dat=ds[sel].iloc[:,4:]
-            
+                        
             #check if data contains strings
     #       data=data.applymap(self.tofloat)
             dat=dat.values.flatten()
@@ -820,8 +841,7 @@ def readPredictandCsv(csvfile):
     #check against the forecast date
     firstdatyear=datdates.year[0]
     lastdatyear=datdates.year[-1]
-
-
+        
     if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
         showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
         return None,None
@@ -865,6 +885,7 @@ def readPredictor():
 
     srcMonthName=gl.config['predictorMonth']
     srcMonth=month2int(srcMonthName)
+    srcYear=gl.config['predictorYear']
 
     #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     #this is where code is different for csv and netcdf formats
@@ -1072,7 +1093,7 @@ def readPredictand():
 
     availMonths=np.unique(predictand.index.month)
     availMonthNames=[months[x-1] for x in availMonths]
-    
+
     if gl.fcstBaseTime=="mon":
         if not firstTgtMonth in availMonths:
             showMessage(f"file does not contain data for requested month. Predicting {tgtSeason} but got {availMonthNames}","ERROR")
@@ -1099,7 +1120,7 @@ def readPredictand():
             cont=True
             predictand=predictand.resample(f"QS-{firstTgtMonthName}".upper()).sum()
 
-        #predictand=predictand[predictand.index.month==firstTgtMonth]         
+        predictand=predictand[predictand.index.month==firstTgtMonth]         
 
     
     
@@ -1125,6 +1146,7 @@ def readPredictand():
     firstdatyear=datdates.year[0]
     lastdatyear=datdates.year[-1]
 
+        
     #check if covers climatological period
     if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
         showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
@@ -1389,19 +1411,36 @@ def aggregatePredictand(_data, _geodata, _poly):
 
 def getLeadTime():
     srcMonth=month2int(gl.config['predictorMonth'])
+    srcYear=int(gl.config['predictorYear'])
+    srcDate=pd.to_datetime("{}-{}-01".format(srcYear,srcMonth))
+
+        
     tgtMonth=month2int(gl.config['fcstTargetSeas'][0:3])
     tgtYear=int(gl.config['fcstTargetYear'])
     tgtDate=pd.to_datetime("{}-{}-01".format(tgtYear,tgtMonth))
+    tgtDateCheck=tgtDate
     
-    leadTime=(tgtMonth+12-srcMonth)%12
-    if leadTime>gl.deep_config["maxLeadTime"]:
-        msg="with forecast and target months provided ({} and {}), lead time is {} months. That exceeds the maximum allowed lead time of {}. Please adjust your configuration.".format(srcMonth, tgtMonth, leadTime, gl.deep_config["maxLeadTime"])
+    time_diff = tgtDate - srcDate
+    # Approximate months using the average number of days in a month (30.44)
+    leadTime = int(np.round(time_diff.days / 30.44))
+    leadTimeCheck=leadTime+1
+
+    if len(gl.config['fcstTargetSeas'])>3:
+        tgtDateCheck=tgtDate+pd.offsets.MonthBegin(2)
+        time_diff = tgtDateCheck - srcDate
+        # Approximate months using the average number of days in a month (30.44)
+        leadTimeCheck = int(np.round(time_diff.days / 30.44))+1
+
+
+    if leadTimeCheck>gl.deep_config["maxLeadTime"]:
+        msg=f"with forecast and target months provided ({srcDate.strftime('%b %Y')} and {tgtDateCheck.strftime('%b %Y')}), lead time is {leadTimeCheck} months. That exceeds the maximum allowed lead time of {gl.deep_config['maxLeadTime']}. Please adjust your configuration."
         showMessage(msg,"ERROR")
         return None
-    gl.leadTime=leadTime
     
-    srcDate=tgtDate-pd.offsets.MonthBegin(leadTime)
+    msg=f"forecast initialized on: {srcDate.strftime('%b %Y')},  last target month: {tgtDateCheck.strftime('%b %Y')}), lead time: {leadTimeCheck} months."
+    showMessage(msg,"INFO")
 
+    gl.leadTime=leadTime
     gl.predictorDate=srcDate
     
     return leadTime
@@ -1434,7 +1473,7 @@ def getHcstData(_predictand,_predictor):
     tgtTime=pd.to_datetime(_predictandOvlp.index)
     tgtTimeAdj=tgtTime+pd.offsets.MonthBegin(gl.leadTime)
     _predictandOvlp.index=tgtTimeAdj
-    
+
     return _predictandOvlp, _predictorOvlp
 
 
@@ -2303,7 +2342,7 @@ def getCmap(vmin,vmax,nlev,cmap,extend,whitelev):
     for lev in whitelev:
         cols[lev]=(1,1,1,1)
     cmap, norm = colors.from_levels_and_colors(levels, cols, extend=extend)
-    return cmap,norm, levels
+    return cmap,norm,levels
 
 
 def getCmap_dev(d):
@@ -2662,7 +2701,7 @@ def nice_minmax(x,y=None, symmetric=False):
     else:
         data_min = min(np.nanmin(x), np.nanmin(y))
         data_max = max(np.nanmax(x), np.nanmax(y))
-        
+
 
     # 2. Add padding
     padding = 0.05 * (data_max - data_min)
@@ -2770,7 +2809,7 @@ def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
             pl.set_ylabel("Count of observations")
             pl.set_title("Rank Histogram\nregion: {}".format(name))
             plt.subplots_adjust(bottom=0.25, top=0.8)
-            plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, name, forecastid))
+            plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, sanitize_string(name), forecastid))
             plt.close()
 
 
@@ -3044,27 +3083,33 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
         #no need to use geodata as _scores unstacks to proper xarray
         scoresxr=_scores.unstack().to_xarray().transpose("category","lat","lon")
         for score in scoresxr.category.values:
+            showMessage(score)
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
             showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
             colorbar=False
+
             cm=colormaps[score]
             title=cm["title"]
             cmap=cm["cmap"]
-
             symmetric=cm["symmetric"]
-            
-            if isinstance(cmap, dict):
-                cmap=cmap[gl.config["predictandCategory"]]
-                
             vmin=cm["vmin"]
             vmax=cm["vmax"]
             levels=cm["levels"]
             nlev=cm["nlev"]
+            
             whitelev=cm["whitelev"]
-           
+            cbar_label=cm["cbar_label"]
+
+            extend=cm["extend"]
+            tick_labels=cm["tick_labels"]
+
+            if isinstance(cmap, dict):
+                cmap=cmap[gl.config["predictandCategory"]]
+                
+             
             dat2plot=scoresxr.sortby("lat").sortby("lon").sel(category=score)
             
             if vmax=="auto":
@@ -3072,16 +3117,13 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
                     vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,True)
                 else:
                     vmax=nice_max(dat2plot.data.flatten())
+                    
             cm["vmin"]=vmin
             cm["vmax"]=vmax
-            
-            cbar_label=cm["cbar_label"]
+
             if cbar_label=="unit":
                 cbar_label=gl.config["predictandUnit"]
                 
-            extend=cm["extend"]
-            tick_labels=cm["tick_labels"]
-            
             # add colorbar
             if cm["categorized"]:
                 cmap,norm,levels=getCmap(vmin,vmax,nlev,cmap,extend,whitelev)
@@ -3128,13 +3170,24 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
 
             colorbar=False
             cm=colormaps[score]
+
+            cm=colormaps[score]
             title=cm["title"]
+            cmap=cm["cmap"]
+            symmetric=cm["symmetric"]
             vmin=cm["vmin"]
             vmax=cm["vmax"]
-            
             levels=cm["levels"]
             nlev=cm["nlev"]
+            
             whitelev=cm["whitelev"]
+            cbar_label=cm["cbar_label"]
+
+            extend=cm["extend"]
+            tick_labels=cm["tick_labels"]
+
+            if isinstance(cmap, dict):
+                cmap=cmap[gl.config["predictandCategory"]]
             
             if vmax=="auto":
                 if vmin=="auto":
@@ -3142,20 +3195,14 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
                 else:
                     vmax=nice_max(_geodata[score].values.flatten())
                     
-            
             #have to feed back, because new values are used later
             cm["vmin"]=vmin
             cm["vmax"]=vmax
-            
-            cbar_label=cm["cbar_label"]
-            extend=cm["extend"]
-            tick_labels=cm["tick_labels"]
-            
+                        
             # add colorbar
             if cm["categorized"]:
                 cmap,norm,levels=getCmap(vmin,vmax,nlev,cmap,extend,whitelev)
             else:
-                cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
                 
             cbar = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -3205,7 +3252,9 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             nlev=cm["nlev"]
             whitelev=cm["whitelev"]
             
-            
+            if isinstance(cmap, dict):
+                cmap=cmap[gl.config["predictandCategory"]]
+
             if vmax=="auto":
                 if vmin=="auto":
                     vmin,vmax=nice_minmax(_geodata[score].values.flatten(), None,True)
@@ -3223,7 +3272,6 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             if cm["categorized"]:
                 cmap,norm,levels=getCmap(vmin,vmax,nlev,cmap,extend,whitelev)
             else:
-                cmap=cm["cmap"]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
             
             m=_geodata.plot(column=score, cmap=cmap, legend=False, ax=pl, edgecolor='black', linewidth=0.5)
@@ -3853,6 +3901,13 @@ def is_number(s):
 
     
 def checkInputs():
+    configVars=['rootDir', 'predictorYear', 'predictorMonth', 'fcstTargetSeas', 'fcstTargetYear', 'climStartYr', 'climEndYr', 'predictorExtents', 'predictorFileName', 'predictorVar', 'predictorCode', 'crossval', 'preproc', 'regression', 'timeAggregation', 'predictandFileName', 'predictandVar', 'predictandCategory', 'predictandMissingValue', 'zonesFile', 'zonesAttribute', 'zonesAggregate', 'regridPredictand', 'overlayFile', 'predictandUnit','plotMaps']
+
+    for var in configVars:
+        if not var in configVars:
+            showMessage(f"config variable {var} missing", "ERROR")
+            return
+
 
     if gl.config["rootDir"]=="":
         showMessage("output directory cannot be empty", "ERROR")
@@ -3869,7 +3924,7 @@ def checkInputs():
     if not is_number(gl.config["fcstTargetYear"]):
         showMessage("predictand year should be numeric", "ERROR")
         return
-    
+
     if not is_number(gl.config["climEndYr"]):
         showMessage("last year of climatological period should be numeric", "ERROR")
         return
@@ -3878,6 +3933,14 @@ def checkInputs():
         showMessage("first year of climatological period should be numeric", "ERROR")
         return
     
+    if int(gl.config["climEndYr"])<=int(gl.config["climStartYr"]):
+        showMessage(f"Last year of climatological should be larger than its first. Got: First: {gl.config["climStartYr"]}, Last:{gl.config["climEndYr"]}", "ERROR")
+        return
+        
+    if int(gl.config["climEndYr"])-int(gl.config["climStartYr"])<10:
+        showMessage(f"Climatological period should be longer than 10 years. Got: First: {gl.config["climStartYr"]}, Last:{gl.config["climEndYr"]}", "ERROR")
+        return
+        
     if gl.config["predictandFileName"]=="":
         showMessage("predictand file cannot be empty", "ERROR")
         return
@@ -3903,7 +3966,12 @@ def checkInputs():
         if not os.path.exists(gl.config["overlayFile"]):
             showMessage("overlay file does not exist", "ERROR")
             return
-        
+
+    if not isinstance(gl.config["plotMaps"], bool):
+        showMessage("plotMaps variable is not a boolean", "ERROR")
+        return
+ 
+
     file=gl.config['predictorFileName']
     var=gl.config['predictorVar']
     code=gl.config['predictorCode']
@@ -3942,7 +4010,3 @@ def checkInputs():
             return    
         
     return True
-
-
-
-

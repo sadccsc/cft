@@ -314,6 +314,7 @@ def computeModelNoGui(config):
         return None
  
     predictorFcst=getFcstData(predictor)
+
     if predictandHcst is None:
         showMessage("Hindcast data for predictand could not be derived, stopping early.", "ERROR")
         return
@@ -346,6 +347,16 @@ def computeModelNoGui(config):
     tercThresh=tercThresh.loc[:,good]
     obsTercile=obsTercile.loc[:,good]
     
+
+    #checking if predictand have valid data
+
+    if predictandHcst.dropna(how='all').empty:
+        showMessage("Predictand contains no valid data. Please check your predictand domain definition and data. Stopping early...", "ERROR")
+        return
+ 
+    if predictorHcst.dropna(how='all').empty:
+        showMessage("Predictor contains no valid data. Please check your predictor domain definition and data. Stopping early...", "ERROR")
+        return
     
     #=======================================================================================================
     #setting up forecast
@@ -2304,6 +2315,7 @@ def sanitize_string(value, replacement="_", max_length=255):
     - Truncates to max_length (default 255)
     """
     # Normalize Unicode (e.g., é → e)
+    value=str(value)
     value = unicodedata.normalize("NFKD", value)
     value = value.encode("ascii", "ignore").decode()
 
@@ -2809,7 +2821,7 @@ def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
             pl.set_ylabel("Count of observations")
             pl.set_title("Rank Histogram\nregion: {}".format(name))
             plt.subplots_adjust(bottom=0.25, top=0.8)
-            plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, sanitize_string(name), forecastid))
+            plt.savefig("{}/calibration-diags_{}_{}.jpg".format(figuresdir, sanitize_string(str(name)), forecastid))
             plt.close()
 
 

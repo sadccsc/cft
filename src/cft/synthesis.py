@@ -160,7 +160,6 @@ def addzonesFile():
         gl.window.zonesFileVariable.setCurrentText(variable)
         resetAll()
         gl.window.saveButton.setEnabled(True)
-#            print(gl.config)
                         
     else:
         showMessage("Selecting forecast file aborted")
@@ -169,7 +168,6 @@ def addzonesFile():
 def saveZoneData():
     #writing zone data to gl.config
     zone=gl.window.zoneCode.currentText()
-    print("Zone",zone)
     zoneData={}
     
     signalAgree=gl.window.signalAgree.currentText()
@@ -197,7 +195,6 @@ def saveZoneData():
 def loadZoneData():
     #loading zone data from gl.config to UI
     zone=gl.window.zoneCode.currentText()
-    print("Zone",zone)
     zoneData=gl.config['zoneData'][zone]
     gl.window.signalAgree.setCurrentText(zoneData["signalAgree"])
     gl.window.skillLevel.setCurrentText(zoneData["skillLevel"])
@@ -208,14 +205,13 @@ def loadZoneData():
 def resetAll():
     #this is on change of geojson file
     #resetting zone data
-    setConfigDefaults()
+    #setConfigDefaults()
     resetZones()
     resetZoneData()
 
 def resetZoneData():
     #resetting zone data
     zone=gl.window.zoneCode.currentText()
-    print("Zone",zone)
     zoneData=gl.config['zoneData'][zone]
     gl.window.signalAgree.setCurrentText(zoneData["signalAgree"])
     gl.window.skillLevel.setCurrentText(zoneData["skillLevel"])
@@ -227,15 +223,12 @@ def resetZones():
     gl.window.zoneCode.clear()
     jsonfile=gl.config['zonesFilereference']
     zonesVariable=gl.window.zonesFileVariable.currentText()
-    print(zonesVariable)
     gl.config['zonesVariable']=zonesVariable
     gl.config["zoneData"]={}
 
     codes=[]
     for feature in jsonfile['features']:
-        print(feature["properties"])
         code=str(feature["properties"][zonesVariable])
-        print("code",code)
         if code in codes:
             showMessage("Zone names should be unique. Check if you selected correct variable storing zone ID", "NONCRITICAL")            
         else:
@@ -249,7 +242,6 @@ def resetZones():
     
 def writeOutput():
     #checking if all populated
-    print(gl.config['zoneData'])
     for zone in gl.config['zoneData'].keys():
         for var in gl.config['zoneData'][zone].keys():
             if gl.config['zoneData'][zone][var]=="":
@@ -364,32 +356,32 @@ def getOutDir():
 
     
 def setConfigDefaults():
-    gl.config = {}
+    config = {}
     
     #output directory
-    gl.config['outDir'] = ''   
+    config['outDir'] = ''   
 
     #zones file
-    gl.config['zonesFile'] = {"file": '',"variable": [], "ID": None}
+    config['zonesFile'] = {"file": '',"variable": [], "ID": None}
 
-    gl.config['fcstYear'] = ""
-    gl.config['fcstPeriod'] = {"season": list(seasonParam.keys()),
+    config['fcstYear'] = ""
+    config['fcstPeriod'] = {"season": list(seasonParam.keys()),
                         "indx": 2}
     
-    gl.config['signalAgree'] = {"level": list(signalAgreeLevels),
+    config['signalAgree'] = {"level": list(signalAgreeLevels),
                         "indx": 0}
     
-    gl.config['skillLevel'] = {"level": list(skillLevels),
+    config['skillLevel'] = {"level": list(skillLevels),
                         "indx": 0}
 
-    gl.config['fcstCategory'] = {"category": list(fcstCategories.keys()),
+    config['fcstCategory'] = {"category": list(fcstCategories.keys()),
                         "indx": 0}
 
-    gl.config['zoneData'] = {}
-    gl.config['zonesFilereference'] = ''
-    gl.config['zonesVariable'] = ''
+    config['zoneData'] = {}
+    config['zonesFilereference'] = ''
+    config['zonesVariable'] = ''
     
-    return gl.config    
+    return config    
 
 
 
@@ -457,7 +449,7 @@ def populateUI():
     
 
 def showMessage(_message, _type="RUNTIME"):
-    #this print messages to log window, which are generated outside of the threaded function
+    #this prints messages to log window, which are generated outside of the threaded function
     _color=msgColors[_type]
     _message = "<pre><font color={}>{}</font></pre>".format(_color, _message)
     gl.window.logWindow.appendHtml(_message)

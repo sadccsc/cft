@@ -17,26 +17,8 @@ Download
 
 .. currentmodule:: cft.functions.functions_download
 
-.. autofunction:: downloadPredictand
+.. autofunction:: cdsDownloadReanalysis
 
-.. autofunction:: downloadGriddedPredictor
+.. autofunction:: cdsDownloadForecast
 
-.. autofunction:: downloadFcstPredictor
 
-.. autofunction:: downloadIndexPredictor
-
-Verification
-------------
-
-.. currentmodule:: cft.functions.functions_verification
-
-.. autofunction:: execVerification
-
-Zoning
-------
-
-.. currentmodule:: cft.functions.functions_zoning
-
-.. autofunction:: season_average
-
-.. autofunction:: season_cumulation

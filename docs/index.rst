@@ -20,7 +20,7 @@ Installation
    mamba install -c conda-forge gdal=3.13.2
    pip install sadc-cft
 
-See the `project README <https://github.com/sadc-csc/cft>`_ for full
+See the `project README <https://pypi.org/project/sadc-csc>`_ for full
 installation and GUI usage instructions.
 
 Using CFT without the GUI

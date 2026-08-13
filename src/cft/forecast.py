@@ -68,6 +68,7 @@ def main():
 
             uiFile = os.path.join(os.path.dirname(__file__), "forecast.ui")
             uic.loadUi(uiFile, self)
+            self.setWindowTitle(gl.titleFor("Forecast module"))
 
             iconPath = os.path.join(os.path.dirname(__file__), "cft.ico")
             self.setWindowIcon(QtGui.QIcon(iconPath))

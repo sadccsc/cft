@@ -1,21 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-# In[ ]:
-
-
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
-##!/usr/bin/env python
-## coding: utf-8
-
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
   This script generates verification maps:
       Inputs:
@@ -29,7 +13,6 @@
          Nov 2022 - using xarray and allow more general format of netcdf files, also some changes to UI
          Aug 2023 - implemented threading and CSV format of csv files
 """
-version="4.2.4"
 
 
 import os, sys
@@ -41,7 +24,7 @@ import matplotlib
 matplotlib.use('agg')
 from pathlib import Path
 
-from PyQt5 import QtCore, QtWidgets, uic
+from PyQt5 import QtCore, QtWidgets, uic, QtGui
 from PyQt5.QtCore import QThread, QObject
 
 from PyQt5.QtCore import pyqtSignal
@@ -232,7 +215,7 @@ def changeFormatType():
     
 def setConfigDefaults():
     gl.config = {}
-    gl.config['Version'] = version
+    gl.config['Version'] = ""
     #output directory
     gl.config['outDir'] = ''   
 
@@ -532,6 +515,9 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
         self.log_signal.connect(self.appendLog)
+        self.setWindowTitle(gl.titleFor("Verification module"))
+        iconPath = os.path.join(os.path.dirname(__file__), "cft.ico")
+        self.setWindowIcon(QtGui.QIcon(iconPath))
 
     def appendLog(self, message):
         #this appends messages to the log window - safe to call from any thread via log_signal
@@ -568,8 +554,7 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         
 
 
-# this is where magic happens
-if __name__ == "__main__":
+def main():
     gl.app = QtWidgets.QApplication(sys.argv)
     gl.window = MyApp()
     gl.window.show()
@@ -606,15 +591,7 @@ if __name__ == "__main__":
     sys.exit(gl.app.exec_())
 
 
-# In[ ]:
 
-
-
-
-
-
-# In[ ]:
-
-
-
-
+# this is where magic happens
+if __name__ == "__main__":
+    main()

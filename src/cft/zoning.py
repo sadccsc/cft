@@ -196,7 +196,9 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         QtWidgets.QMainWindow.__init__(self)
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
-
+        self.setWindowTitle(gl.titleFor("Zoning module"))
+        iconPath = os.path.join(os.path.dirname(__file__), "cft.ico")
+        self.setWindowIcon(QtGui.QIcon(iconPath))
 
 def closeapp():
     sys.exit(gl.app.exec_())

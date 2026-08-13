@@ -852,9 +852,9 @@ def readPredictandCsv(csvfile):
     #check against the forecast date
     firstdatyear=datdates.year[0]
     lastdatyear=datdates.year[-1]
-        
+
     if gl.config["climEndYr"]>lastdatyear or gl.config["climStartYr"]<firstdatyear:
-        showMessage("Climatological period {}-{} extends beyond period covered by data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
+        showMessage("Climatological period {}-{} extends beyond period covered by predictand data {}-{}".format(gl.config["climStartYr"],gl.config["climEndYr"],firstdatyear,lastdatyear), "ERROR")
         return None,None
 
     #making sure dates start on the first of the month    
@@ -1100,6 +1100,10 @@ def readPredictand():
         predictand=predictand.to_pandas()
     else:
         predictand,geodata=readPredictandCsv(predictandFile)
+       
+        if predictand is None:
+            showMessage(f"Csv file {predictandFile} could not be read...","ERROR")
+            return None, None    
 
 
     availMonths=np.unique(predictand.index.month)
@@ -2723,12 +2727,15 @@ def nice_minmax(x,y=None, symmetric=False):
     # 3. Round to "nice" numbers (nearest power of 10 multiples)
     def nice_limits(vmin, vmax):
         rng = vmax - vmin
-        exp = int(np.floor(np.log10(rng)))  # order of magnitude
+        if rng>0:
+            exp = int(np.floor(np.log10(rng)))  # order of magnitude
+        else:
+            exp=1
         step = 10 ** exp
         vmin = np.floor(vmin / step) * step
         vmax = np.ceil(vmax / step) * step
         return [vmin, vmax]
-
+    
     lims = nice_limits(raw_min, raw_max)
     if symmetric:
         largest=max([abs(lims[0]), lims[1]])
@@ -3175,6 +3182,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
     if gl.targetType=="zones":
         _geodata=_geoData.copy().join(_scores.T)
         for score in _scores.index:
+            showMessage(score)
             outfile=Path(_figuresDir,"{}_{}_{}.jpg".format(gl.config['predictandVar'], score, _forecastID))
             #showMessage("plotting {}".format(outfile))
             fig=plt.figure(figsize=(5,5))
@@ -3203,7 +3211,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             
             if vmax=="auto":
                 if vmin=="auto":
-                    vmin,vmax=nice_minmax(_geodata[score].values.flatten(), None,True)
+                    vmin,vmax=nice_minmax(_geodata[score].values, None,True)
                 else:
                     vmax=nice_max(_geodata[score].values.flatten())
                     

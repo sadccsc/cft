@@ -33,7 +33,6 @@ import cartopy.crs as ccrs
 from matplotlib.patches import Patch
 
 #defining fixed things
-version="1.0"
 qtCreatorFile = os.path.join(os.path.dirname(__file__), "synthesis.ui")
 
 months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -472,8 +471,10 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         QtWidgets.QMainWindow.__init__(self)
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
-        
-        
+        self.setWindowTitle(gl.titleFor("Synthesis module"))        
+        iconPath = os.path.join(os.path.dirname(__file__), "cft.ico")
+        self.setWindowIcon(QtGui.QIcon(iconPath))
+ 
     def reportProgress(self, _tuple):
         #this print messages to log window, which are generated in the threaded function
         _message=_tuple[0]

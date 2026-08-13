@@ -2,7 +2,7 @@ import sys, os
 import subprocess
 from pathlib import Path
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
-
+from cft import gl
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -12,8 +12,9 @@ class MainWindow(QtWidgets.QMainWindow):
         iconPath = os.path.join(os.path.dirname(__file__), "cft.ico")
 
         self.setWindowIcon(QtGui.QIcon(iconPath))
-
         uic.loadUi(uiFile, self)
+
+        self.setWindowTitle(gl.titleFor("Climate Forecasting Tool"))
 
         self.buttons = [
             self.downloadButton,

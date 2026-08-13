@@ -52,8 +52,11 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         uiFile = os.path.join(os.path.dirname(__file__), "download.ui")
         uic.loadUi(uiFile, self)
-        
-        
+        self.setWindowTitle(gl.titleFor("Download module"))        
+
+        iconPath = os.path.join(os.path.dirname(__file__), "cft.ico")
+        self.setWindowIcon(QtGui.QIcon(iconPath))
+ 
         # Collect buttons
         self.buttons = [self.button1_run, self.button2_run, self.button3_run, self.button4_run]
 

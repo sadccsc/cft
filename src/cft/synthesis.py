@@ -42,6 +42,18 @@ months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 
 # This index is 1-based, i.e. Jan is 1, Feb is 2 etc.
 # For example, for JFM, the first value will be 3, second will be 3 as March is the last month of JFM.
 seasonParam = {
+           'Jan':[3,3],
+           'Feb':[3,3],
+           'Mar':[3,3],
+           'Apr':[3,3],
+           'May':[3,3],
+           'Jun':[3,3],
+           'Jul':[3,3],
+           'Aug':[3,3],
+           'Sep':[3,3],
+           'Oct':[3,3],
+           'Nov':[3,3],
+           'Dec':[3,3],
            'JFM':[3,3],
            'FMA':[3,4],
            'MAM':[3,5],

@@ -225,6 +225,8 @@ def zonal_mean(_src,_summaryzonesVector,_summaryzonesName,_summaryzonesVar,_obsF
             _src=_src.reindex(latitude=_src.latitude[::-1])
             affine = _src.rio.transform()
             zonalscore = zonal_stats(_summaryzonesVector, _src[0,:,:].data, affine=affine, nodata=np.nan)
+
+
         zonalscore = pd.DataFrame(zonalscore)
     else:
         alldata=[]
@@ -244,7 +246,13 @@ def zonal_mean(_src,_summaryzonesVector,_summaryzonesName,_summaryzonesVar,_obsF
                 countval=0                
             alldata=alldata+[[minval,maxval,meanval,countval]]
         zonalscore = pd.DataFrame(alldata, columns=["min","max","mean","count"])
-    return(zonalscore)
+
+    if zonalscore['mean'].isna().all():
+
+        showMessage("\nAggregating to zones gives no data. Are you sure there is an overlap between aggregation zones and forecast map?\n","ERROR")
+        return 
+    else:
+        return(zonalscore)
 
 
 def neat_vmax(_value):
@@ -596,6 +604,9 @@ def execVerification(config):
                 return False
 
             #aligning coordinate names    
+            if "valid_time" in ds.coords.keys():
+                showMessage("found valid_time - renaming to time","RUNTIME")
+                ds=ds.rename({"valid_time":"time"})
             if "T" in ds.coords.keys():
                 showMessage("found T - renaming to time","RUNTIME")
                 ds=ds.rename({"T":"time"})
@@ -618,6 +629,11 @@ def execVerification(config):
             ds=ds.convert_calendar("standard", align_on="date")
 
 
+            if not obsVar in  ds.variables:
+                msg=f"{obsVar} is not available. Are you sure this is the variable you wanted?"
+                showMessage(msg, "ERROR")
+                return
+
             #exctracting obsVar dataArray
             obs=ds[obsVar]
 
@@ -625,8 +641,22 @@ def execVerification(config):
             test=[x not in obs.coords.keys() for x in ["latitude","longitude","time"]]
             if np.sum(test)>0:
                 showMessage("Observed variable should have time,latitude and longitude coordinates. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(obsFile,obsVar), "ERROR")
-                return False
 
+                #dropping unnecessary dimensions
+                for dimName in obs.sizes.keys():
+                    if dimName not in ["latitude","longitude","time"]:
+                        if obs.sizes[dimName]==1:
+                            msg="\tDropping redundand dimension of size 1: {}".format(dimName)
+                            showMessage(msg, "RUNTIME")
+                            dimValue=obs[dimName].values[0]
+                            obs=obs.sel({dimName:dimValue})
+                            obs=obs.drop_vars(dimName)
+                        else:
+                            msg="There is a redundand dimension in data that cannnot be dropped. {} of size {}. Please check your data file".format(dimName, obs.sizes[dimName])
+                            showMessage(msg, "ERROR")
+                            return
+
+                return
             #processing obs data further
             obs=obs.rio.write_crs("epsg:4326") #adding crs
 
@@ -691,7 +721,7 @@ def execVerification(config):
                 except:
                     showMessage("Data for {} contains entries that are of string (character) type which cannot be converted to numerical values. There should be no non-numeric characters in the data. Please edit the {} file so that it is formatted correctly".format(name, obsFile), "ERROR")
                     return False                        
-                index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="M")
+                index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="ME")
                 try:
                     data=pd.DataFrame(data.reshape(-1,1), index=index,columns=[name])
                 except:
@@ -758,9 +788,12 @@ def execVerification(config):
 
             
         #-------------------------------------------------------------------------------------------------
-        # preprocessing
+        # preprocessing:
         
         showMessage("\nPreprocessing...","RUNTIME")
+
+        print(obs)
+
 
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         #this is where code is different for csv and netcdf formats
@@ -768,8 +801,8 @@ def execVerification(config):
             showMessage("Clipping observations to forecast extent...","RUNTIME")
             try:
                 obs=obs.rio.clip(fcstVector.geometry.values, "epsg:4326") #clipping to fcst geojson
-            except:
-                showMessage("Variable {} in the observed file {} appears not to have spatial coordinates. Did you chose correct variable to process?".format(obsVar, obsFile), "ERROR")
+            except Exception as e:
+                showMessage("Variable {} in the observed file {} cannot be intersected with the polygon {}\n Error: {}".format(obsVar, obsFile, fcstFile,  e), "ERROR")
                 return False
 
             #chunking obs, in case it is a large file
@@ -968,6 +1001,10 @@ def execVerification(config):
         
         showMessage("\nCalculating observed climatological mean...","RUNTIME")
         
+        if not seasLastMon in obsroll.time.dt.month:
+            showMessage(f"The last month of the forecasted season is {seasLastMon} but observed data only has {np.unique(obsroll.time.dt.month)}. Please check your data. Exiting...", "ERROR")
+            return
+
         #climatology period
         obs_clim=obsroll.sel(time=obsroll.time.dt.month==seasLastMon).sel(time=slice(str(climStartYr),str(climEndYr)))
         
@@ -1012,6 +1049,9 @@ def execVerification(config):
         
         showMessage("\nCalculating observed quantiles...","RUNTIME")
         
+        print(obs_clim.shape)
+
+ 
         clim_quant=obs_clim.quantile([0.33,0.50,0.66], dim="time")
 
 
@@ -1330,6 +1370,9 @@ def execVerification(config):
                 #CHECK
                 showMessage("Plotting Heidke hit scores zonal summary","RUNTIME")
                 zonal_hhit=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
+                if zonal_hhit==None:
+                    return
+                
                 plotzonalHistogram(zonal_hhit["mean"], 
                                          "Heidke skill score (HSS) for most probable tercile category\n{} {}".format(obsSeason,obsYearExpr), 
                                          "{}/{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_heidke",obsSeason,obsYearExpr,obsDsetCode),
@@ -1403,6 +1446,9 @@ def execVerification(config):
 
                 showMessage("Plotting interest rate zonal summary","RUNTIME")
                 zonal_intrate=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
+                if zonal_intrate is None:
+                    return
+
                 plotzonalHistogram(zonal_intrate["mean"], 
                         "Average interest rate (for terciles)\n{} {}".format(obsSeason,obsYearExpr), 
                         "{}/{}_{}_{}_{}.jpg".format(currentoutDir, "zonal_intrate",obsSeason,obsYearExpr,obsDsetCode),
@@ -1479,6 +1525,9 @@ def execVerification(config):
                 showMessage("Plotting ignorance zonal summary","RUNTIME")
                 
                 zonal_ignorance=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
+                if zonal_ignorance is None:
+                    return
+
                 plotzonalHistogram(zonal_ignorance["mean"], 
                                      "Ignorance score (for terciles)\n{} {}".format(obsSeason,obsYearExpr), 
                                      "{}/{}_{}-{}_{}.jpg".format(currentoutDir, "zonal_ignorance",obsSeason,obsYearExpr,obsDsetCode),
@@ -1551,6 +1600,8 @@ def execVerification(config):
                 showMessage("Plotting RPSS zonal summary","RUNTIME")
                 
                 zonal_rpss=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
+                if zonal_rpss is None:
+                    return
                 
                 plotzonalHistogram(zonal_rpss["mean"],
                                  "Ranked probability skill score (RPSS) (for terciles)\n{} {}".format(obsSeason,obsYearExpr),

@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import requests
 import json,io, os, sys, glob, datetime,time
 
-from PyQt5 import QtWidgets, uic, QtCore
+from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.QtWidgets import QFileDialog
 
 from cftime import num2date

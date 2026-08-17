@@ -31,12 +31,19 @@
         [],
         1981
     ],
-    "PRCP_CHIRPSp25_IRIDL":[
-        "CHIRPS 0.25 deg rainfall from IRI data library",
+    "PRCP_CHIRPSp25-v2_IRIDL":[
+        "CHIRPS v2 0.25 deg rainfall from IRI data library",
         "https://iridl.ldeo.columbia.edu/SOURCES/.UCSB/.CHIRPS/.v2p0/.daily-improved/.global/.0p25/.prcp/{}/mul/T/(1 Jan {})/(31 Dec {})/RANGE/T/({} {}-{})/seasonalAverage/Y/({})/({})/RANGEEDGES/X/({})/({})/RANGEEDGES/-999/setmissing_value/data.nc",
         "sum",
         1981
+    ],
+    "PRCP_CHIRPSp25-v3_IRIDL":[
+        "CHIRPS v3 0.25 deg rainfall from IRI data library",
+        "https://iridl.ldeo.columbia.edu/SOURCES/.UCSB/.CHIRPS/.v3p0/.monthly/.global/.precipitation/{}/mul/T/(1 Jan {})/(31 Dec {})/RANGE/T/({} {}-{})/seasonalAverage/Y/({})/({})/RANGEEDGES/X/({})/({})/RANGEEDGES/-999/setmissing_value/data.nc",
+        "sum",
+        1981
     ]
+
 },
 "obspredSources":{
     "SST_ERA5_CDS": [

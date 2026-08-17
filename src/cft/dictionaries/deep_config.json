@@ -2,5 +2,6 @@
 "gridSize":0.5,
 "maxLeadTime":6,
 "sigmaSmooth":4,
-"enhanceSmooth":false
+"enhanceSmooth":false,
+"fractionCpus":0.8
 }

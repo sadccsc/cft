@@ -80,6 +80,8 @@ def main():
             
             # Connect signals
             self.button_run.clicked.connect(lambda: self.start_task(f"Model", computeModel))
+
+            self.button_exit.clicked.connect(closeApp)
     
             self.browseButton_predictorfile.clicked.connect(
                 lambda: browse(self.lineEdit_predictorfile, mode='file', parent=self, 
@@ -130,7 +132,10 @@ def main():
                 btn.setEnabled(enabled)
     
         
+    def closeApp():
+        sys.exit(app.exec_())
     
+
     def browse(line_edit, mode='file', parent=None, caption="Select File", file_filter="All Files (*)", combo_box=None):
         if mode == 'file':
             path, _ = QFileDialog.getOpenFileName(parent, caption, "", file_filter)
@@ -206,6 +211,7 @@ def main():
     
         gl.config["overlayFile"]=""
         gl.config["plotMaps"]=True
+        gl.config["parallelize"]=True
 
 
 
@@ -546,6 +552,11 @@ def main():
             showMessage("reading config from: {}".format(gl.configFile))
             with open(gl.configFile, "r") as f:
                 gl.config = json.load(f)
+                if not "plotMaps" in gl.config.keys():
+                    gl.config["plotMaps"]=True
+                if not "parallelize" in gl.config.keys():
+                    gl.config["parallelize"]=True
+
             populateGui()
         except:    
             showMessage("config file corrupted. Making default config.".format(gl.configFile))

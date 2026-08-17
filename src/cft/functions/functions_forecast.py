@@ -3,12 +3,16 @@ import json
 import re
 import inspect
 import unicodedata
+import time
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 import xarray as xr
 import rioxarray
+
+
+from joblib import Parallel, delayed, cpu_count
 
 from pathlib import Path
 
@@ -198,6 +202,7 @@ def computeModelNoGui(config):
         True
     """
 
+
     gl.config=config
 
     #reading inputs
@@ -225,6 +230,11 @@ def computeModelNoGui(config):
     else:
         gl.fcstBaseTime="mon"
     
+
+
+    #getting the number of available cpus. This will be None or a percent of available depending on gl.config["parallelize"] and gl.deepConfig["fractionCpus"]
+    n_jobs = get_n_cpus()
+
     #=======================================================================================================
     #reading data
      
@@ -437,11 +447,20 @@ def computeModelNoGui(config):
     
     # cross-validated hindcast
     showMessage("Calculating cross-validated hindcast...")
-    cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv)
+      
+    start=time.time()
+    if gl.config["parallelize"]:
+        cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv, n_jobs=n_jobs)
+    else:
+        cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv)
+
+    end=time.time()
+
+    showMessage(f"parallel: {gl.config['parallelize']}, jobs: {n_jobs}, Elapsed time: {end - start:.2f} seconds")
     
     # output of the above is a plain numpy array, needs to be converted to pandas
     cvHcst=pd.DataFrame(cvHcst, index=predictandHcst.index, columns=predictandHcst.columns)
-    
+     
     # actual prediction - forecast
     showMessage("Calculating deteriministic forecast...")
     regressor.fit(predictorHcst,  predictandHcst)
@@ -500,14 +519,30 @@ def computeModelNoGui(config):
     #hindcast
     cemHcst=getCemCategory(probHcst)
     
-    
     #calculating skill
     showMessage("Calculating skill scores...")
-    scores=getSkill(probHcst,cvHcst["value"],predictandHcst,obsTercile)    
-    if scores is None:
-        showMessage("Skill could not be calculated", "ERROR")
+
+    try:
+        start=time.time()
+
+        if (gl.config["parallelize"] is False) or (n_jobs==1):
+            # this runs as is
+            results = [computeSkill(probHcst["above"][col],probHcst["normal"][col],probHcst["below"][col], cvHcst["value"][col],predictandHcst[col],obsTercile[col], config["predictandCategory"]) for col in predictandHcst.columns]
+
+        else:
+            # this runs in parallel
+            results = Parallel(n_jobs=n_jobs)(
+                delayed(computeSkill)(probHcst["above"][col],probHcst["normal"][col],probHcst["below"][col], cvHcst["value"][col],predictandHcst[col],obsTercile[col], config["predictandCategory"])
+                for col in predictandHcst.columns
+            )
+
+        scores=pd.concat(results, axis=1, keys=predictandHcst.columns)
+
+        end=time.time()
+        showMessage(f"parallel: {gl.config['parallelize']}, jobs: {n_jobs}, Elapsed time: {end - start:.2f} seconds")
+    except Exception as e:
+        showMessage((f"Skill could not be calculated. Full error: {e}", "ERROR"))
         return
-    
     
     #saving data
     showMessage("Plotting forecast maps and saving output files...")    
@@ -688,6 +723,14 @@ def showMessage(message,type="RUNTIME"):
         if type in ["NONCRITICAL","ERROR","INFO"]:
             message = f"{type}: {message})"
         print(message)
+
+
+
+def get_n_cpus():
+    fraction_cpus=gl.deep_config["fractionCpus"]
+
+    n_available = cpu_count(only_physical_cores=False)
+    return max(1, int(n_available * fraction_cpus))
 
     
 def month2int(_str):
@@ -1552,11 +1595,27 @@ class StdRegressor(BaseEstimator, RegressorMixin):
         return Y_pred
     
 
-    
+
+def getObsTerciles(_predictand, _predictandHcst):
+    showMessage("Calculating observed terciles...")
+    refData = _predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]
+    tercThresh = refData.quantile([0.33, 0.66])
+
+    obsTercile = pd.DataFrame(
+        np.select(
+            [_predictandHcst.ge(tercThresh.loc[0.66]),
+             _predictandHcst.le(tercThresh.loc[0.33])],
+            ["above", "below"],
+            default="normal",
+        ),
+        index=_predictandHcst.index,
+        columns=_predictandHcst.columns,
+    )
+    return obsTercile, tercThresh
 
     
     
-def getObsTerciles(_predictand,_predictandHcst):
+def getObsTerciles_v0(_predictand,_predictandHcst):
     
     showMessage("Calculating observed terciles...")
     refData=_predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]   
@@ -1888,7 +1947,96 @@ def groc_score(probs, obs):
 
 
 
-def getSkill(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
+def computeSkill(_prob_hcst_above,_prob_hcst_normal,_prob_hcst_below,_det_hcst,_predictand_hcst,_obs_tercile, predictandCategory):
+    #iterating through stations/locations
+    #print(_prob_hcst_below)
+    index=[]
+    scoreslist=[]
+    
+    roc_score_above = np.round(roc_auc_score(_obs_tercile=="above", _prob_hcst_above),2)
+    scoreslist.append(roc_score_above)
+    index.append("ROC_above")
+      
+    roc_score_below = np.round(roc_auc_score(_obs_tercile=="below", _prob_hcst_below),2)
+    scoreslist.append(roc_score_below)
+    index.append("ROC_below")
+    
+    roc_score_normal = np.round(roc_auc_score(_obs_tercile=="normal", _prob_hcst_normal),2)
+    scoreslist.append(roc_score_normal)
+    index.append("ROC_normal")
+    
+    cor=np.round(np.corrcoef(_det_hcst.values,_predictand_hcst.values.astype(float))[0][1],2)
+    scoreslist.append(cor)
+    index.append("correlation")
+
+    #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
+    ev=np.round(explained_variance_score(_det_hcst,_predictand_hcst))
+    
+    if predictandCategory =='rainfall':        
+        mape=np.round(mean_absolute_percentage_error(_det_hcst,_predictand_hcst),2)
+        scoreslist.append(mape)
+        index.append("MAPE")
+    else:
+        mae=np.round(mean_absolute_error(_det_hcst,_predictand_hcst),2)
+        scoreslist.append(mae)
+        index.append("MAE")
+    
+    rmse=np.round((mean_squared_error(_det_hcst,_predictand_hcst)**0.5),2)
+    scoreslist.append(rmse)
+    index.append("RMSE")
+
+    #prep data for rpss
+    obsterc=_obs_tercile
+    obsterc=obsterc.map(lambda x: cat2num[x]).values
+    
+    _prob_clim=_prob_hcst_below.copy()
+    _prob_clim[:]=0.33
+    pclim=np.concat([_prob_clim.values.reshape(-1,1),_prob_clim.values.reshape(-1,1),_prob_clim.values.reshape(-1,1)], axis=1)
+    phcst=pd.concat([_prob_hcst_below,_prob_hcst_normal,_prob_hcst_above], axis=1).values
+
+    #calculate rpss
+    rpss=rpss_score(phcst, pclim,obsterc)
+    rpss=np.round(rpss,2)
+    scoreslist.append(rpss)
+    index.append("rpss")
+
+
+    # ignorance score
+    ignorance=np.round(ignorance_score(phcst,obsterc),2)
+    scoreslist.append(ignorance)
+    index.append("ignorance")
+    
+    hss=np.round(heidke_skill_score(phcst,obsterc),2)
+    scoreslist.append(hss)
+    index.append("hss")
+
+    twoafc=np.round(two_afc_multicategory(phcst, obsterc),2)
+    scoreslist.append(twoafc)
+    index.append("2afc")
+    
+    brier=np.round(brier_skill_score(phcst, obsterc),2)
+    scoreslist.append(brier)
+    index.append("brier")
+    
+    effintrate=np.round(effective_interest_rate(phcst,obsterc),2)
+    scoreslist.append(effintrate)
+    index.append("effintrate")
+    
+    groc=np.round(groc_score(phcst,obsterc),2)
+    scoreslist.append(groc)
+    index.append("groc")
+    
+
+    #entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss, ignorance, hss, twoafc, brier, effintrate, groc], index=index)
+    
+    entryscores=pd.Series(scoreslist, index=index)
+
+    return entryscores
+
+
+
+
+def getSkill_v0(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
     #iterating through stations/locations
 
     allscores=[]

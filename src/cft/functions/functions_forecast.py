@@ -537,6 +537,7 @@ def computeModelNoGui(config):
             )
 
         scores=pd.concat(results, axis=1, keys=predictandHcst.columns)
+        scores.index.name = 'category'
 
         end=time.time()
         showMessage(f"parallel: {gl.config['parallelize']}, jobs: {n_jobs}, Elapsed time: {end - start:.2f} seconds")
@@ -3248,6 +3249,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
     
     if gl.targetType=="grid":
         #no need to use geodata as _scores unstacks to proper xarray
+        #print(_scores)
         scoresxr=_scores.unstack().to_xarray().transpose("category","lat","lon")
         for score in scoresxr.category.values:
             showMessage(score)

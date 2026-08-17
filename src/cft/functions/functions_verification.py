@@ -273,7 +273,7 @@ def get_cmap(_data, _cmap, _vmin,_vmax,_ncat,_centre):
         _smin=(1-((_vmax-_vmin)/(2*_vmax)))*100        
     _step=(_smax-_smin)/_ncat
     _seq=np.arange(_smin,_smax,_step)
-    _cmap=colors.ListedColormap([plt.cm.get_cmap(_cmap, 100)(int(x)) for x in _seq])
+    _cmap=colors.ListedColormap([plt.colormaps[_cmap].resampled(100)(int(x)) for x in _seq])
 
     return({"cmap":_cmap, "levels":_levels, "vmin":_vmin, "vmax":_vmax,"ticklabels":None})
 
@@ -285,7 +285,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/obs_percentile-anomaly_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         seq=[10]*10+[20]*10+[30]*13+[50]*34+[70]*13+[80]*10+[90]*10
         levels = [0,10,20,30,70,80,90,100]
-        cmap=colors.ListedColormap([plt.cm.get_cmap('BrBG', 100)(x) for x in seq])
+        cmap=colors.ListedColormap([plt.colormaps['BrBG'].resampled(100)(x) for x in seq])
         vmin=0
         vmax=100     
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":None}
@@ -299,7 +299,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/obs_relative-anomaly_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)        
         seq=[10,20,30,40,50,50,60,70,80,90]
         levels = [-100,-80,-60,-40,-20,0,20,40,60,80,100]
-        collist=[plt.cm.get_cmap('BrBG', 100)(x) for x in seq]
+        collist=[plt.colormaps['BrBG'].resampled(100)(x) for x in seq]
         collist[4]=(1,1,1,1)
         collist[5]=(1,1,1,1)
         cmap=colors.ListedColormap(collist)
@@ -390,7 +390,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/fcst_CEM-hit_{}-{}_{}.jpg".format(currentoutDir, obsSeason, obsYearExpr,obsDsetCode)
         ticklabels=['miss', 'half-miss','half-hit','hit']
         levels=np.array([0.5,1.5,2.5,3.5])
-        cmap=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
+        cmap=colors.ListedColormap([plt.colormaps['RdBu'].resampled(10)(x) for x in [2,4,5,7]])
         vmin=0
         vmax=4
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
@@ -422,7 +422,7 @@ def get_plotparams(_data,_plotvar,currentoutDir,obsSeason,obsYearExpr,obsDsetCod
         filename="{}/fcst_heidke-hit_{}-{}_{}.jpg".format(currentoutDir, obsSeason,obsYearExpr, obsDsetCode)
         ticklabels=['miss', 'hit']
         levels=np.array([0.5,1.5])
-        cmap=colors.ListedColormap([plt.cm.get_cmap('BrBG', 10)(x) for x in [3,6]])
+        cmap=colors.ListedColormap([plt.colormaps['BrBG'].resampled(10)(x) for x in [3,6]])
         vmin=0
         vmax=2
         cmapdict={"cmap":cmap, "levels":levels, "vmin":vmin, "vmax":vmax, "ticklabels":ticklabels}
@@ -1842,7 +1842,7 @@ def plotzonalCemhit(summaryzonesVector,summaryzonesName,summaryzonesVar,fcst_cem
             
     bins=[-0.5,0.5,1.5,2.5,3.5]
     labels=["miss","half-miss","half-hit","hit"]
-    cols=colors.ListedColormap([plt.cm.get_cmap('RdBu', 10)(x) for x in [2,4,5,7]])
+    cols=colors.ListedColormap([plt.colormaps['RdBu'].resampled(10)(x) for x in [2,4,5,7]])
     cols=[cols(i) for i in range(4)]
 
     nx,ny=6,int(np.ceil(nzones/6))

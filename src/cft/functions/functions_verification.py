@@ -38,18 +38,6 @@ seasonParam = {
            'OND':[3,12],
            'NDJ':[3,1],
            'DJF':[3,2],
-           'JF':[2,2],
-           'FM':[2,3],
-           'MA':[2,4],
-           'AM':[2,5],
-           'MJ':[2,6],
-           'JJ':[2,7],
-           'JA':[2,8],
-           'AS':[2,9],
-           'SO':[2,10],
-           'ON':[2,11],
-           'ND':[2,12],
-           'DJ':[2,1],
            'Jan':[1,1],
            'Feb':[1,2],
            'Mar':[1,3],
@@ -63,6 +51,34 @@ seasonParam = {
            'Nov':[1,11],
            'Dec':[1,12]
             }
+
+seasonmonths={
+    "Jan":[1],
+    "Feb":[2],
+    "Mar":[3],
+    "Apr":[4],
+    "May":[5],
+    "Jun":[6],
+    "Jul":[7],
+    "Aug":[8],
+    "Sep":[9],
+    "Oct":[10],
+    "Nov":[11],
+    "Dec":[12],
+    "JFM":[1,2,3],
+    "FMA":[2,3,4],
+    "MAM":[3,4,5],
+    "AMJ":[4,5,6],
+    "MJJ":[5,6,7],
+    "JJA":[6,7,8],
+    "JAS":[7,8,9],
+    "ASO":[8,9,10],
+    "SON":[9,10,11],
+    "OND":[10,11,12],
+    "NDJ":[11,12,1],
+    "DJF":[12,1,2]
+}
+
 
 msgColors={"ERROR": "red",
            "INFO":"blue",
@@ -218,14 +234,38 @@ def val_to_quantanom(_val,_obs):
 
 def zonal_mean(_src,_summaryzonesVector,_summaryzonesName,_summaryzonesVar,_obsFileFormat):
     if _obsFileFormat=="netcdf":
-        try:
-            affine = _src.rio.transform()
-            zonalscore = zonal_stats(_summaryzonesVector, _src[0,:,:].data, affine=affine, nodata=np.nan)
-        except:
-            _src=_src.reindex(latitude=_src.latitude[::-1])
-            affine = _src.rio.transform()
-            zonalscore = zonal_stats(_summaryzonesVector, _src[0,:,:].data, affine=affine, nodata=np.nan)
 
+        from affine import Affine
+
+        lat = _src.latitude.values
+        lon = _src.longitude.values
+        #print("lat[0], lat[1]:", lat[0], lat[1])   # <-- tells us definitively if the reversal actually happened
+
+        res_lon = lon[1] - lon[0]
+        res_lat = lat[1] - lat[0]
+
+        affine = Affine(res_lon, 0, lon[0] - res_lon/2,0,res_lat, lat[0] - res_lat/2)
+        #print(affine, affine.e)
+
+        try:
+            zonalscore = zonal_stats(_summaryzonesVector, _src[0,:,:].data, affine=affine, nodata=np.nan)
+        except Exception as e:
+            try:
+                _src=_src.reindex(latitude=_src.latitude[::-1])
+                lat = _src.latitude.values
+                res_lat = lat[1] - lat[0]
+
+                affine = Affine(res_lon, 0, lon[0] - res_lon/2,0,res_lat, lat[0] - res_lat/2)
+
+                zonalscore = zonal_stats(_summaryzonesVector, _src[0,:,:].data, affine=affine, nodata=np.nan)
+
+            except Exception as e1:
+                print(e1)
+                print(affine)
+                print(affine.e)
+                print(lat)
+
+                return
 
         zonalscore = pd.DataFrame(zonalscore)
     else:
@@ -555,7 +595,7 @@ def execVerification(config):
                 os.makedirs(currentoutDir)
             except:
                 showMessage("Could not create {}. Stopping...".format(currentoutDir), "ERROR")
-                return False
+                return
 
             
             
@@ -569,11 +609,15 @@ def execVerification(config):
         #reading geojson file
         try:
             fcstVector = gpd.read_file(fcstFile)
-            #making sure values are integers and not string
+        except Exception as e:
+            showMessage(f"File {fcstFile} cannot be read. please check if the file is properly formatted. Error: {e}", "ERROR")
+            return 
+
+        try:
             fcstVector[fcstVar]=fcstVector[fcstVar].astype(int)
-        except:
-            showMessage("File {} cannot be read. please check if the file is properly formatted".format(fcstFile), "ERROR")
-            return False
+        except Exception as e:
+            showMessage(f"Variable {fcstVar} should have integer values denoting forecast classes. Got {np.unique(fcstVector[fcstVar].values)}. Error: {e}", "ERROR")
+            return
 
         #check for forecast categories here
         test=np.unique(fcstVector[fcstVar])
@@ -581,7 +625,7 @@ def execVerification(config):
         test=[int(x) not in [1,2,3,4] for x in test]
         if np.sum(test)>0:
             showMessage("Forecast variable should have four values (1,2,3,4) denoting four CEM forecast categories. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(fcstFile,fcstVar), "ERROR")
-            return False
+            return
 
         showMessage("Successfuly read forecast data from {}".format(fcstFile), "INFO")
 
@@ -629,6 +673,7 @@ def execVerification(config):
             ds=ds.convert_calendar("standard", align_on="date")
 
 
+            #this is necessary because the selected variable might have been dropped
             if not obsVar in  ds.variables:
                 msg=f"{obsVar} is not available. Are you sure this is the variable you wanted?"
                 showMessage(msg, "ERROR")
@@ -639,6 +684,7 @@ def execVerification(config):
 
             #testing if variable has all required dimensions
             test=[x not in obs.coords.keys() for x in ["latitude","longitude","time"]]
+
             if np.sum(test)>0:
                 showMessage("Observed variable should have time,latitude and longitude coordinates. This is not the case. Please check if {} file is properly formatted and if {} variable of that file the one that describes forecast".format(obsFile,obsVar), "ERROR")
 
@@ -664,9 +710,10 @@ def execVerification(config):
                 obsunits=obs.attrs["units"]
                 showMessage("Found units: {}".format(obsunits),"RUNTIME")
             else:
-                obsunits="mm"
+                obsunits="unknown"
                 
             obsdates=pd.to_datetime(obs.time)
+
             firstobsdate=obsdates.strftime('%Y-%m-%d')[0]
             lastobsdate=obsdates.strftime('%Y-%m-%d')[-1]
             
@@ -684,6 +731,7 @@ def execVerification(config):
             showMessage("Successfuly read observations from {}".format(obsFile), "INFO")
             
         else:
+
             ds=pd.read_csv(obsFile)
             #for the time being only CFT format
             #ID,Lat,Lon,Year,Jan...Dec
@@ -780,6 +828,7 @@ def execVerification(config):
         except:
             showMessage("Summary zones file {} cannot be read. please check if the file is properly formatted".format(summaryzonesFile), "ERROR")
             return False
+
         showMessage("Successfuly read zones from {}".format(summaryzonesFile), "INFO")
 
         #this will be an array of id and values from the zonesVar column 
@@ -792,7 +841,6 @@ def execVerification(config):
         
         showMessage("\nPreprocessing...","RUNTIME")
 
-        print(obs)
 
 
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -820,6 +868,7 @@ def execVerification(config):
                 #overlaying to select only ovelapping points
 
                 fcstPoint=obsgpd.overlay(fcstVector, how="intersection")
+
                 #extracting pandas dataframe
                 obspd_valid=fcstPoint.drop(columns=fcstVector.columns).drop(columns="index").T
                 
@@ -830,13 +879,19 @@ def execVerification(config):
                 #removing actual data from geopandas array
                 fcstPoint.index=fcstPoint['index']
                 fcstPoint=fcstPoint[fcstVector.columns]
+
                 #checking number of valid
                 nofvalid=obspd_valid.shape[0]
                 nofall=obspd.shape[0]
                 showMessage("Read observations for {} locations".format(nofall), "INFO")
+
                 if nofall>nofvalid:
                     showMessage("Only {} locations fall within polygons of the forecast data. Remaining locations have been dropped".format(nofvalid), "NONCRITICAL")
                 
+                if nofall==0:
+                    showMessage("There are no locations fall within polygons of the forecast data. Please check your data".format(nofvalid), "ERROR")
+                    return
+
                 #converting to xarray with time and geometry dimensions
                 obs=xr.DataArray(obspd_valid)
                 obs=obs.rename({"dim_0":"time","index":"geometry"})
@@ -863,12 +918,49 @@ def execVerification(config):
         #there is no need to differentiate between gridded and stations here!
 
 
+
+        tgtMonths=seasonmonths[obsSeason]
+        availMonths=np.unique(obs.time.dt.month)
+        availMonthNames=[months[x-1] for x in availMonths]
+        seasLastMonName=months[seasLastMon-1]
+
         # compute season totals for current year
-        if config.get('verifAggregation') == "sum":
-            obsroll = obs.rolling(time=seasDuration, center=False).sum()
+
+        if seasDuration==1:
+
+            #if target is monthly
+            obsroll = obs.copy()
+
+            if not seasLastMon in availMonths:
+                showMessage(f"file does not contain data for requested months. Expecting {seasLastMonName} but got {availMonthNames}","ERROR")
+                return
+
         else:
-            obsroll = obs.rolling(time=seasDuration, center=False).mean()
-        
+            #if target is seasonal
+
+            #checking if all three months of the season are in data
+            test = set(tgtMonths).issubset(availMonths)
+            
+            if not test:
+                #if not - check if middle month in data
+                if not (len(availMonths)==1 and tgtMonths[1] in availMonths):
+                    showMessage(f"file does not contain data for requested months. Expecting {obsSeason} but got {availMonthNames}","ERROR")
+                    return
+ 
+            #if all gppd - resampling 
+            showMessage("Resampling to seasonal...")
+            if config.get('verifAggregation') == "mean":
+                cont=True
+                obsroll=obs.resample(time=f"QE-{months[seasLastMon-1]}".upper()).mean()
+            else:
+                cont=True
+                obsroll=obs.resample(time=f"QE-{months[seasLastMon-1]}".upper()).sum()
+
+
+        obsroll=obsroll[obsroll.time.dt.month==seasLastMon]         
+
+
+
         #have to remove time steps for which rolling generates nans
         if obsFileFormat=="netcdf":
             nancount=np.isnan(obsroll).sum(["latitude","longitude"])
@@ -876,20 +968,26 @@ def execVerification(config):
             nancount=np.isnan(obsroll).sum(["geometry"])
             
         sel=nancount<np.prod(obsroll[0,:].shape)
+
         obsroll=obsroll[sel,:]
-        
+       
+ 
         #check if the target period in obs data
-        
         seltime=str(obsLastYear)+"-"+months[seasLastMon-1]
+
+
         try:
             obs_season=obsroll.sel(time=seltime)
         except:
             showMessage("Observed data does not cover {}. Please check your data, or adjust verification period so that it falls within the period covered by observed data.".format(seltime), "ERROR")
-            return False
+            return
+
+        if obs_season.sizes["time"]==0:
+            showMessage("Observed data does not cover {}. Please check your data, or adjust verification period so that it falls within the period covered by observed data.".format(seltime), "ERROR")
+            return
+
 
         obs_season.attrs=""
-        
-        
         
         #-------------------------------------------------------------------------------------------------           
         # plotting observed rainfall
@@ -1049,8 +1147,6 @@ def execVerification(config):
         
         showMessage("\nCalculating observed quantiles...","RUNTIME")
         
-        print(obs_clim.shape)
-
  
         clim_quant=obs_clim.quantile([0.33,0.50,0.66], dim="time")
 
@@ -1369,8 +1465,13 @@ def execVerification(config):
                 
                 #CHECK
                 showMessage("Plotting Heidke hit scores zonal summary","RUNTIME")
+
                 zonal_hhit=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
-                if zonal_hhit==None:
+
+                #print(zonal_hhit)
+ 
+                if zonal_hhit is None:
+                    showMessage("\nproblem with Heidke hit scores","ERROR")
                     return
                 
                 plotzonalHistogram(zonal_hhit["mean"], 
@@ -1446,7 +1547,9 @@ def execVerification(config):
 
                 showMessage("Plotting interest rate zonal summary","RUNTIME")
                 zonal_intrate=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
+
                 if zonal_intrate is None:
+                    showMessage("\nproblem with Inerest Rate","ERROR")
                     return
 
                 plotzonalHistogram(zonal_intrate["mean"], 
@@ -1526,6 +1629,7 @@ def execVerification(config):
                 
                 zonal_ignorance=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
                 if zonal_ignorance is None:
+                    showMessage("\nproblem with Ignorance score","ERROR")
                     return
 
                 plotzonalHistogram(zonal_ignorance["mean"], 
@@ -1601,6 +1705,7 @@ def execVerification(config):
                 
                 zonal_rpss=zonal_mean(temp,summaryzonesVector,summaryzonesName,summaryzonesVar,obsFileFormat)
                 if zonal_rpss is None:
+                    showMessage("\nproblem with RPSS scores","ERROR")
                     return
                 
                 plotzonalHistogram(zonal_rpss["mean"],

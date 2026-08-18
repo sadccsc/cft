@@ -1600,7 +1600,7 @@ class StdRegressor(BaseEstimator, RegressorMixin):
 def getObsTerciles(_predictand, _predictandHcst):
     showMessage("Calculating observed terciles...")
     refData = _predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]
-    tercThresh = refData.quantile([0.33, 0.66])
+    tercThresh = refData.quantile([0.33,0.50,0.66])
 
     obsTercile = pd.DataFrame(
         np.select(

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sadc-cft"
-version = "6.0.16"
+version = "6.0.18"
 description = "Climate Forecasting Tool package to support generation of seasonal forecast by SADC CSC and National Met Services"
 readme = "README.md"
 requires-python = ">=3.12"

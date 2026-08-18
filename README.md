@@ -3,6 +3,7 @@
 A Python-based tool for statistical climate forecasting, developed by the SADC Climate Services Centre (CSC).
 
 [![PyPI](https://img.shields.io/pypi/v/sadc-cft)](https://pypi.org/project/sadc-cft/)
+[![Readthedocs](https://img.shields.io/readthedocs/:sadc-cft)](https://sadc-cft.readthedocs.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Table of Contents

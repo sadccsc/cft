@@ -38,6 +38,7 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_predict, KFold, LeaveOneOut
 from sklearn.metrics import mean_absolute_error, mean_squared_error, roc_auc_score, mean_absolute_percentage_error, explained_variance_score
+from sklearn.compose import TransformedTargetRegressor
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -398,8 +399,12 @@ def computeModelNoGui(config):
     
     #setting up regressor
     if gl.config['preproc']=="PCR":
+
+        #transform to prevent models from generating negative rainfall forecasts
+        transform = 'sqrt' if gl.config['predictandCategory'] == 'rainfall' else None
+
         #regession model
-        regressor = PCRegressor(regressor_name=gl.config['regression'], **args, **kwargs)
+        regressor = PCRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
         
     if gl.config['preproc']=="CCA":
         
@@ -806,17 +811,23 @@ def readPredictandCsv(csvfile):
         ds.ID=ds.ID.astype(str)
 
         locs=np.unique(ds.ID.astype(str))
+
+        print(locs)
+
         alldata=[]
         lats=[]
         lons=[]
         for name in locs:
+            print(name)
             sel=ds.ID==name
             lats=lats+[np.unique(ds[sel].Lat.values)[0]]
             lons=lons+[np.unique(ds[sel].Lon.values)[0]]
             years=np.unique(ds[sel].Year.values)
             firstyear,lastyear=(np.min(years),np.max(years))
             dat=ds[sel].iloc[:,4:]
-                        
+
+            print(dat.shape)
+
             #check if data contains strings
     #       data=data.applymap(self.tofloat)
             dat=dat.values.flatten()
@@ -824,15 +835,16 @@ def readPredictandCsv(csvfile):
                 dat=dat.astype(float)
             except:
                 showMessage("Data for {} contains entries that are of string (character) type which cannot be converted to numerical values. There should be no non-numeric characters in the data. Please edit the {} file so that it is formatted correctly".format(name, csvfile), "ERROR")
-                return
+                return None,None
             
             index=pd.date_range("{}-01-01".format(int(firstyear)),"{}-12-31".format(int(lastyear)),freq="ME")
             try:
                 dat=pd.DataFrame(dat.reshape(-1,1), index=index,columns=[name])
             except:
-                msg="data for {} contains {} months, expected {} months - data should cover continuous period from Jan {} to Dec {} with entries for every month in that period".format(name, len(index),len(dat), firstyear, lastyear)
+                print(dat.shape, dat)
+                msg="data for {} contains {} months, expected {} months - data should cover continuous period from Jan {} to Dec {} with entries for every month in that period".format(name, len(dat),len(index), firstyear, lastyear)
                 showMessage(msg, "ERROR")
-                return                 
+                return None,None       
 
             alldata.append(dat)
 
@@ -3283,10 +3295,11 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             
             if vmax=="auto":
                 if vmin=="auto":
-                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,True)
+                    vmin,vmax=nice_minmax(dat2plot.data.flatten(), None,symmetric)
                 else:
                     vmax=nice_max(dat2plot.data.flatten())
-                    
+
+
             cm["vmin"]=vmin
             cm["vmax"]=vmax
 
@@ -3361,7 +3374,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             
             if vmax=="auto":
                 if vmin=="auto":
-                    vmin,vmax=nice_minmax(_geodata[score].values, None,True)
+                    vmin,vmax=nice_minmax(_geodata[score].values, None,symmetric)
                 else:
                     vmax=nice_max(_geodata[score].values.flatten())
                     
@@ -3418,6 +3431,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             cmap=cm["cmap"]
             vmin=cm["vmin"]
             vmax=cm["vmax"]
+            symmetric=cm["symmetric"]
             levels=cm["levels"]
             nlev=cm["nlev"]
             whitelev=cm["whitelev"]
@@ -3427,10 +3441,12 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
 
             if vmax=="auto":
                 if vmin=="auto":
-                    vmin,vmax=nice_minmax(_geodata[score].values.flatten(), None,True)
+                    vmin,vmax=nice_minmax(_geodata[score].values.flatten(), None,symmetric)
                 else:
                     vmax=nice_max(_geodata[score].values.flatten())
                     
+           # print(score, vmin,vmax,symmetric, _geodata[score].min(), _geodata[score].max())
+
             cm["vmin"]=vmin
             cm["vmax"]=vmax
             
@@ -3852,12 +3868,13 @@ def getCemCategory(_data):
 
 class PCRegressor(BaseEstimator, RegressorMixin):
     
-    def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, pca_explained_var=0.95, **regressor_kwargs):
+    def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, pca_explained_var=0.95, transform_target=None, **regressor_kwargs):
         self.max_fraction = max_fraction
         self.fit_intercept = fit_intercept
         self.pca_explained_var = pca_explained_var
         self.regressor_name = regressor_name
         self.regressor_kwargs = regressor_kwargs
+        self.transform_target = transform_target
         self.scaleX=StandardScaler()
         self.pcaX = PCA()
         self.reg=self._get_regressor()
@@ -3876,8 +3893,15 @@ class PCRegressor(BaseEstimator, RegressorMixin):
             self.supports_intercept=True
         else:
             self.supports_intercept=False
-            
-        return reg_class(**kwargs)
+
+        base_reg = reg_class(**kwargs)
+        
+        if self.transform_target == 'sqrt':
+            return TransformedTargetRegressor(regressor=base_reg, func=np.sqrt, inverse_func=np.square)
+        elif self.transform_target == 'log1p':
+            return TransformedTargetRegressor(regressor=base_reg, func=np.log1p, inverse_func=np.expm1)
+        else:
+            return base_reg
         
     def fit(self, X, Y):
         

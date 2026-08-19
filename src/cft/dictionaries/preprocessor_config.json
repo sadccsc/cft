@@ -1,5 +1,8 @@
 {
 "PCR":["Principal Component Regression (PCR)", {"fit_intercept":true, "max_fraction":0.15, "pca_explained_var":0.95}],
+"PCR-transform":["Principal Component Regression (PCR) and transformation of predictand", {"fit_intercept":true, "max_fraction":0.15, "pca_explained_var":0.95}],
 "CCA":["Canonical Corelation Analysis (CCA)", {"fit_intercept":true, "max_fraction":0.15, "pca_explained_var":0.95}],
-"NONE":["No preprocessing", {}]
+"CCA-transform":["Canonical Corelation Analysis (CCA) and transformation of precipitation", {"fit_intercept":true, "max_fraction":0.15, "pca_explained_var":0.95}],
+"NONE":["No dimensionaliry reduction", {}],
+"NONE-transform":["No dimensionality reduction but transformation of precipitation", {}]
 }

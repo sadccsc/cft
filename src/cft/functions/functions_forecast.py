@@ -141,8 +141,8 @@ def computeModelNoGui(config):
             * ``predictorCode`` (str): variable name to be used in plotting figures
             * ``crossval`` (str): cross-validation method - ``'KF'`` (k-fold) or
               ``'LOO'`` (leave-one-out).
-            * ``preproc`` (str): pre-processing approach - ``'PCR'``, ``'CCA'``,
-              or ``'NONE'`` (only valid for a 1-D predictor).
+            * ``preproc`` (str): pre-processing approach - ``'PCR'``, ``'CCA'``,``'PCR-rescale'``, ``'CCA-rescale'``,
+              or ``'NONE'`` ``'NONE-rescale'``(the last two only valid for a 1-D predictor).
             * ``regression`` (str): statistical model - one of ``'OLS'``,
               ``'Lasso'``, ``'Ridge'``, ``'RF'``, ``'MLP'``, ``'Trees'``.
             * ``timeAggregation`` (str): how the predictand is aggregated in time,
@@ -383,34 +383,53 @@ def computeModelNoGui(config):
     args=gl.preprocessor_config[gl.config['preproc']][1]
         
     #checking compatibility between data and selected regressor
-    if gl.config['preproc']=="NONE":
-        if predictorHcst.shape[1]==1:
-            regressor = StdRegressor(regressor_name=gl.config['regression'], **args, **kwargs)
+
+    if predictorHcst.shape[1]==1:
+        if gl.config['preproc']=="NONE":
+            regressor = StdRegressor(regressor_name=gl.config['regression'], transform_target=None, **args, **kwargs)
+        elif gl.config['preproc']=="NONE-transform":
+            transform = 'sqrt' if gl.config['predictandCategory'] == 'rainfall' else None
+            regressor = StdRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
         else:
-            #2-D predictor, no need to PCR or CCA
+            showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to 'No preprocessing'", "ERROR")
+
+    else:
+        #2-D predictors
+        if gl.config['preproc'] in ["NONE", "NONE-transform"]:
             showMessage("2-D predictor, but no preprocessing requested. Please change pre-processor to either PCR or CCA", "ERROR")
             return
-    else:
-        if predictorHcst.shape[1]==1:
-            showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to 'No preprocessing'", "ERROR")
-            #2-D predictor, no need to PCR or CCA
-            return    
 
-    
-    #setting up regressor
-    if gl.config['preproc']=="PCR":
+        elif gl.config['preproc']=="PCR-transform":
 
-        #transform to prevent models from generating negative rainfall forecasts
-        transform = 'sqrt' if gl.config['predictandCategory'] == 'rainfall' else None
+            #transform to prevent models from generating negative rainfall forecasts
+            transform = 'sqrt' if gl.config['predictandCategory'] == 'rainfall' else None
 
-        #regession model
-        regressor = PCRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
+            #regession model
+            regressor = PCRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
         
-    if gl.config['preproc']=="CCA":
+        elif gl.config['preproc']=="PCR":
+
+            #transform to prevent models from generating negative rainfall forecasts
+            transform = None
+
+            #regession model
+            regressor = PCRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
+ 
+        elif gl.config['preproc']=="CCA-transform":
         
-        regressor = CCARegressor(regressor_name=gl.config['regression'],**args, **kwargs)
-        #return
-    
+            #transform to prevent models from generating negative rainfall forecasts
+            transform = 'sqrt' if gl.config['predictandCategory'] == 'rainfall' else None
+
+            regressor = CCARegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
+
+        elif gl.config['preproc']=="CCA":
+
+            #transform to prevent models from generating negative rainfall forecasts
+            transform = None
+
+            regressor = CCARegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
+
+
     #=======================================================================================================
     #setting up output directory structure
     
@@ -1276,7 +1295,7 @@ def readNetcdf(ncfile, ncvar):
         return
     
     #aligning coordinate names    
-    coordsubs={"lon":["longitude","X","Longitude","Lon"], "lat":["latitude","Y","Latitude","Lat"], "time":["T","S","forecast_reference_time", "valid_time"], "lead_time":["forecastMonth","L"]}
+    coordsubs={"lon":["longitude","X","Longitude","Lon"], "lat":["latitude","Y","Latitude","Lat"], "time":["T","S","forecast_reference_time", "valid_time", "indexing_time"], "lead_time":["forecastMonth","L"]}
     for key in coordsubs.keys():
         for x in coordsubs[key]:
             if x in ds.coords.keys():
@@ -1561,52 +1580,7 @@ def getFcstData(_predictor):
 
     
 
-class StdRegressor(BaseEstimator, RegressorMixin):
-    
-    def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, **regressor_kwargs):
-        self.max_fraction = max_fraction
-        self.fit_intercept = fit_intercept
-        self.regressor_name = regressor_name
-        self.regressor_kwargs = regressor_kwargs
-        self.scaleX=StandardScaler()
-        self.reg=self._get_regressor()
-        
-    def _get_regressor(self):
-        if self.regressor_name not in regressors:
-            raise ValueError(f"Unknown regressor '{self.regressor_name}'.")
-        reg_class=regressors[self.regressor_name]
-        
-        # Inspect constructor to see if 'fit_intercept' is accepted
-        sig = inspect.signature(reg_class.__init__)
-        kwargs = self.regressor_kwargs.copy()
-        if 'fit_intercept' in sig.parameters:
-            kwargs['fit_intercept'] = self.fit_intercept
-            self.supports_intercept=True
-        else:
-            self.supports_intercept=False
-            
-        return reg_class(**kwargs)
-        
-    def fit(self, X, Y):
-        
-        #scaling the predictor
-        X_std=self.scaleX.fit_transform(X)
-        
-        #fitting regression model
-        self.reg.fit(X_std, Y)
-        
-        return self
-
-    
-    def predict(self, X):
-        #scale as per fitted model    
-        X_c = self.scaleX.transform(X)
-        
-        #predict with model
-        Y_pred=self.reg.predict(X_c)
-
-        return Y_pred
-    
+   
 
 
 def getObsTerciles(_predictand, _predictandHcst):
@@ -3866,7 +3840,78 @@ def getCemCategory(_data):
 
 
 
-class PCRegressor(BaseEstimator, RegressorMixin):
+class TargetTransformMixin:
+    def _forward_transform(self, Y):
+        if self.transform_target == 'sqrt':
+            return np.sqrt(Y)
+        elif self.transform_target == 'log1p':
+            return np.log1p(Y)
+        return Y
+
+    def _inverse_transform(self, Y):
+        if self.transform_target == 'sqrt':
+            return np.square(Y)
+        elif self.transform_target == 'log1p':
+            return np.expm1(Y)
+        return Y
+
+
+
+class StdRegressor(TargetTransformMixin, BaseEstimator, RegressorMixin):
+    
+    def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, transform_target=None, **regressor_kwargs):
+        self.max_fraction = max_fraction
+        self.fit_intercept = fit_intercept
+        self.regressor_name = regressor_name
+        self.transform_target = transform_target
+        self.regressor_kwargs = regressor_kwargs
+        self.scaleX=StandardScaler()
+        self.reg=self._get_regressor()
+
+    def _get_regressor(self):
+        if self.regressor_name not in regressors:
+            raise ValueError(f"Unknown regressor '{self.regressor_name}'.")
+        reg_class=regressors[self.regressor_name]
+        
+        # Inspect constructor to see if 'fit_intercept' is accepted
+        sig = inspect.signature(reg_class.__init__)
+        kwargs = self.regressor_kwargs.copy()
+        if 'fit_intercept' in sig.parameters:
+            kwargs['fit_intercept'] = self.fit_intercept
+            self.supports_intercept=True
+        else:
+            self.supports_intercept=False
+            
+        return reg_class(**kwargs)
+        
+    def fit(self, X, Y):
+
+        #transforming predictand
+        Y=self._forward_transform(Y)
+
+        #scaling the predictor
+        X_std=self.scaleX.fit_transform(X)
+        
+        #fitting regression model
+        self.reg.fit(X_std, Y)
+        
+        return self
+
+    
+    def predict(self, X):
+        #scale as per fitted model    
+        X_c = self.scaleX.transform(X)
+        
+        #predict with model
+        Y_pred=self.reg.predict(X_c)
+        
+        #transforming predictand
+        Y_pred=self._inverse_transform(Y_pred)
+
+        return Y_pred
+ 
+
+class PCRegressor(TargetTransformMixin, BaseEstimator, RegressorMixin):
     
     def __init__(self, regressor_name=None, fit_intercept=True, max_fraction=0.15, pca_explained_var=0.95, transform_target=None, **regressor_kwargs):
         self.max_fraction = max_fraction
@@ -3894,17 +3939,14 @@ class PCRegressor(BaseEstimator, RegressorMixin):
         else:
             self.supports_intercept=False
 
-        base_reg = reg_class(**kwargs)
+        return  reg_class(**kwargs)
         
-        if self.transform_target == 'sqrt':
-            return TransformedTargetRegressor(regressor=base_reg, func=np.sqrt, inverse_func=np.square)
-        elif self.transform_target == 'log1p':
-            return TransformedTargetRegressor(regressor=base_reg, func=np.log1p, inverse_func=np.expm1)
-        else:
-            return base_reg
         
     def fit(self, X, Y):
         
+        #transforming predictand
+        Y=self._forward_transform(Y)
+
         #scaling the predictor
         X_std=self.scaleX.fit_transform(X)
         
@@ -3954,26 +3996,31 @@ class PCRegressor(BaseEstimator, RegressorMixin):
         #predict with model
         Y_pred=self.reg.predict(X_c)
 
+        #transforming predictand
+        Y_pred=self._inverse_transform(Y_pred)
+
         return Y_pred
     
+
     
-class CCARegressor(BaseEstimator, RegressorMixin):
+class CCARegressor(TargetTransformMixin, BaseEstimator, RegressorMixin):
     
-    def __init__(self, n_components=None, regressor_name=None, fit_intercept=True, max_fraction=0.15,pca_explained_var=0.95, **regressor_kwargs):
+    def __init__(self, n_components=None, regressor_name=None, fit_intercept=True, max_fraction=0.15, pca_explained_var=0.95, transform_target=None, **regressor_kwargs):
         self.n_components = n_components
         self.max_fraction = max_fraction
         self.fit_intercept = fit_intercept
         self.pca_explained_var = pca_explained_var
         self.regressor_name = regressor_name
         self.regressor_kwargs = regressor_kwargs
+        self.transform_target = transform_target
         self.scaleX=StandardScaler()
         self.scaleY=StandardScaler()
         self.pcaX = PCA()
         self.pcaY = PCA()
         self.reg=self._get_regressor()        
-        
+    
+   
     def _get_regressor(self):
-
         if self.regressor_name not in regressors:
             raise ValueError(f"Unknown regressor '{self.regressor_name}'.")
             
@@ -3992,6 +4039,10 @@ class CCARegressor(BaseEstimator, RegressorMixin):
 
     
     def fit(self, X, Y):
+    
+    	#transforming data
+        Y = self._forward_transform(Y)
+        
         #scaling predictor and predictand        
         X_std=self.scaleX.fit_transform(X)
         Y_std=self.scaleY.fit_transform(Y)
@@ -4058,10 +4109,13 @@ class CCARegressor(BaseEstimator, RegressorMixin):
         #invert PCA
         selComponents = self.pcaY.components_[0:self.ncompY]
         Y_pred = Y_pred @ selComponents
+
         #invert scaling
         Y_pred = self.scaleY.inverse_transform(Y_pred)
         
-
+        #final inverse transform
+        Y_pred = self._inverse_transform(Y_pred)
+	
         return Y_pred
     
 
@@ -4095,7 +4149,7 @@ def is_number(s):
 
     
 def checkInputs():
-    configVars=['rootDir', 'predictorYear', 'predictorMonth', 'fcstTargetSeas', 'fcstTargetYear', 'climStartYr', 'climEndYr', 'predictorExtents', 'predictorFileName', 'predictorVar', 'predictorCode', 'crossval', 'preproc', 'regression', 'timeAggregation', 'predictandFileName', 'predictandVar', 'predictandCategory', 'predictandMissingValue', 'zonesFile', 'zonesAttribute', 'zonesAggregate', 'regridPredictand', 'overlayFile', 'predictandUnit','plotMaps']
+    configVars=['rootDir', 'predictorYear', 'predictorMonth', 'fcstTargetSeas', 'fcstTargetYear', 'climStartYr', 'climEndYr', 'predictorExtents', 'predictorFileName', 'predictorVar', 'predictorCode', 'crossval', 'preproc', 'regression', 'timeAggregation', 'predictandFileName', 'predictandVar', 'predictandCategory', 'predictandMissingValue', 'zonesFile', 'zonesAttribute', 'zonesAggregate', 'regridPredictand', 'overlayFile', 'predictandUnit','plotMaps', "parallelize"]
 
     for var in configVars:
         if not var in configVars:
@@ -4165,6 +4219,9 @@ def checkInputs():
         showMessage("plotMaps variable is not a boolean", "ERROR")
         return
  
+    if not isinstance(gl.config["parallelize"], bool):
+        showMessage("parallelize variable is not a boolean", "ERROR")
+        return
 
     file=gl.config['predictorFileName']
     var=gl.config['predictorVar']

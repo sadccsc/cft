@@ -185,8 +185,8 @@ def main():
         gl.config['fcstTargetSeas']="Dec-Feb"
         gl.config['fcstTargetYear']=2026
     
-        gl.config["climEndYr"]=1991
-        gl.config["climStartYr"]=2020
+        gl.config["climEndYr"]=2020
+        gl.config["climStartYr"]=1991
     
         gl.config["predictorExtents"]={'minLat':-60,'maxLat':60,'minLon':-180,'maxLon':180}
         

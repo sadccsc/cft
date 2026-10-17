@@ -416,6 +416,7 @@ python -m cft.functions.functions_products_obs products.json
 - **November 2022:** code ported from the original personal repo ([taxmanyana/cft](https://github.com/taxmanyana/cft)) to the institutional repo, [sadc-csc/cft](https://github.com/sadc-csc).
 - **2023–2025:** development funded under the SADC CSC ClimSA project.
 - **Versions after 6.0** developed under funding from the First Rains project.
+- **Accumulated Onset approach and DWTP Onset** developed by Neil Hart (neil.hart@ouce.ox.ac.uk) and Marcia Zilli (marcia.zilli@ouce.ox.ac.uk) from University of Oxford, UK. For details of methodology see [article](https://eartharxiv.org/repository/view/14649/)
 
 
 **Source code:** maintained at [github.com/sadc-csc](https://github.com/sadc-csc) since v4.0.0. From v6.0.0, also available as a pip package: [pypi.org/project/sadc-cft](https://pypi.org/project/sadc-cft/).

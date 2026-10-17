@@ -22,6 +22,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.forecastButton,
             self.verificationButton,
             self.synthesisButton,
+            self.productsButton,
         ]
         self.script_map = {
             self.downloadButton: Path(baseDir,"download.py"),
@@ -29,6 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.forecastButton: Path(baseDir,"forecast.py"),
             self.verificationButton: Path(baseDir,"verification.py"),
             self.synthesisButton: Path(baseDir,"synthesis.py"),
+            self.productsobsButton: Path(baseDir,"products_obs.py"),
         }
 
         # Keep references to subprocesses

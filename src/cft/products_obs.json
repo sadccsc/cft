@@ -2,16 +2,24 @@
     "outDir": "/work/code/csc/cft/onset",
     "obsFile": "/work/code/csc/cft/onset/prcptot_day_CHC_CHIRPS-3.0-0p25-rnl_merged.nc",
     "obsVar": "prcptot",
-    "obsMissingValue": "",
-    "obsDsetCode": "chirps3b",
+    "obsMissingValue": "-99",
+    "obsDsetCode": "chirps3",
     "climStartYr": 1991,
     "climEndYr": 2020,
+    "onsetAnchorMonth": {
+        "summer": 10,
+        "winter": 3
+    },
+    "onsetWindowDays": {
+        "summer": 123,
+        "winter": 153
+    },
     "regimeFile": "",
     "parallelize": true,
     "products": {
         "onsetA": true,
-        "onsetB": true,
-        "onsetC": true,
-        "onsetD": true
+        "onsetB": false,
+        "onsetC": false,
+        "onsetD": false
     }
 }

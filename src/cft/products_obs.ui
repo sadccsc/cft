@@ -3,7 +3,7 @@
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
-   <rect><x>0</x><y>0</y><width>1005</width><height>600</height></rect>
+   <rect><x>0</x><y>0</y><width>1200</width><height>800</height></rect>
   </property>
   <property name="windowTitle">
    <string>CFT products</string>
@@ -131,21 +131,99 @@
              </widget>
             </item>
             <item row="1" column="0" colspan="3">
+             <layout class="QGridLayout" name="gridLayout_season">
+               <item row="0" column="0">
+                <widget class="QLabel" name="label_summerstart">
+                 <property name="text"><string>Summer rainfall - season start:</string></property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QComboBox" name="comboBox_summerstart">
+                 <property name="toolTip"><string>onset is searched from day 1 of this month; should fall in the dry season</string></property>
+                 <property name="currentIndex"><number>9</number></property>
+                 <item><property name="text"><string>Jan</string></property></item>
+                 <item><property name="text"><string>Feb</string></property></item>
+                 <item><property name="text"><string>Mar</string></property></item>
+                 <item><property name="text"><string>Apr</string></property></item>
+                 <item><property name="text"><string>May</string></property></item>
+                 <item><property name="text"><string>Jun</string></property></item>
+                 <item><property name="text"><string>Jul</string></property></item>
+                 <item><property name="text"><string>Aug</string></property></item>
+                 <item><property name="text"><string>Sep</string></property></item>
+                 <item><property name="text"><string>Oct</string></property></item>
+                 <item><property name="text"><string>Nov</string></property></item>
+                 <item><property name="text"><string>Dec</string></property></item>
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QLabel" name="label_summerdays">
+                 <property name="text"><string>search window:</string></property>
+                </widget>
+               </item>
+               <item row="0" column="3">
+                <widget class="QSpinBox" name="spinBox_summerdays">
+                 <property name="toolTip"><string>number of days from season start in which onset is searched; later onset is reported as no onset (-99)</string></property>
+                 <property name="suffix"><string> days</string></property>
+                 <property name="minimum"><number>30</number></property>
+                 <property name="maximum"><number>365</number></property>
+                 <property name="value"><number>123</number></property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_winterstart">
+                 <property name="text"><string>Winter rainfall - season start:</string></property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboBox_winterstart">
+                 <property name="toolTip"><string>onset is searched from day 1 of this month; should fall in the dry season</string></property>
+                 <property name="currentIndex"><number>2</number></property>
+                 <item><property name="text"><string>Jan</string></property></item>
+                 <item><property name="text"><string>Feb</string></property></item>
+                 <item><property name="text"><string>Mar</string></property></item>
+                 <item><property name="text"><string>Apr</string></property></item>
+                 <item><property name="text"><string>May</string></property></item>
+                 <item><property name="text"><string>Jun</string></property></item>
+                 <item><property name="text"><string>Jul</string></property></item>
+                 <item><property name="text"><string>Aug</string></property></item>
+                 <item><property name="text"><string>Sep</string></property></item>
+                 <item><property name="text"><string>Oct</string></property></item>
+                 <item><property name="text"><string>Nov</string></property></item>
+                 <item><property name="text"><string>Dec</string></property></item>
+                </widget>
+               </item>
+               <item row="1" column="2">
+                <widget class="QLabel" name="label_winterdays">
+                 <property name="text"><string>search window:</string></property>
+                </widget>
+               </item>
+               <item row="1" column="3">
+                <widget class="QSpinBox" name="spinBox_winterdays">
+                 <property name="toolTip"><string>number of days from season start in which onset is searched; later onset is reported as no onset (-99)</string></property>
+                 <property name="suffix"><string> days</string></property>
+                 <property name="minimum"><number>30</number></property>
+                 <property name="maximum"><number>365</number></property>
+                 <property name="value"><number>153</number></property>
+                </widget>
+               </item>
+             </layout>
+            </item>
+            <item row="2" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetA">
               <property name="text"><string>onset A: 25 mm in 10 days</string></property>
              </widget>
             </item>
-            <item row="2" column="0" colspan="3">
+            <item row="3" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetB">
               <property name="text"><string>onset B: 25 mm in 10 days, no 10-day dry spell in the following 20 days</string></property>
              </widget>
             </item>
-            <item row="3" column="0" colspan="3">
+            <item row="4" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetC">
               <property name="text"><string>onset C: 45 mm in 4 days</string></property>
              </widget>
             </item>
-            <item row="4" column="0" colspan="3">
+            <item row="5" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetD">
               <property name="text"><string>onset D: 20 mm in 3 days, no 10-day dry spell in the following 10 days</string></property>
              </widget>

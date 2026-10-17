@@ -2,9 +2,22 @@
 # coding: utf-8
 """
 Products module - GUI.
-Calculations are done by computeProductsNoGui() in cft.functions.functions_products,
+Calculations are done by computeProductsObsNoGui() in cft.functions.functions_products_obs,
 which can also be called without the GUI.
 """
+# this is the main flow control that manages UI
+# the process here is as follows:
+# - load default config - setConfigDefaults()
+# - update that config if config file exists
+# - populate gui with config - populateUI()
+# - start event loop giving control to UI - gl.app.exec_()
+# 
+# - on pressing of the calculate button in UI
+#      - runProducts() which
+#           - updates config - reading UI and overwriting config file - updateConfig()
+#           - starts Worker
+#           - worker calls computeProductsObsNoGui()
+#
 
 import os, sys, json
 from pathlib import Path
@@ -16,14 +29,19 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal
 
 from cft import gl
 from cft.functions.functions_common import showMessage
-from cft.functions.functions_products import computeProductsNoGui, CATEGORIES
+from cft.functions.functions_products_obs import computeProductsObsNoGui, CATEGORIES
 
 baseDir = os.path.dirname(__file__)
-qtCreatorFile = Path(baseDir, "products.ui")
-settingsfile = "products.json"
+qtCreatorFile = Path(baseDir, "products_obs.ui")
+configfile = "products_obs.json"
 
-productKeys = [k for products in CATEGORIES.values() for k in products]
 
+#finding all products irrespective of category
+productKeys = []
+for products in CATEGORIES.values():   # outer loop: each category's dict
+    for k in products:                 # inner loop: each key in that dict
+        productKeys.append(k)
+        
 
 # UI actions ########################################################################
 
@@ -77,6 +95,8 @@ def setConfigDefaults():
         "obsDsetCode": "",
         "climStartYr": 1991,
         "climEndYr": 2020,
+        "onsetAnchorMonth": {"summer": 10, "winter": 3},    # month in which the onset search starts
+        "onsetWindowDays": {"summer": 123, "winter": 153},  # length of the onset search window, days
         "regimeFile": "",
         "parallelize": True,
         "products": {key: False for key in productKeys},
@@ -101,10 +121,13 @@ def populateUI():
     for key in productKeys:
         getattr(w, key).setChecked(bool(c["products"].get(key, False)))
 
+    w.comboBox_summerstart.setCurrentIndex(c["onsetAnchorMonth"]["summer"] - 1)
+    w.spinBox_summerdays.setValue(c["onsetWindowDays"]["summer"])
+
     w.pushButton_outdir.clicked.connect(getOutDir)
     w.pushButton_obsfile.clicked.connect(getObsFile)
     w.pushButton_regimefile.clicked.connect(getRegimeFile)
-    w.button_run.clicked.connect(w.runProducts)
+    w.button_run.clicked.connect(w.runProductsObs)
     w.button_exit.clicked.connect(closeApp)
     w.clearLogButton.clicked.connect(clearLog)
 
@@ -122,6 +145,11 @@ def updateConfig():
     c["regimeFile"] = w.lineEdit_regimefile.text()
     c["parallelize"] = w.checkBox_parallelize.isChecked()
     c["products"] = {key: getattr(w, key).isChecked() for key in productKeys}
+    
+    c["onsetAnchorMonth"] = {"summer": w.comboBox_summerstart.currentIndex() + 1,
+                             "winter": w.comboBox_winterstart.currentIndex() + 1}
+    c["onsetWindowDays"] = {"summer": w.spinBox_summerdays.value(),
+                            "winter": w.spinBox_winterdays.value()}
 
     if c["outDir"] == "":
         showMessage("Output directory has to be set", "ERROR")
@@ -154,7 +182,7 @@ def updateConfig():
         showMessage("Select at least one product", "ERROR")
         return False
 
-    with open(settingsfile, "w") as fp:
+    with open(configfile, "w") as fp:
         json.dump(c, fp, indent=4)
     return True
 
@@ -166,7 +194,7 @@ class Worker(QObject):
 
     def run(self):
         try:
-            computeProductsNoGui(gl.config)
+            computeProductsObsNoGui(gl.config)
         except Exception as e:
             showMessage("Unexpected error: {}".format(e), "ERROR")
         self.finished.emit()
@@ -187,12 +215,20 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.log_signal.connect(self.appendLog)
         self.setWindowTitle(gl.titleFor("Products module"))
         self.setWindowIcon(QtGui.QIcon(os.path.join(baseDir, "cft.ico")))
-
+        
+        # starting widths of left and right panel, in pixels
+        self.splitter.setSizes([650, 350])
+        # when the window is resized, the left panel takes 2 parts of the change, the log 1
+        self.splitter.setStretchFactor(0, 2)
+        self.splitter.setStretchFactor(1, 1)
+        # stop either panel being dragged to zero width
+        self.splitter.setChildrenCollapsible(False)
+        
     def appendLog(self, message):
         self.logWindow.appendHtml(message)
         self.logWindow.ensureCursorVisible()
 
-    def runProducts(self):
+    def runProductsObs(self):
         # UI is read in the main thread, calculation runs in a worker thread
         if not updateConfig():
             return
@@ -213,15 +249,19 @@ def main():
     gl.window = MyApp()
     gl.window.show()
 
+    #setting config defaults
     gl.config = setConfigDefaults()
+
+    #updating config if config file exists
     try:
-        with open(settingsfile) as fp:
+        with open(configfile) as fp:
             gl.config.update(json.load(fp))
-        showMessage("Config loaded from {}".format(settingsfile), "INFO")
+        showMessage("Config loaded from {}".format(configfile), "INFO")
     except Exception:
         showMessage("Default settings loaded", "INFO")
 
     populateUI()
+    
     sys.exit(gl.app.exec_())
 
 

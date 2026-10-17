@@ -121,6 +121,10 @@ def readObs(config):
 
 
 def readObsNetcdf(file, var):
+    """
+    reads netcdf file, harmonizes coordinates, stacks along lat lon dimensions crating location dimension
+    returns transformed data and meta - object containing original lat lon values
+    """
     ds = xr.open_dataset(file, decode_times=False)
     for key, alternatives in coordsubs.items():
         for x in alternatives:
@@ -149,6 +153,7 @@ def readObsNetcdf(file, var):
 
     da = da.transpose("time", "lat", "lon")
     meta = {"type": "grid", "lat": da.lat.values, "lon": da.lon.values}
+    
     # lat/lon -> location. reset_index keeps lat and lon as plain coordinates along location
     da = da.stack(location=("lat", "lon")).reset_index("location")
     da["time"] = pd.to_datetime(da.time.values).normalize()
@@ -184,36 +189,3 @@ def toDaily(da):
     return da.reindex(time=full)
 
 
-# writing ###########################################################################
-
-def writeOutput(da, meta, path):
-    """
-    Writes a DataArray with a location dimension. Grid -> netcdf on the original grid,
-    stations -> csv with ID/Lat/Lon header rows, as in the input format.
-    Locations that were dropped (no data, not processed) come out as NaN.
-    """
-    path = Path(path)
-    name = da.name or "value"
-    
-    # keep only coordinates that are needed to rebuild the grid/station list
-    extra = [c for c in da.coords if c not in da.dims and c not in ("lat", "lon")]
-    da = da.drop_vars(extra)
-
-    if meta["type"] == "grid":
-        out = da.set_index(location=["lat", "lon"]).unstack("location")
-        out = out.reindex(lat=meta["lat"], lon=meta["lon"]).transpose(..., "lat", "lon")
-        path = path.with_suffix(".nc")
-        out.to_dataset(name=name).to_netcdf(path)
-    else:
-        out = da.reindex(location=meta["ids"]).transpose(..., "location")
-        if out.ndim == 1:
-            df = out.to_pandas().to_frame(name).T
-        else:
-            df = out.to_pandas()
-        df.columns = pd.MultiIndex.from_arrays([meta["ids"], meta["lat"], meta["lon"]],
-                                               names=["ID", "Lat", "Lon"])
-        path = path.with_suffix(".csv")
-        df.to_csv(path)
-
-    showMessage("Written {}".format(path), "INFO")
-    return path

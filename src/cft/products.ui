@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>1005</width><height>600</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>CFT products</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation"><enum>Qt::Horizontal</enum></property>
+      <widget class="QScrollArea" name="scrollArea">
+       <property name="widgetResizable"><bool>true</bool></property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <layout class="QVBoxLayout" name="verticalLayoutLeft">
+
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_outdir">
+           <item>
+            <widget class="QLabel" name="label_outdir">
+             <property name="text"><string>Output Directory:</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="lineEdit_outdir">
+             <property name="readOnly"><bool>true</bool></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButton_outdir">
+             <property name="text"><string>Browse...</string></property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox_obs">
+           <property name="title"><string>Observations (daily, .nc grid or .csv stations)</string></property>
+           <layout class="QGridLayout" name="gridLayout_obs">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_obsfile">
+              <property name="text"><string>Data file:</string></property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_obsfile">
+              <property name="readOnly"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="pushButton_obsfile">
+              <property name="text"><string>Browse...</string></property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_obsvar">
+              <property name="text"><string>Variable</string></property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="comboBox_obsvar"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_missing">
+              <property name="text"><string>Missing value code</string></property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="lineEdit_obsmissingvalue"/>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_dsetcode">
+              <property name="text"><string>Dataset code</string></property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLineEdit" name="lineEdit_dsetcode">
+              <property name="toolTip"><string>user-defined code used in the names of output files</string></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox_clim">
+           <property name="title"><string>Climatological reference</string></property>
+           <layout class="QFormLayout" name="formLayout_clim">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_climstart">
+              <property name="text"><string>Climatology start year:</string></property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_climstartyr"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_climend">
+              <property name="text"><string>Climatology end year:</string></property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="lineEdit_climendyr"/>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox_onset">
+           <property name="title"><string>Onset indices</string></property>
+           <layout class="QGridLayout" name="gridLayout_onset">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_regimefile">
+              <property name="text"><string>Regime map (optional):</string></property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_regimefile">
+              <property name="toolTip"><string>netcdf map coded 1 - summer, 2 - winter rainfall. Leave empty to derive regime from data</string></property>
+             </widget>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="pushButton_regimefile">
+              <property name="text"><string>Browse...</string></property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetA">
+              <property name="text"><string>onset A: 25 mm in 10 days</string></property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetB">
+              <property name="text"><string>onset B: 25 mm in 10 days, no 10-day dry spell in the following 20 days</string></property>
+             </widget>
+            </item>
+            <item row="3" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetC">
+              <property name="text"><string>onset C: 45 mm in 4 days</string></property>
+             </widget>
+            </item>
+            <item row="4" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetD">
+              <property name="text"><string>onset D: 20 mm in 3 days, no 10-day dry spell in the following 10 days</string></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QCheckBox" name="checkBox_parallelize">
+           <property name="text"><string>Run in parallel</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="button_run">
+           <property name="text"><string>Calculate</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="button_exit">
+           <property name="text"><string>Exit</string></property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation"><enum>Qt::Vertical</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="rightPanel">
+       <layout class="QVBoxLayout" name="verticalLayoutRight">
+        <item>
+         <widget class="QGroupBox" name="runLogGroupBox">
+          <property name="title"><string>Run Log</string></property>
+          <layout class="QVBoxLayout" name="runLogLayout">
+           <item>
+            <widget class="QPlainTextEdit" name="logWindow"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="clearLogButton">
+             <property name="text"><string>Clear Log</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

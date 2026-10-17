@@ -1,0 +1,17 @@
+{
+    "outDir": "/work/code/csc/cft/onset",
+    "obsFile": "/work/code/csc/cft/onset/prcptot_day_CHC_CHIRPS-3.0-0p25-rnl_merged.nc",
+    "obsVar": "prcptot",
+    "obsMissingValue": "",
+    "obsDsetCode": "chirps3b",
+    "climStartYr": 1991,
+    "climEndYr": 2020,
+    "regimeFile": "",
+    "parallelize": true,
+    "products": {
+        "onsetA": true,
+        "onsetB": true,
+        "onsetC": true,
+        "onsetD": true
+    }
+}

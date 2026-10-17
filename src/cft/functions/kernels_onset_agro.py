@@ -1,5 +1,5 @@
 """
-Onset kernels 0 - all in plain numpy as datetime decorator is not passed
+Agronomic onset kernels - all in plain numpy as datetime decorator is not passed
 
 Each kernel takes x - daily rainfall (1-D numpy array) for one location and one
 season, starting on the season anchor date (first day of the dry season) - and returns:

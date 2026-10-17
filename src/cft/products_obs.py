@@ -99,6 +99,7 @@ def setConfigDefaults():
         "onsetWindowDays": {"summer": 123, "winter": 153},  # length of the onset search window, days
         "regimeFile": "",
         "parallelize": True,
+        "dwtpSaveFiltered":False,
         "products": {key: False for key in productKeys},
     }
 
@@ -117,6 +118,7 @@ def populateUI():
     w.lineEdit_climendyr.setText(str(c["climEndYr"]))
     w.lineEdit_regimefile.setText(c["regimeFile"])
     w.checkBox_parallelize.setChecked(bool(c["parallelize"]))
+    w.checkBox_dwtpsavefiltered.setChecked(bool(c["dwtpSaveFiltered"]))
     # checkbox objectName == product key
     for key in productKeys:
         getattr(w, key).setChecked(bool(c["products"].get(key, False)))
@@ -144,6 +146,9 @@ def updateConfig():
     c["obsDsetCode"] = w.lineEdit_dsetcode.text()
     c["regimeFile"] = w.lineEdit_regimefile.text()
     c["parallelize"] = w.checkBox_parallelize.isChecked()
+    c["dwtpSaveFiltered"] = w.checkBox_dwtpsavefiltered.isChecked()
+    
+    
     c["products"] = {key: getattr(w, key).isChecked() for key in productKeys}
     
     c["onsetAnchorMonth"] = {"summer": w.comboBox_summerstart.currentIndex() + 1,

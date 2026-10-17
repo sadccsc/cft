@@ -3,7 +3,7 @@
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
-   <rect><x>0</x><y>0</y><width>1200</width><height>800</height></rect>
+   <rect><x>0</x><y>0</y><width>1005</width><height>600</height></rect>
   </property>
   <property name="windowTitle">
    <string>CFT products</string>
@@ -113,7 +113,7 @@
 
          <item>
           <widget class="QGroupBox" name="groupBox_onset">
-           <property name="title"><string>Onset indices</string></property>
+           <property name="title"><string>Agronomic onset</string></property>
            <layout class="QGridLayout" name="gridLayout_onset">
             <item row="0" column="0">
              <widget class="QLabel" name="label_regimefile">
@@ -226,6 +226,40 @@
             <item row="5" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetD">
               <property name="text"><string>onset D: 20 mm in 3 days, no 10-day dry spell in the following 10 days</string></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox_accum">
+           <property name="title"><string>Onset and demise from anomalous accumulation</string></property>
+           <layout class="QVBoxLayout" name="verticalLayout_accum">
+            <item>
+             <widget class="QCheckBox" name="onsetAccum">
+              <property name="text"><string>onset, demise, duration and wet/dry season rainfall</string></property>
+              <property name="toolTip"><string>Liebmann and Marengo method; start of the water year from harmonic analysis of the annual cycle (Dunning et al. 2016). Locations without a single rainy season are not processed</string></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+
+         <item>
+          <widget class="QGroupBox" name="groupBox_dwtp">
+           <property name="title"><string>Dry-to-wet transition period (DWTP)</string></property>
+           <layout class="QVBoxLayout" name="verticalLayout_dwtp">
+            <item>
+             <widget class="QCheckBox" name="onsetDWTP">
+              <property name="text"><string>DWTP statistics and climatological envelope (up to two seasons)</string></property>
+              <property name="toolTip"><string>First day, length, intensity, rainfall and wet/dry spell statistics of the dry-to-wet transition period, within climatological envelopes derived from the climatological period</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_dwtpsavefiltered">
+              <property name="text"><string>save filtered daily rainfall (large file)</string></property>
+              <property name="toolTip"><string>Writes the Butterworth-filtered daily rainfall used by the method to a separate file (_PR60)</string></property>
              </widget>
             </item>
            </layout>

@@ -12,6 +12,7 @@ A Python-based tool for statistical climate forecasting, developed by the SADC C
 - [Modules](#modules)
   - [Download](#download-module)
   - [Forecast](#forecast-module)
+  - [Products (observed)](#products-observed-module)
   - [Zoning, Verification, Synthesis](#other-modules--zoning-verification-synthesis)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -22,12 +23,13 @@ A Python-based tool for statistical climate forecasting, developed by the SADC C
 
 ## Introduction
 
-CFT is a Python-based tool for statistical climate forecasting. From version 5, it consists of five modules:
+CFT is a Python-based tool for statistical climate forecasting. From version 7, it consists of six modules:
 
 | Module | Since | Description |
 |---|---|---|
 | **Download** | v6.0 (CDS support added) | Downloads predictor/predictand data from CDS, IRIDL, and JMA |
 | **Forecast** | updated in v5 | Builds and cross-validates statistical seasonal forecast models |
+| **Products (observed)** | v7.0 | Derives agro-climatic products, such as rainy season onset, from observed daily rainfall |
 | **Zoning** | v3 | Spatial regionalization of station data into forecast zones |
 | **Verification** | v4 | Forecast skill verification |
 | **Synthesis** | v4 | Synthesis of forecast outputs |
@@ -85,6 +87,65 @@ Data are downloaded to a user-selected directory and converted to a format inges
 - 2AFC
 
 **Calibration:** probabilistic forecasts are calibrated via quantile mapping — a quantile transform is developed from overlapping hindcast and observed predictand data, then applied to both hindcast and forecast.
+
+### Products (observed) module
+
+New in v7.0. Derives agro-climatic products from observed **daily** rainfall. The first group of products is the **onset of the rainy season**; further product groups will be added in later versions.
+
+**Input data:**
+- **Gridded data** — netCDF file with daily rainfall (time, lat, lon)
+- **Station data** — CSV file with dates in the first column and one column per station; the top three rows hold station ID, latitude and longitude (`ID`, `Lat`, `Lon`), the same layout as station data in the forecast module
+
+Grid cells and stations without any data are skipped. Negative values, and values equal to the user-defined missing value code, are treated as missing.
+
+**Rainfall regime.** Onset is calculated separately for summer and winter rainfall locations. The regime of each location is either:
+- **derived from the data** — a location is *summer rainfall* if at least ⅔ of its annual rainfall in the climatological period falls in October–March, *winter rainfall* if at least ⅔ falls in April–September, and *all-year rainfall* otherwise; or
+- **read from a regime map** — a netCDF file coded 1 for summer and 2 for winter rainfall (any other value is treated as all-year rainfall).
+
+Onset is not calculated for all-year rainfall locations.
+
+**Season definition.** For each regime, the user sets the month in which the season starts and the length of the onset search window. The start month should fall in the dry season, before any plausible onset. Onset is searched for from day 1 of that month until the end of the search window; if the onset criterion is not met within the window, the season is reported as having no onset.
+
+| Regime | Default season start | Default search window |
+|---|---|---|
+| Summer rainfall | 1 October | 123 days (to 31 January) |
+| Winter rainfall | 1 March | 153 days (to 31 July) |
+
+Each season is labelled with the year in which it starts; e.g. the summer season 2020 is the one starting on 1 October 2020.
+
+**Onset definitions:**
+
+| Product | Definition |
+|---|---|
+| **Onset A** | First day on which rainfall accumulated over 10 days reaches 25 mm (Tadross et al., 2007) |
+| **Onset B** | As Onset A, but not followed by a dry spell of 10 or more consecutive days in the following 20 days |
+| **Onset C** | First day on which rainfall accumulated over 4 days reaches 45 mm |
+| **Onset D** | First day on which rainfall accumulated over 3 days reaches 20 mm, not followed by a dry spell of 10 consecutive days in the following 10 days |
+
+Accumulations are trailing sums, and the onset day is the day on which the threshold is reached. A dry day is a day with less than 1 mm of rainfall.
+
+**Outputs** (for each selected onset definition):
+
+| Variable | Dimensions | Description |
+|---|---|---|
+| `onsetDate` | season, location | date of onset |
+| `onsetDoy` | season, location | day of the calendar year of onset (1–366) |
+| `onsetDekad` | season, location | dekad of the calendar year of onset (1–36) |
+| `onsetDaysSinceAnchor` | season, location | days from the season start to onset (0 = season start) |
+| `onsetDekadsSinceAnchor` | season, location | dekads from the season start to onset |
+| `onsetDoyClim`, `onsetDekadClim` | location | climatological onset — day of year and dekad |
+| `onsetDoyAnom`, `onsetDekadAnom` | season, location | onset anomaly in days and in dekads; positive values mean later than normal |
+| `anchorDate` | season, location | start date of the season |
+| `regime` | location | rainfall regime: 1 — summer, 2 — winter |
+| `anchorMonth` | location | season start month |
+
+A value of **-99** means that no onset was found within the search window; missing values mean missing data, or a location that was not processed (no data, or all-year rainfall regime).
+
+The **climatology** is the mean onset over the climatological period, excluding seasons without onset. Climatology and anomalies are calculated on days counted from the season start, so they are not affected by the year end in summer rainfall seasons that span two calendar years.
+
+Gridded input produces one netCDF file per onset definition, on the same grid as the input data. Station input produces one CSV file per onset definition and output variable, with the same `ID`/`Lat`/`Lon` header rows as the input.
+
+**Parallel processing:** calculations can be run in parallel over locations, using a fraction of the available CPUs (set as `fractionCpus` in `deep_config.json`).
 
 ### Other modules — Zoning, Verification, Synthesis
 
@@ -153,7 +214,7 @@ or equivalently:
 python -m cft
 ```
 
-**Launch an individual module directly** (forecast, verification, synthesis, zoning, download):
+**Launch an individual module directly** (forecast, verification, synthesis, zoning, download, products):
 ```bash
 forecast-tool
 ```
@@ -161,11 +222,13 @@ or equivalently:
 ```bash
 python -m cft.forecast
 ```
-(substitute `download-tool` / `verification-tool` / `synthesis-tool` / `zoning-tool`, or `cft.download` / `cft.verification` / `cft.synthesis` / `cft.zoning`, as needed)
+(substitute `download-tool` / `verification-tool` / `synthesis-tool` / `zoning-tool`, or `cft.download` / `cft.verification` / `cft.synthesis` / `cft.zoning` / `cft.products_obs`, as needed)
 
 ## Usage — without GUI
 
-Individual components can be called directly from Python, without launching any GUI:
+Individual components can be called directly from Python, without launching any GUI.
+
+### Forecast
 
 ```python
 from cft.functions.functions_forecast import computeModelNoGui
@@ -209,6 +272,39 @@ config = {
 }
 ```
 
+### Products (observed)
+
+```python
+from cft.functions.functions_products import computeProductsNoGui
+
+computeProductsNoGui(config)
+```
+
+where `config` is a dictionary of settings, for example:
+
+```python
+config = {
+    'outDir': '../output',
+    'obsFile': '../test/PRCP_CHIRPS_daily_1981-2025.nc',  # .nc (grid) or .csv (stations)
+    'obsVar': 'prcp',                                     # ignored for csv
+    'obsMissingValue': '',                                # e.g. '-999', '' if none
+    'obsDsetCode': 'chirps',                              # used in output file names
+    'climStartYr': 1991,
+    'climEndYr': 2020,
+    'regimeFile': '',                                     # '' - derive regime from data
+    'onsetAnchorMonth': {'summer': 10, 'winter': 3},      # season start month
+    'onsetWindowDays': {'summer': 123, 'winter': 153},    # onset search window, days
+    'parallelize': True,
+    'products': {'onsetA': True, 'onsetB': True, 'onsetC': False, 'onsetD': False},
+}
+```
+
+The same settings, saved by the GUI to `products.json`, can be used from the command line:
+
+```bash
+python -m cft.functions.functions_products products.json
+```
+
 *(more to follow...)*
 
 ## Credits
@@ -224,6 +320,7 @@ config = {
 - **2010–2017:** original version developed under funding from the SADC CSC project SARCIS-DR.
 - **2023–2025:** development funded under the SADC CSC ClimSA project.
 - **November 2022:** code ported from the original personal repo ([taxmanyana/cft](https://github.com/taxmanyana/cft)) to the institutional repo, [sadc-csc/cft](https://github.com/sadc-csc).
+- **v7.0:** products (observed) module added, with rainy season onset products.
 - **Current version:** developed under funding from the First Rains project.
 
 **Source code:** maintained at [github.com/sadc-csc](https://github.com/sadc-csc) since v4.0.0. From v6.0.0, also available as a pip package: [pypi.org/project/sadc-cft](https://pypi.org/project/sadc-cft/).

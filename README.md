@@ -19,7 +19,7 @@ A Python-based tool for statistical climate forecasting, developed by the SADC C
 - [Usage — GUI](#usage--gui)
 - [Usage — without GUI](#usage--without-gui)
 - [Credits](#credits)
-- [Development History](#development-history)
+- [Development History](#developmentfunding-history)
 
 ## Introduction
 
@@ -29,7 +29,7 @@ CFT is a Python-based tool for statistical climate forecasting. From version 7, 
 |---|---|---|
 | **Download** | v6.0 (CDS support added) | Downloads predictor/predictand data from CDS, IRIDL, and JMA |
 | **Forecast** | updated in v5 | Builds and cross-validates statistical seasonal forecast models |
-| **Products (observed)** | v7.0 | Derives agro-climatic products, such as rainy season onset, from observed daily rainfall |
+| **Products (observed)** | v7.0 | Derives rainy season characteristics — onset, demise, duration and dry-to-wet transition statistics — from observed daily rainfall |
 | **Zoning** | v3 | Spatial regionalization of station data into forecast zones |
 | **Verification** | v4 | Forecast skill verification |
 | **Synthesis** | v4 | Synthesis of forecast outputs |
@@ -90,28 +90,45 @@ Data are downloaded to a user-selected directory and converted to a format inges
 
 ### Products (observed) module
 
-New in v7.0. Derives agro-climatic products from observed **daily** rainfall. The first group of products is the **onset of the rainy season**; further product groups will be added in later versions.
+New in v7.0. Derives rainy season characteristics from observed **daily** rainfall, using three groups of methods:
 
-**Input data:**
+| Group | Products | Approach |
+|---|---|---|
+| [**Agronomic onset**](#agronomic-onset) | Onset A, B, C, D | First day on which a rainfall threshold is reached, within a season defined per rainfall regime |
+| [**Anomalous accumulation**](#onset-and-demise-from-anomalous-accumulation) | onset, demise, duration, wet and dry season rainfall | Turning points of cumulative rainfall anomalies, within a water year derived from the annual cycle |
+| [**Dry-to-wet transition period (DWTP)**](#dry-to-wet-transition-period-dwtp) | DWTP statistics and climatological envelope | Transition from dry to wet conditions, within climatological envelopes; up to two rainy seasons per year |
+
+#### Input data and common settings
+
 - **Gridded data** — netCDF file with daily rainfall (time, lat, lon)
 - **Station data** — CSV file with dates in the first column and one column per station; the top three rows hold station ID, latitude and longitude (`ID`, `Lat`, `Lon`), the same layout as station data in the forecast module
 
-Grid cells and stations without any data are skipped. Negative values, and values equal to the user-defined missing value code, are treated as missing.
+Grid cells and stations without any data are skipped. Values equal to the user-defined missing value code are treated as missing.
+
+**Climatological period** — set by the user (start and end year); used to derive rainfall regimes, water years and climatological envelopes, and to calculate climatologies and anomalies. It must fall within the period covered by the data, and it may cover the entire data period.
+
+**Seasons** are labelled with the year in which they start.
+
+**Output** — gridded input produces netCDF files on the same grid as the input data. Station input produces one CSV file per output variable, with the same `ID`/`Lat`/`Lon` header rows as the input. Locations that were not processed have missing values.
+
+**Parallel processing** — calculations can be run in parallel over locations, using a fraction of the available CPUs (`fractionCpus` in `DEFAULT_SETTINGS`, in `functions_products_obs.py`).
+
+#### Agronomic onset
 
 **Rainfall regime.** Onset is calculated separately for summer and winter rainfall locations. The regime of each location is either:
 - **derived from the data** — a location is *summer rainfall* if at least ⅔ of its annual rainfall in the climatological period falls in October–March, *winter rainfall* if at least ⅔ falls in April–September, and *all-year rainfall* otherwise; or
 - **read from a regime map** — a netCDF file coded 1 for summer and 2 for winter rainfall (any other value is treated as all-year rainfall).
 
-Onset is not calculated for all-year rainfall locations.
+Onset is not calculated for all-year rainfall locations. Negative rainfall values are treated as missing.
 
-**Season definition.** For each regime, the user sets the month in which the season starts and the length of the onset search window. The start month should fall in the dry season, before any plausible onset. Onset is searched for from day 1 of that month until the end of the search window; if the onset criterion is not met within the window, the season is reported as having no onset.
+**Season definition.** For each regime, the user sets the month in which the season starts and the length of the onset search window. The start month should fall in the dry season, before any plausible onset. Onset is searched for from day 1 of that month until the end of the search window.
 
 | Regime | Default season start | Default search window |
 |---|---|---|
 | Summer rainfall | 1 October | 123 days (to 31 January) |
 | Winter rainfall | 1 March | 153 days (to 31 July) |
 
-Each season is labelled with the year in which it starts; e.g. the summer season 2020 is the one starting on 1 October 2020.
+E.g. the summer season 2020 is the one starting on 1 October 2020.
 
 **Onset definitions:**
 
@@ -124,7 +141,7 @@ Each season is labelled with the year in which it starts; e.g. the summer season
 
 Accumulations are trailing sums, and the onset day is the day on which the threshold is reached. A dry day is a day with less than 1 mm of rainfall.
 
-**Outputs** (for each selected onset definition):
+**Outputs** (one file per selected onset definition, `<code>_<product>`):
 
 | Variable | Dimensions | Description |
 |---|---|---|
@@ -139,13 +156,88 @@ Accumulations are trailing sums, and the onset day is the day on which the thres
 | `regime` | location | rainfall regime: 1 — summer, 2 — winter |
 | `anchorMonth` | location | season start month |
 
-A value of **-99** means that no onset was found within the search window; missing values mean missing data, or a location that was not processed (no data, or all-year rainfall regime).
+Seasons in which no onset is found within the search window have missing values, as do seasons with missing data.
 
 The **climatology** is the mean onset over the climatological period, excluding seasons without onset. Climatology and anomalies are calculated on days counted from the season start, so they are not affected by the year end in summer rainfall seasons that span two calendar years.
 
-Gridded input produces one netCDF file per onset definition, on the same grid as the input data. Station input produces one CSV file per onset definition and output variable, with the same `ID`/`Lat`/`Lon` header rows as the input.
+#### Onset and demise from anomalous accumulation
 
-**Parallel processing:** calculations can be run in parallel over locations, using a fraction of the available CPUs (set as `fractionCpus` in `deep_config.json`).
+Onset and demise are the turning points of the cumulative daily rainfall anomaly (Liebmann and Marengo, 2001), within a water year derived from harmonic analysis of the annual cycle (Dunning et al., 2016).
+
+- **Water year** — for each location, the mean annual cycle of daily rainfall in the climatological period (29 February excluded) is decomposed into harmonics. If the annual harmonic explains more variance than the semi-annual and the third harmonic, the location has a single rainy season, and its water year starts at the minimum of the annual harmonic (`w0`). Locations without a single rainy season are not processed.
+- **Anomaly** — daily rainfall minus the mean daily rainfall of the climatological period (`rm`).
+- **Onset** — minimum of the smoothed cumulative anomaly, accumulated forward over the first 182 days of the water year.
+- **Demise** — minimum of the smoothed cumulative anomaly, accumulated backward over the last 182 days of the water year.
+- **Smoothing** — zero-phase Butterworth low-pass filter (order 2, filter parameter 18; removes variations shorter than about 36 days).
+
+In seasons in which rainfall stays below the long-term mean throughout the onset search period, the minimum — and therefore the onset — falls on the last day of that period.
+
+Each water year is labelled with the year in which it starts. Only complete water years are processed.
+
+**Outputs** (`<code>_onsetAccum`):
+
+| Variable | Dimensions | Description |
+|---|---|---|
+| `onsetDate`, `demiseDate` | season, location | date of onset and demise |
+| `onsetDoy`, `demiseDoy` | season, location | day of the calendar year (1–366) |
+| `onsetDekad`, `demiseDekad` | season, location | dekad of the calendar year (1–36) |
+| `onsetDaysSinceAnchor`, `demiseDaysSinceAnchor` | season, location | days from the start of the water year |
+| `onsetDoyClim`, `onsetDekadClim`, `demiseDoyClim`, `demiseDekadClim` | location | climatology — day of year and dekad |
+| `onsetDoyAnom`, `onsetDekadAnom`, `demiseDoyAnom`, `demiseDekadAnom` | season, location | anomaly in days and in dekads; positive values mean later than normal |
+| `duration` | season, location | days from onset to demise |
+| `wetTotal` | season, location | rainfall from onset to demise (mm) |
+| `dryTotal` | season, location | rainfall from the day after the previous season's demise to the day before onset (mm); missing in the first season |
+| `durationClim`, `wetTotalClim`, `dryTotalClim` | location | climatological means |
+| `durationAnom`, `wetTotalAnom`, `dryTotalAnom` | season, location | anomalies |
+| `anchorDate` | season, location | start date of the water year |
+| `w0` | location | start of the water year, day of year (no-leap calendar) |
+| `anchorMonth`, `anchorDay` | location | start of the water year as month and day |
+| `rm` | location | mean daily rainfall in the climatological period (mm/day) |
+
+Climatologies are means over the climatological period. As for agronomic onset, onset and demise climatologies and anomalies are calculated on days counted from the start of the water year.
+
+Method settings (`DEFAULT_SETTINGS`): `accumWindowDays` (365), `accumOnsetDays` (182), `accumDemiseDays` (182), `accumCutoff` (18).
+
+#### Dry-to-wet transition period (DWTP)
+
+The DWTP is the period in which a location transitions from dry to wet conditions. The method can identify up to two rainy seasons per year, so it can be applied in regions with a bimodal rainfall regime.
+
+- **Transition days** — daily rainfall is smoothed with a Butterworth low-pass filter (filter parameter 60; removes variations shorter than about 120 days). Days on which smoothed rainfall is positive and increasing are transition days; sequences of at least 30 such days are transition periods.
+- **Climatological envelope** — for each day of the year, the frequency of transition periods in the climatological period is calculated. The start of the water year (`w0`) is the day with the lowest frequency; envelopes are the parts of the year in which the (normalised, smoothed) frequency is at least 0.5. Up to two envelopes are kept; a second envelope is dropped if its mean smoothed rainfall is less than 35% of that of the first.
+- **DWTP in each year** — within each envelope: the end of the DWTP is the day on which 50% of the rainfall in the envelope has fallen (moved later past long dry breaks); the start of the DWTP is the end of the longest dry break early in the envelope.
+- **Statistics** — rainfall and wet and dry spell statistics for each DWTP.
+
+The implementation reproduces the reference code of the method; known inconsistencies of that code are kept, and marked in the source (`kernels_dwtp.py`). Data should start on 1 January and should have no missing days — locations with missing data are not processed. 29 February is excluded from all calculations.
+
+**Outputs:**
+
+`<code>_onsetDWTP_Stats` — DWTP statistics; dimensions years, sea (season: 0, 1), location:
+
+| Variable | Units | Description |
+|---|---|---|
+| `FirstDay` | day of year | first day of the DWTP (see note below) |
+| `Length` | days | duration of the DWTP |
+| `OnsIntensity` | mm/day per day | mean gradient of the filtered rainfall during the DWTP |
+| `TotPrecip` | mm | total rainfall during the DWTP |
+| `PrecipRate` | mm/day | rainfall rate during the DWTP |
+| `PrecipInt` | mm/wet day | rainfall per wet day |
+| `FrcWetDays`, `FrcDryDays` | % | fraction of wet and dry days |
+| `LengthWetSpells`, `LengthDrySpells` | days | mean duration of wet and dry spells |
+| `MaxWetSpell`, `MaxDrySpell` | days | longest wet and dry spell |
+
+`<code>_onsetDWTP_ClmEnvelope` — climatological envelope:
+
+| Variable | Dimensions | Description |
+|---|---|---|
+| `clmEnv` | season, Stats (FirstDay, Length), location | first day of year and length of each climatological envelope |
+| `w0` | location | start of the water year, day of year |
+| `status` | location | 0 — ok; 1 — no transition periods found; 2 — not processed (e.g. missing data); 3 — ok, with a warning from the envelope detection |
+
+`<code>_onsetDWTP_PR60` — filtered daily rainfall (`bwpp`); written only if selected in the GUI (`dwtpSaveFiltered` in the configuration), as the file is as large as the input data.
+
+Notes, as in the reference code: `FirstDay` is counted from 0 in most years and from 1 in the first year, and can exceed 365 when the envelope starts in the next calendar year; each DWTP is assigned to the calendar year in which its envelope starts; when only one climatological envelope is found, both rows of `clmEnv` hold that envelope. Wet days are days with rainfall above 0 mm, dry days with 0 mm.
+
+Method settings (`DEFAULT_SETTINGS`): `dwtpFilterWindow` (60), `dwtpMinLength` (30), `dwtpMaxSeasons` (2).
 
 ### Other modules — Zoning, Verification, Synthesis
 
@@ -156,7 +248,7 @@ The zoning module was adapted to run under the v5 environment in v5.1.
 ## Requirements
 
 - Python 3.12 (recommended for v6.0)
-- All Python package dependencies are installed automatically via pip — see [`pyproject.toml`](pyproject.toml) for the full list. Notably: `numpy`, `pandas`, `geopandas`, `xarray`, `rioxarray`, `scipy`, `shapely`, `rasterio`, `rasterstats`, `scikit-learn`, `netCDF4`, `cftime`, `geocube`, `GDAL`, `matplotlib`, `cartopy`, `PyQt5`, `cdsapi`.
+- All Python package dependencies are installed automatically via pip — see [`pyproject.toml`](pyproject.toml) for the full list. Notably: `numpy`, `pandas`, `geopandas`, `xarray`, `rioxarray`, `scipy`, `shapely`, `rasterio`, `rasterstats`, `scikit-learn`, `joblib`, `netCDF4`, `cftime`, `geocube`, `GDAL`, `matplotlib`, `cartopy`, `PyQt5`, `cdsapi`.
 
 ## Installation
 
@@ -275,9 +367,9 @@ config = {
 ### Products (observed)
 
 ```python
-from cft.functions.functions_products import computeProductsNoGui
+from cft.functions.functions_products_obs import computeProductsObsNoGui
 
-computeProductsNoGui(config)
+computeProductsObsNoGui(config)
 ```
 
 where `config` is a dictionary of settings, for example:
@@ -291,12 +383,22 @@ config = {
     'obsDsetCode': 'chirps',                              # used in output file names
     'climStartYr': 1991,
     'climEndYr': 2020,
+    # agronomic onset
     'regimeFile': '',                                     # '' - derive regime from data
     'onsetAnchorMonth': {'summer': 10, 'winter': 3},      # season start month
     'onsetWindowDays': {'summer': 123, 'winter': 153},    # onset search window, days
+    # DWTP
+    'dwtpSaveFiltered': False,                            # save filtered daily rainfall
     'parallelize': True,
-    'products': {'onsetA': True, 'onsetB': True, 'onsetC': False, 'onsetD': False},
+    'products': {'onsetA': True, 'onsetB': True, 'onsetC': False, 'onsetD': False,
+                 'onsetAccum': True, 'onsetDWTP': True},
 }
+```
+
+The same settings, saved by the GUI to a json file, can be used from the command line:
+
+```bash
+python -m cft.functions.functions_products_obs products.json
 ```
 
 

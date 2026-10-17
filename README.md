@@ -299,13 +299,6 @@ config = {
 }
 ```
 
-The same settings, saved by the GUI to `products.json`, can be used from the command line:
-
-```bash
-python -m cft.functions.functions_products products.json
-```
-
-*(more to follow...)*
 
 ## Credits
 
@@ -315,12 +308,12 @@ python -m cft.functions.functions_products products.json
 
 **Original developer (2017–2022):** Thembani Moitlhobogi
 
-## Development History
+## Development/funding History
 
 - **2010–2017:** original version developed under funding from the SADC CSC project SARCIS-DR.
-- **2023–2025:** development funded under the SADC CSC ClimSA project.
 - **November 2022:** code ported from the original personal repo ([taxmanyana/cft](https://github.com/taxmanyana/cft)) to the institutional repo, [sadc-csc/cft](https://github.com/sadc-csc).
-- **v7.0:** products (observed) module added, with rainy season onset products.
-- **Current version:** developed under funding from the First Rains project.
+- **2023–2025:** development funded under the SADC CSC ClimSA project.
+- **Versions after 6.0** developed under funding from the First Rains project.
+
 
 **Source code:** maintained at [github.com/sadc-csc](https://github.com/sadc-csc) since v4.0.0. From v6.0.0, also available as a pip package: [pypi.org/project/sadc-cft](https://pypi.org/project/sadc-cft/).

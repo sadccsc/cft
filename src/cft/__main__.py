@@ -22,7 +22,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.forecastButton,
             self.verificationButton,
             self.synthesisButton,
-            self.productsButton,
+            self.productsobsButton,
         ]
         self.script_map = {
             self.downloadButton: Path(baseDir,"download.py"),

@@ -162,7 +162,7 @@ def postDWTPOnset(result, config):
 
 # write #############################################################################
 
-def writeDWTPOnsetOutput(output, meta, path):
+def writeDWTPOnsetOutput(output, meta, path, description):
     """
     Writes each Dataset from postDWTP to a separate file: <path>_Stats, <path>_ClmEnvelope, <path>_PR60.
     Grid -> netcdf (compressed, as in the original). Stations -> one csv per variable, with ID/Lat/Lon

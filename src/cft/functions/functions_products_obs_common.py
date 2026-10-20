@@ -155,7 +155,7 @@ def datesToDekad(dates, shape):
 
 # writing ##########################################################################
 
-def writeLocationOutput(ds, meta, path):
+def writeLocationOutput(ds, meta, path, description):
     """
     Writes a Dataset (or DataArray) in which all variables have a location dimension.
     Grid -> one netcdf with all variables on the original grid.
@@ -176,6 +176,8 @@ def writeLocationOutput(ds, meta, path):
     if meta["type"] == "grid":
         out = ds.set_index(location=["lat", "lon"]).unstack("location")
         out = out.reindex(lat=meta["lat"], lon=meta["lon"]).transpose(..., "lat", "lon")
+        if description and hasattr(out, "attrs"):
+            out.attrs["description"] = description
         outFile = path.with_suffix(".nc")
         out.to_netcdf(outFile)
         written.append(outFile)

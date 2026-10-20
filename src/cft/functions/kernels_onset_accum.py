@@ -19,15 +19,20 @@ def butterworthSmooth(x, b, a, padLen):
  
 def onsetAccum(x, rm, onsetDays, demiseDays, b, a, padLen):
     """
-    Kernel. x - daily rainfall for one water year (1-D), rm - mean daily rainfall.
-    b, a, padLen - Butterworth filter coefficients and padding length, from calcAccumOnset.
-    Returns [onset, demise, wet, preOnset, postDemise]:
-        onset, demise - index of the day in the window (0 = start of water year)
-        wet - rainfall from onset to demise (both days included)
-        preOnset - rainfall from start of window to the day before onset
-        postDemise - rainfall from the day after demise to end of window
-    All NaN if the window has missing data.
+    onset, demise, duration and wet/dry season rainfall from anomalous accumulation (Liebmann and Marengo);
+    start of the water year from harmonic analysis of the annual cycle (Dunning et al. 2016)
     """
+    #"""
+    #Kernel. x - daily rainfall for one water year (1-D), rm - mean daily rainfall.
+    #b, a, padLen - Butterworth filter coefficients and padding length, from calcAccumOnset.
+    #Returns [onset, demise, wet, preOnset, postDemise]:
+    #    onset, demise - index of the day in the window (0 = start of water year)
+    #    wet - rainfall from onset to demise (both days included)
+    #    preOnset - rainfall from start of window to the day before onset
+    #    postDemise - rainfall from the day after demise to end of window
+    #All NaN if the window has missing data.
+    #"""
+    
     out = np.full(len(ACCUM_VARS), np.nan)
     if np.isnan(x).any() or np.isnan(rm):
         return out

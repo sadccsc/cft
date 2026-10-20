@@ -257,6 +257,6 @@ def postAgroOnset(offset, config):
 
 # writing for agronomic onset #############################################################################
 
-def writeAgroOnsetOutput(ds, meta, path):
+def writeAgroOnsetOutput(ds, meta, path, description):
     # one netcdf (grid) or one csv per variable (stations)
-    return writeLocationOutput(ds, meta, path)
+    return writeLocationOutput(ds, meta, path, description)

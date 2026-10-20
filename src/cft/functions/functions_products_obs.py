@@ -36,6 +36,8 @@ Adding a category: add pre/calc/post functions and an "if" branch in each dispat
 import sys, time
 from pathlib import Path
 
+import inspect
+
 from cft import gl
 from cft.functions.functions_common import showMessage, readConfigFile, getNJobs
 from cft.functions.functions_products_obs_common import readObs
@@ -50,10 +52,18 @@ from cft.functions.functions_onset_dwtp import preDWTPOnset, calcDWTPOnset, post
 
 CATEGORIES = {
     "agronomic_onset": {
-        "onsetA": kernels_onset_agro.onsetA,
-        "onsetB": kernels_onset_agro.onsetB,
-        "onsetC": kernels_onset_agro.onsetC,
-        "onsetD": kernels_onset_agro.onsetD,
+        "onsetTadross": kernels_onset_agro.onsetTadross,
+        "onsetAngola": kernels_onset_agro.onsetAngola,
+        "onsetBotswana": kernels_onset_agro.onsetBotswana,
+        "onsetEswatini": kernels_onset_agro.onsetEswatini,
+        "onsetMadagascar": kernels_onset_agro.onsetMadagascar,
+        "onsetMalawi": kernels_onset_agro.onsetMalawi,
+        "onsetMozambique": kernels_onset_agro.onsetMozambique,
+        "onsetNamibia": kernels_onset_agro.onsetNamibia,
+        "onsetSouthAfrica": kernels_onset_agro.onsetSouthAfrica,
+        "onsetTanzania": kernels_onset_agro.onsetTanzania,
+        "onsetZambia": kernels_onset_agro.onsetZambia,
+        "onsetZimbabwe": kernels_onset_agro.onsetZimbabwe,
     },
     "accum_onset": {
         "onsetAccum": kernels_onset_accum.onsetAccum,
@@ -63,6 +73,8 @@ CATEGORIES = {
     }
 
 }
+
+
 
 
 # settings that users should not normally change. Values in dictionaries/deep_config.json override these.
@@ -86,6 +98,12 @@ def loadSettings():
     settings = dict(DEFAULT_SETTINGS)
     return settings
 
+
+
+def describe(func):
+    doc = inspect.getdoc(func)
+    return " ".join(doc.split()) if doc else ""
+    
 
 # dispatchers #######################################################################
 
@@ -115,13 +133,13 @@ def postprocess(category, result, settings):
     elif category == "dwtp_onset":
         return postDWTPOnset(result, gl.config)
 
-def writeoutput(category, result, meta, outDir, obsdatasetcode, productname):
+def writeoutput(category, result, meta, outDir, obsdatasetcode, productname, description):
     if category == "agronomic_onset":
-        writeAgroOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname))        
+        writeAgroOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)        
     elif category == "accum_onset":
-        writeAccumOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname))
+        writeAccumOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
     elif category == "dwtp_onset":
-        writeDWTPOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname))
+        writeDWTPOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
 
 
 # main API function #################################################################
@@ -182,7 +200,7 @@ def computeProductsObsNoGui(config):
                 showMessage("\tjobs: {}, elapsed time: {:.1f} s".format(n_jobs, time.time() - start))
 
                 #dispatch writing output
-                writeoutput(category,results,meta,outDir, config["obsDsetCode"], key)
+                writeoutput(category,results,meta,outDir, config["obsDsetCode"], key, description=describe(products[key]))
                 
             except Exception as e:
                 showMessage("{} could not be calculated. Full error: {}".format(key, e), "ERROR")

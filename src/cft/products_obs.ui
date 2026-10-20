@@ -209,23 +209,81 @@
              </layout>
             </item>
             <item row="2" column="0" colspan="3">
-             <widget class="QCheckBox" name="onsetA">
-              <property name="text"><string>onset A: 25 mm in 10 days</string></property>
+             <widget class="QCheckBox" name="onsetTadross">
+              <property name="text"><string>Tadross et al.: 25 mm in 10 days</string></property>
+              <property name="toolTip"><string>at least 25 mm of accumulated rainfall in 10 days, with no check for a following dry spell (Tadross et al.)</string></property>
              </widget>
             </item>
             <item row="3" column="0" colspan="3">
-             <widget class="QCheckBox" name="onsetB">
-              <property name="text"><string>onset B: 25 mm in 10 days, no 10-day dry spell in the following 20 days</string></property>
+             <widget class="QCheckBox" name="onsetAngola">
+              <property name="text"><string>Angola: 25 mm in 10 days, followed by 20 mm in the next 20 days</string></property>
+              <property name="toolTip"><string>at least 25 mm of accumulated rainfall in 10 days, followed by at least 20 mm of accumulated rainfall in the following 20 days</string></property>
              </widget>
             </item>
             <item row="4" column="0" colspan="3">
-             <widget class="QCheckBox" name="onsetC">
-              <property name="text"><string>onset C: 45 mm in 4 days</string></property>
+             <widget class="QCheckBox" name="onsetBotswana">
+              <property name="text"><string>Botswana (Sivakumar 1988): 20 mm in 3 days, no 7-day dry spell in the following 30 days</string></property>
+              <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 3 days, not followed by a period of 7 consecutive days with rainfall &lt; 1 mm in the following 30 days (Sivakumar 1988)</string></property>
              </widget>
             </item>
             <item row="5" column="0" colspan="3">
-             <widget class="QCheckBox" name="onsetD">
-              <property name="text"><string>onset D: 20 mm in 3 days, no 10-day dry spell in the following 10 days</string></property>
+             <widget class="QCheckBox" name="onsetEswatini">
+              <property name="text"><string>Eswatini: 20 mm in 3 days</string></property>
+              <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 3 days, with no check for a following dry spell</string></property>
+             </widget>
+            </item>
+            <item row="6" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetLesotho">
+              <property name="text"><string>Lesotho: more than 25 mm in 5 days, no 10-day dry spell in the following 21 days</string></property>
+              <property name="toolTip"><string>more than 25 mm of accumulated rainfall in 5 days, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 21 days</string></property>
+             </widget>
+            </item>
+            <item row="7" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetMadagascar">
+              <property name="text"><string>Madagascar: 20 mm in 2 days, no dry spell longer than 10 days in the following 30 days</string></property>
+              <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 2 days, not followed by a period of more than 10 consecutive days with rainfall &lt; 1 mm in the following 30 days</string></property>
+             </widget>
+            </item>
+            <item row="8" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetMalawi">
+              <property name="text"><string>Malawi: 25 mm in 3 days, no 10-day dry spell in the following 21 days</string></property>
+              <property name="toolTip"><string>at least 25 mm of accumulated rainfall in 3 days, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 21 days</string></property>
+             </widget>
+            </item>
+            <item row="9" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetMozambique">
+              <property name="text"><string>Mozambique: 20 mm in 3 days, no 10-day dry spell in the following 21 days</string></property>
+              <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 3 days, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 21 days</string></property>
+             </widget>
+            </item>
+            <item row="10" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetNamibia">
+              <property name="text"><string>Namibia: 10 mm in 10 days starting on a rainy day, with at least 2 rainy days</string></property>
+              <property name="toolTip"><string>first day with rainfall &gt;= 0.1 mm on which the 10 days starting that day accumulate at least 10 mm, with at least 2 of those days having &gt;= 0.1 mm (returns the first day of the 10-day window, not the last)</string></property>
+             </widget>
+            </item>
+            <item row="11" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetSouthAfrica">
+              <property name="text"><string>South Africa: 25 mm in 5 days, no 10-day dry spell in the following 21 days</string></property>
+              <property name="toolTip"><string>at least 25 mm of accumulated rainfall in 5 days, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 21 days</string></property>
+             </widget>
+            </item>
+            <item row="12" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetTanzania">
+              <property name="text"><string>Tanzania: more than 20 mm in 4 days with 2 wet days, no 10-day dry spell in the following 30 days</string></property>
+              <property name="toolTip"><string>more than 20 mm of accumulated rainfall in 4 days, with at least 2 days of rainfall &gt;= 1 mm, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 30 days</string></property>
+             </widget>
+            </item>
+            <item row="13" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetZambia">
+              <property name="text"><string>Zambia: 20 mm in 5 days with 3 rainy days, no dry spell longer than 10 days in the following 21 days</string></property>
+              <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 5 days, with at least 3 days of rainfall &gt;= 0.85 mm, not followed by a period of more than 10 consecutive days with rainfall &lt; 0.85 mm in the following 21 days</string></property>
+             </widget>
+            </item>
+            <item row="14" column="0" colspan="3">
+             <widget class="QCheckBox" name="onsetZimbabwe">
+              <property name="text"><string>Zimbabwe: 20 mm in 2 days, no 10-day dry spell in the following 30 days</string></property>
+              <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 2 days, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 30 days</string></property>
              </widget>
             </item>
            </layout>

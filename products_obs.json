@@ -18,10 +18,18 @@
     "parallelize": true,
     "dwtpSaveFiltered": false,
     "products": {
-        "onsetA": false,
-        "onsetB": false,
-        "onsetC": false,
-        "onsetD": false,
+        "onsetTadross": false,
+        "onsetAngola": false,
+        "onsetBotswana": false,
+        "onsetEswatini": false,
+        "onsetMadagascar": false,
+        "onsetMalawi": false,
+        "onsetMozambique": false,
+        "onsetNamibia": false,
+        "onsetSouthAfrica": false,
+        "onsetTanzania": false,
+        "onsetZambia": false,
+        "onsetZimbabwe": false,
         "onsetAccum": false,
         "onsetDWTP": true
     }

@@ -29,23 +29,25 @@ DWTP_STATUS = {0: "ok", 1: "no dry-to-wet transition periods found", 2: "error",
 
 
 def onsetDWTP(pp, doy, years, climStart, climStop, b, a, padLen, minlen, mxrainy):
-    """
-    Kernel for one location (port of PxlProcess).
-        pp        - daily rainfall, no-leap (29 Feb removed), 1-D
-        doy       - day of year (1-365, no-leap) of each day in pp
-        years     - calendar year of each day in pp
-        climStart, climStop - positions of the climatological period in pp (start, stop+1);
-                    the period should start on 1 January and cover complete years
-        b, a, padLen - Butterworth filter coefficients and padding length (2*fwin)
-        minlen    - minimum length of transition periods (original: 30)
-        mxrainy   - maximum number of climatological envelopes (original: 2)
-    Returns:
-        ons    - (years, sea, nstats) DWTP statistics, as in the original
-        clmEnv - (season, Stats) climatological envelope [FirstDay, Length], as in the original
-        w0     - start of water year, day of year (original clm[2])
-        flt    - filtered daily rainfall (original bwpp)
-        status - see DWTP_STATUS
-    """
+    """first day, length, intensity, rainfall and wet/dry spell statistics of the dry-to-wet 
+        transition period, within  climatological envelopes,
+        following: """
+    #Kernel for one location (port of PxlProcess).
+    #    pp        - daily rainfall, no-leap (29 Feb removed), 1-D
+    #    doy       - day of year (1-365, no-leap) of each day in pp
+    #    years     - calendar year of each day in pp
+    #    climStart, climStop - positions of the climatological period in pp (start, stop+1);
+    #                the period should start on 1 January and cover complete years
+    #    b, a, padLen - Butterworth filter coefficients and padding length (2*fwin)
+    #    minlen    - minimum length of transition periods (original: 30)
+    #    mxrainy   - maximum number of climatological envelopes (original: 2)
+    #Returns:
+    #    ons    - (years, sea, nstats) DWTP statistics, as in the original
+    #    clmEnv - (season, Stats) climatological envelope [FirstDay, Length], as in the original
+    #    w0     - start of water year, day of year (original clm[2])
+    #    flt    - filtered daily rainfall (original bwpp)
+    #    status - see DWTP_STATUS
+    
     vyr = np.unique(years)
     ons = np.full((len(vyr), mxrainy, len(NSTATS)), np.nan)
     clmEnv = np.full((mxrainy, 2), np.nan)

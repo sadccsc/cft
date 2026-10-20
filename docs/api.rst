@@ -21,4 +21,10 @@ Download
 
 .. autofunction:: cdsDownloadForecast
 
+Products
+--------
+
+.. currentmodule:: cft.functions.functions_products_obs
+
+.. autofunction:: computeProductsObsNoGui
 

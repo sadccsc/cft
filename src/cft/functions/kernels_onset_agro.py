@@ -135,12 +135,13 @@ def _hits(s, thresh, strict=False):
 
 # ---------------------------------------------------------- country functions
 def onsetTadross(x):
-    """at least 25 mm of accumulated rainfall in 10 days, with no check for
-    a following dry spell (Tadross et al.)"""
+    """at least 25 mm of accumulated rainfall in 10 days, followed by at least
+    20 mm of accumulated rainfall in the following 20 days (Tadross et al. 2005)"""
     if np.isnan(x).any():
         return np.nan
     for i in _hits(trailingSum(x, 10), 25):
-        return float(i)
+        if i + 21 <= len(x) and np.sum(x[i + 1:i + 21]) >= 20:
+            return float(i)
     return -99.0
 
 
@@ -169,12 +170,14 @@ def onsetBotswana(x):
 
 
 def onsetEswatini(x):
-    """at least 20 mm of accumulated rainfall in 3 days, with no check for a
-    following dry spell"""
+    """at least 20 mm of accumulated rainfall in 3 days, not followed by a period
+    of 7 consecutive days with rainfall < 1 mm in the following 30 days
+    (Sivakumar 1988)"""
     if np.isnan(x).any():
         return np.nan
     for i in _hits(trailingSum(x, 3), 20):
-        return float(i)
+        if i + 31 <= len(x) and longestDrySpell(x[i + 1:i + 31]) < 7:
+            return float(i)
     return -99.0
 
 

@@ -49,7 +49,7 @@ For example, the summer season 2020 starts on 1 October 2020.
 
 ### Onset definitions
 
-The definitions are those used by SADC national meteorological services, as reported in a 2026 survey, and the definition of Tadross et al. Several countries use Tadross et al. or Sivakumar (1988) (the Botswana definition) as their main or secondary definition.
+The definitions are those used by SADC national meteorological services, as reported in a 2026 survey, and the definition of Tadross et al. (2005). Several countries use Tadross et al. or Sivakumar (1988) (the Botswana definition) as their main or secondary definition.
 
 ```{include} _onset_definitions.md
 ```
@@ -84,11 +84,13 @@ For gridded input, each definition also produces up to two files for use as a pr
 - `<code>_<product>_summer_forforecast.nc`
 - `<code>_<product>_winter_forforecast.nc`
 
-Each holds `onsetDaysSinceAnchor` for the locations of that regime only, with the `season` dimension replaced by `time`, the season start date. A file is not written if its regime has no data.
+Each holds `onsetDaysSinceAnchor` for the locations of that regime only, with the `season` dimension replaced by `time`. The time of each season is its anchor date, the season start (by default 1 October for summer and 1 March for winter rainfall). A file is not written if its regime has no data.
+
+When you use one of these files in the forecast module, set the forecast target season to the anchor month: `Oct` for the default summer file, `Mar` for the default winter file. The forecast is then a forecast of the number of days from the season start to onset.
 
 ## Onset and demise from anomalous accumulation
 
-Onset and demise are the turning points of the cumulative daily rainfall anomaly (Liebmann and Marengo, 2001), within a water year derived from harmonic analysis of the annual cycle (Dunning et al., 2016).
+Onset and demise are the turning points of the cumulative daily rainfall anomaly (Liebmann and Marengo, 2001), within a water year derived from harmonic analysis of the annual cycle (Dunning et al., 2016). The implementation follows Zilli et al. (2026).
 
 - **Water year** — for each location, the mean annual cycle of daily rainfall in the climatological period (29 February excluded) is decomposed into harmonics. If the annual harmonic explains more variance than the semi-annual and the third harmonic, the location has a single rainy season, and its water year starts at the minimum of the annual harmonic (`w0`). Locations without a single rainy season are not processed.
 - **Anomaly** — daily rainfall minus the mean daily rainfall of the climatological period (`rm`).
@@ -128,7 +130,7 @@ Method settings in `DEFAULT_SETTINGS`: `accumWindowDays` (365), `accumOnsetDays`
 
 ## Dry-to-wet transition period (DWTP)
 
-The DWTP is the period in which a location changes from dry to wet conditions. The method can find up to two rainy seasons per year, so it can be used where rainfall is bimodal.
+The DWTP is the period in which a location changes from dry to wet conditions (Zilli et al., 2026). The method can find up to two rainy seasons per year, so it can be used where rainfall is bimodal.
 
 - **Transition days** — daily rainfall is smoothed with a Butterworth low-pass filter (filter parameter 60), which removes variations shorter than about 120 days. Days on which smoothed rainfall is positive and increasing are transition days; runs of at least 30 such days are transition periods.
 - **Climatological envelope** — for each day of the year, the frequency of transition periods in the climatological period is calculated. The start of the water year (`w0`) is the day with the lowest frequency. Envelopes are the parts of the year in which the normalised, smoothed frequency is at least 0.5. Up to two envelopes are kept; a second envelope is dropped if its mean smoothed rainfall is less than 35% of that of the first.

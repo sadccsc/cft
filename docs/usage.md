@@ -22,7 +22,7 @@ Each module can also be opened directly:
 |---|---|---|
 | Download | `download-tool` | `python -m cft.download` |
 | Forecast | `forecast-tool` | `python -m cft.forecast` |
-| Products (observed) | | `python -m cft.products_obs` |
+| Products (observed) | `products_obs-tool` | `python -m cft.products_obs` |
 | Zoning | `zoning-tool` | `python -m cft.zoning` |
 | Verification | `verification-tool` | `python -m cft.verification` |
 | Synthesis | `synthesis-tool` | `python -m cft.synthesis` |

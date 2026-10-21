@@ -7,12 +7,12 @@
 
 Original developer (2017–2022): Thembani Moitlhobogi.
 
-The anomalous accumulation and DWTP onset methods were developed by Neil Hart (neil.hart@ouce.ox.ac.uk) and Marcia Zilli (marcia.zilli@ouce.ox.ac.uk), University of Oxford.
+The anomalous accumulation and DWTP onset methods were developed by Neil Hart (neil.hart@ouce.ox.ac.uk) and Marcia Zilli (marcia.zilli@ouce.ox.ac.uk), University of Oxford (Zilli et al., 2026; see [References](references.md)).
 
 ## History
 
 - **2010–2017:** original version developed under the SADC CSC project SARCIS-DR.
-- **November 2022:** code moved from the original personal repository ([taxmanyana/cft](https://github.com/taxmanyana/cft)) to the institutional repository, [sadc-csc](https://github.com/sadc-csc).
+- **November 2022:** code moved from the original personal repository ([taxmanyana/cft](https://github.com/taxmanyana/cft)) to the institutional repository, [sadccsc/cft](https://github.com/sadccsc/cft).
 - **2023–2025:** development funded by the SADC CSC ClimSA project.
 - **After version 6.0:** development funded by the First Rains project.
 
@@ -24,7 +24,7 @@ The anomalous accumulation and DWTP onset methods were developed by Neil Hart (n
 | Download | CDS support added in v6.0 |
 | Products (observed) | v7.0 |
 
-The source code is maintained at [github.com/sadc-csc](https://github.com/sadc-csc) since version 4.0.0. From version 6.0.0, CFT is also available from [PyPI](https://pypi.org/project/sadc-cft/).
+The source code is maintained at [github.com/sadccsc/cft](https://github.com/sadccsc/cft) since version 4.0.0. From version 6.0.0, CFT is also available from [PyPI](https://pypi.org/project/sadc-cft/).
 
 ## Licence
 

@@ -1011,8 +1011,19 @@ def readPredictor():
                 lastleadTime=leadTime+2
             else:
                 lastleadTime=leadTime
-            predictor=predictor.sel(lead_time=slice(leadTime, lastleadTime)).mean("lead_time")
-                            
+            
+            
+            #making sure requested lead_time is in data
+            needed = range(leadTime+1, lastleadTime+2)
+            missing = [l for l in needed if l not in predictor.lead_time.values]
+            if missing:
+                showMessage(f"Forecast file does not contain lead months {missing} needed for target season {gl.config['fcstTargetSeas']}", "ERROR")
+                return None, None
+                
+            #issue identified by claude in v6
+            #predictor=predictor.sel(lead_time=slice(leadTime, lastleadTime)).mean("lead_time")
+            predictor = predictor.sel(lead_time=slice(leadTime + 1, lastleadTime + 1)).mean("lead_time") 
+                                       
         else:
             #making sure requested forecast month is in the data
             # for observed predictor it should be one month behind the forecast srcMonth
@@ -1048,7 +1059,20 @@ def readPredictor():
         isForecast=False
         predictor=readPredictorCsv(predFile)
         geodata=None
-        
+        if predictor is not None:
+            # observed predictor: one month behind the forecast month, as for netcdf
+            obssrcMonth = (srcMonth - 2) % 12 + 1
+            obssrcMonthName = months[obssrcMonth-1]
+            if obssrcMonth not in predictor.index.month:
+                availmonths = [months[x-1] for x in np.unique(predictor.index.month)]
+                showMessage(f"file does not contain data for requested month. Observed predictor for forecast issued in {srcMonthName} should be from {obssrcMonthName}. got {availmonths}", "ERROR")
+                return None, None
+            predictor = predictor[predictor.index.month == obssrcMonth]
+            
+            # aligning predictor data with forecast month - adding one month
+            predictor.index = predictor.index + pd.offsets.MonthBegin(1)
+            
+                    
     if predictor is None:
         return None,None
     

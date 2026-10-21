@@ -103,6 +103,10 @@ def setConfigDefaults():
         "products": {key: False for key in productKeys},
     }
 
+def setDiagEnabled(enabled):
+     for w in (gl.window.label_diaglat, gl.window.lineEdit_diaglat,
+           gl.window.label_diaglon, gl.window.lineEdit_diaglon,
+           gl.window.label_diagyear, gl.window.lineEdit_diagyear): w.setEnabled(enabled)
 
 def populateUI():
     c = gl.config
@@ -132,6 +136,13 @@ def populateUI():
     w.button_run.clicked.connect(w.runProductsObs)
     w.button_exit.clicked.connect(closeApp)
     w.clearLogButton.clicked.connect(clearLog)
+    w.checkBox_plotmaps.setChecked(bool(gl.config.get("plotMaps", False)))
+    w.checkBox_diagall.setChecked(bool(gl.config.get("diagAll", False)))
+    w.lineEdit_diaglat.setText(str(gl.config.get("diagLat", "")))
+    w.lineEdit_diaglon.setText(str(gl.config.get("diagLon", "")))
+    w.lineEdit_diagyear.setText(str(gl.config.get("diagYear", "")))
+    setDiagEnabled(w.checkBox_diagall.isChecked())
+
 
 
 def updateConfig():
@@ -187,6 +198,12 @@ def updateConfig():
         showMessage("Select at least one product", "ERROR")
         return False
 
+    c["plotMaps"] = w.checkBox_plotmaps.isChecked()
+    c["diagAll"] = w.checkBox_diagall.isChecked()
+    c["diagLat"] = w.lineEdit_diaglat.text().strip()
+    c["diagLon"] = w.lineEdit_diaglon.text().strip()
+    c["diagYear"] = w.lineEdit_diagyear.text().strip()
+
     with open(configfile, "w") as fp:
         json.dump(c, fp, indent=4)
     return True
@@ -228,7 +245,8 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.splitter.setStretchFactor(1, 1)
         # stop either panel being dragged to zero width
         self.splitter.setChildrenCollapsible(False)
-        
+        self.checkBox_diagall.toggled.connect(setDiagEnabled)
+
     def appendLog(self, message):
         self.logWindow.appendHtml(message)
         self.logWindow.ensureCursorVisible()

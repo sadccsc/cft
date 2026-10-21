@@ -155,7 +155,7 @@ def datesToDekad(dates, shape):
 
 # writing ##########################################################################
 
-def writeLocationOutput(ds, meta, path, description):
+def writeLocationOutput(ds, meta, path, description, settings):
     """
     Writes a Dataset (or DataArray) in which all variables have a location dimension.
     Grid -> one netcdf with all variables on the original grid.

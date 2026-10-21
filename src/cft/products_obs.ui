@@ -210,8 +210,8 @@
             </item>
             <item row="2" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetTadross">
-              <property name="text"><string>Tadross et al.: 25 mm in 10 days</string></property>
-              <property name="toolTip"><string>at least 25 mm of accumulated rainfall in 10 days, with no check for a following dry spell (Tadross et al.)</string></property>
+              <property name="text"><string>Tadross et al. (2005): 25 mm in 10 day, followed by 20mm in the next 20 days</string></property>
+              <property name="toolTip"><string>at least 25 mm of accumulated rainfall in 10 days, followed by at least 20 mm of accumulated rainfall in the following 20 days </string></property>
              </widget>
             </item>
             <item row="3" column="0" colspan="3">
@@ -228,7 +228,7 @@
             </item>
             <item row="5" column="0" colspan="3">
              <widget class="QCheckBox" name="onsetEswatini">
-              <property name="text"><string>Eswatini: 20 mm in 3 days</string></property>
+              <property name="text"><string>Eswatini (Sivakumar 1988): 20 mm in 3 days, no 7-day dry spell in the following 30 days</string></property>
               <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 3 days, with no check for a following dry spell</string></property>
              </widget>
             </item>
@@ -286,6 +286,49 @@
               <property name="toolTip"><string>at least 20 mm of accumulated rainfall in 2 days, not followed by a period of 10 consecutive days with rainfall &lt; 1 mm in the following 30 days</string></property>
              </widget>
             </item>
+            <item row="15" column="0" colspan="3">
+             <widget class="QGroupBox" name="groupBox_diag">
+              <property name="title"><string>Diagnostics</string></property>
+              <layout class="QGridLayout" name="gridLayout_diag">
+               <item row="0" column="0" colspan="6">
+                <widget class="QCheckBox" name="checkBox_diagall">
+                 <property name="text"><string>plot all diagnostics (all onset definitions at one location, one season)</string></property>
+                 <property name="toolTip"><string>Runs every agronomic onset definition on the daily rainfall of the grid cell or station nearest to the given location, for the season starting in the given year, and plots them one above the other. Independent of the definitions selected above.</string></property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_diaglat">
+                 <property name="text"><string>Latitude:</string></property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QLineEdit" name="lineEdit_diaglat">
+                 <property name="toolTip"><string>decimal degrees, negative south of the equator; must lie within the data domain</string></property>
+                </widget>
+               </item>
+               <item row="1" column="2">
+                <widget class="QLabel" name="label_diaglon">
+                 <property name="text"><string>Longitude:</string></property>
+                </widget>
+               </item>
+               <item row="1" column="3">
+                <widget class="QLineEdit" name="lineEdit_diaglon">
+                 <property name="toolTip"><string>decimal degrees, negative west of Greenwich; must lie within the data domain</string></property>
+                </widget>
+               </item>
+               <item row="1" column="4">
+                <widget class="QLabel" name="label_diagyear">
+                 <property name="text"><string>Season:</string></property>
+                </widget>
+               </item>
+               <item row="1" column="5">
+                <widget class="QLineEdit" name="lineEdit_diagyear">
+                 <property name="toolTip"><string>year in which the season starts, e.g. 2020 for the summer season from October 2020</string></property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -324,6 +367,12 @@
           </widget>
          </item>
 
+         <item>
+          <widget class="QCheckBox" name="checkBox_plotmaps">
+           <property name="text"><string>Plot maps of all output variables (slow for large domains)</string></property>
+           <property name="toolTip"><string>One image per output variable, saved next to the output files. Gridded data only.</string></property>
+          </widget>
+         </item>
          <item>
           <widget class="QCheckBox" name="checkBox_parallelize">
            <property name="text"><string>Run in parallel</string></property>

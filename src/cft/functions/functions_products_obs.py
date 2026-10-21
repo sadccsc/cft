@@ -49,7 +49,8 @@ from cft.functions.functions_onset_accum import (preAccumOnset, calcAccumOnset, 
                                                  writeAccumOnsetOutput)
 from cft.functions.functions_onset_dwtp import preDWTPOnset, calcDWTPOnset, postDWTPOnset, writeDWTPOnsetOutput
 
-from cft.functions.plot_outputs import plotLocationOutput   # wherever you put the file
+from cft.functions.plot_onset_outputs import plotLocationOutput   # wherever you put the file
+from cft.functions.plot_onset_diagnostics import runAllDiagnostics
 
 # registry ##########################################################################
 
@@ -146,14 +147,18 @@ def postprocess(category, result, settings):
     elif category == "dwtp_onset":
         return postDWTPOnset(result, gl.config)
 
-def writeoutput(category, result, meta, outDir, obsdatasetcode, productname, description):
+def writeoutput(category, result, meta, outDir, obsdatasetcode, productname, description, settings):
     if category == "agronomic_onset":
-        writeAgroOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
-        plotLocationOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)                    
+        writeAgroOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description, settings)
+        if gl.config.get("plotMaps"):
+            plotLocationOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description, settings)   
     elif category == "accum_onset":
-        writeAccumOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
+        writeAccumOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description, settings)
+        if gl.config.get("plotMaps"):
+            plotLocationOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description, settings)   
     elif category == "dwtp_onset":
-        writeDWTPOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
+        writeDWTPOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description, settings)
+
 
 
 # main API function #################################################################
@@ -214,11 +219,14 @@ def computeProductsObsNoGui(config):
                 showMessage("\tjobs: {}, elapsed time: {:.1f} s".format(n_jobs, time.time() - start))
 
                 #dispatch writing output
-                writeoutput(category,results,meta,outDir, config["obsDsetCode"], key, description=describe(products[key]))
+                writeoutput(category,results,meta,outDir, config["obsDsetCode"], key, (describe(products[key])), settings)
                 
             except Exception as e:
                 showMessage("{} could not be calculated. Full error: {}".format(key, e), "ERROR")
                 success = False
+
+    if config.get("diagAll"):
+        runAllDiagnostics(config, settings, data, meta, outDir, config["obsDsetCode"])
 
     if success:
         showMessage("All done!", "SUCCESS")

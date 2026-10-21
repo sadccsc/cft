@@ -392,6 +392,7 @@ def computeModelNoGui(config):
             regressor = StdRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
         else:
             showMessage("1-D predictor, and neither PCR nor CCA are applicable. Please change pre-processor to 'No preprocessing'", "ERROR")
+            return
 
     else:
         #2-D predictors

@@ -231,7 +231,9 @@ def postAgroOnset(offset, config):
  
     climText = "mean over seasons {}-{}, excluding seasons without onset".format(config["climStartYr"], config["climEndYr"])
     dims = ("season", "location")
+    print("here")
     ds = xr.Dataset(coords=offset.coords)
+    ds["noOnset"] = (dims, noOnset, {"description": "where onset was not achieved during given season"})
     ds["anchorDate"] = (dims, anchors, {"description": "first day of the season (anchor date)"})
     ds["onsetDate"] = (dims, dates.values.reshape(shape),
                        {"description": "date of rainy season onset; empty if no onset or missing data"})
@@ -259,11 +261,11 @@ def postAgroOnset(offset, config):
 
 # writing for agronomic onset #############################################################################
 
-def writeAgroOnsetOutput(ds, meta, path, description):
+def writeAgroOnsetOutput(ds, meta, path, description, settings):
     # one netcdf (grid) or one csv per variable (stations)
-    writeLocationOutput(ds, meta, path, description)
+    writeLocationOutput(ds, meta, path, description, settings)
     if "onsetDaysSinceAnchor" in ds:
-        result=writeForecastFiles(ds, meta, path, description)
+        result=writeForecastFiles(ds, meta, path, description, settings)
     
     return result
 
@@ -271,36 +273,49 @@ def writeAgroOnsetOutput(ds, meta, path, description):
 
 SEASON_NAMES = {1: "summer", 2: "winter"}   # regime codes
 
-def writeForecastFiles(ds, meta, path, description):
+def writeForecastFiles(ds, meta, path, description, settings):
     # one file per anchor month (rainfall season) with season replaced by time,
     # taken from anchorDate; skipped if the season has no data
     showMessage("writing files for forecast")
+    print(settings)
+
+    onsetWindowDays=settings["onsetWindowDays"]
+    onsetAnchorMonths=settings["onsetAnchorMonth"]
 
     months = np.unique(ds["anchorMonth"].values)
     months = months[~np.isnan(months)].astype(int)
-    for m in months:
-        mask = ds["anchorMonth"] == m
-        da = ds[["onsetDaysSinceAnchor"]].where(mask)
-        if not da["onsetDaysSinceAnchor"].notnull().any():
-            continue
-        # anchor date is the same for all cells of one season: collapse over space
-        space = [d for d in ds["anchorDate"].dims if d != "season"]
-        dates = ds["anchorDate"].where(mask).min(dim=space, skipna=True)
-        da = (da.assign_coords(time=("season", dates.values))
-                .swap_dims({"season": "time"})
-                .drop_vars("season"))
-        da = da.sel(time=da["time"].notnull())       # seasons without an anchor date
-        if description:
-            da = da.assign_attrs(description=description)
-        name = "m{:02d}".format(m)
-        if "regime" in ds:
-            codes = np.unique(ds["regime"].where(mask).values)
-            codes = codes[~np.isnan(codes)]
-            if len(codes) == 1 and int(codes[0]) in SEASON_NAMES:
-                name = SEASON_NAMES[int(codes[0])]
-        outfile = path.with_name("{}_{}_for_forecast".format(path.name, name))        
-        writeLocationOutput(da, meta, outfile, description)
-                
+    for seas in onsetAnchorMonths.keys():
+        m=onsetAnchorMonths[seas]
+        windowdays=onsetWindowDays[seas]
+        if m in months:
+            mask = ds["anchorMonth"] == m
+            da = ds[["onsetDaysSinceAnchor"]].where(mask)
+            if not da["onsetDaysSinceAnchor"].notnull().any():
+                continue
+            if "noOnset" in ds:
+                print("here2")
+                lastDay = windowdays - 1      # days since anchor: 0 = season start
+                da["onsetDaysSinceAnchor"] = da["onsetDaysSinceAnchor"].where(
+                    ds["noOnset"] != 1, lastDay)
+
+            # anchor date is the same for all cells of one season: collapse over space
+            space = [d for d in ds["anchorDate"].dims if d != "season"]
+            dates = ds["anchorDate"].where(mask).min(dim=space, skipna=True)
+            da = (da.assign_coords(time=("season", dates.values))
+                    .swap_dims({"season": "time"})
+                    .drop_vars("season"))
+            da = da.sel(time=da["time"].notnull())       # seasons without an anchor date
+            if description:
+                da = da.assign_attrs(description=description)
+            name = "m{:02d}".format(m)
+            if "regime" in ds:
+                codes = np.unique(ds["regime"].where(mask).values)
+                codes = codes[~np.isnan(codes)]
+                if len(codes) == 1 and int(codes[0]) in SEASON_NAMES:
+                    name = SEASON_NAMES[int(codes[0])]
+            outfile = path.with_name("{}_{}_for_forecast".format(path.name, name))        
+            writeLocationOutput(da, meta, outfile, description, settings)
+                    
         
         
 

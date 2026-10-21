@@ -237,6 +237,6 @@ def postAccumOnset(result, config):
 
 # writing for accumulated onset #############################################################################
 
-def writeAccumOnsetOutput(ds, meta, path, description):
+def writeAccumOnsetOutput(ds, meta, path, description, settings):
     # same output layout as agronomic onset: one netcdf (grid) or one csv per variable (stations)
-    return writeLocationOutput(ds, meta, path, description)
+    return writeLocationOutput(ds, meta, path, description, settings)

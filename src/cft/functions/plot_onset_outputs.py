@@ -200,7 +200,7 @@ def locationToGrid(ds, meta):
     return out.reindex(lat=meta["lat"], lon=meta["lon"]).transpose(..., "lat", "lon")
 
 
-def plotLocationOutput(ds, meta, path, description="", cmaps=CMAPS, fmt="png"):
+def plotLocationOutput(ds, meta, path, description, settings, cmaps=CMAPS, fmt="png"):
     """Plot output with a location dimension; counterpart of writeLocationOutput,
     called with the same arguments. Images are written next to the output as
     <path>_<variable>.png, with the description as a caption.

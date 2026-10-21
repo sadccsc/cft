@@ -7,6 +7,7 @@ Used by functions_products_obs.py.
 import numpy as np
 import pandas as pd
 import xarray as xr
+import os
 
 from cft.functions.functions_common import showMessage, runParallel, coordsubs
 from cft.functions.functions_products_obs_common import toDaily, datesToDoy, datesToDekad, writeLocationOutput
@@ -259,4 +260,46 @@ def postAgroOnset(offset, config):
 
 def writeAgroOnsetOutput(ds, meta, path, description):
     # one netcdf (grid) or one csv per variable (stations)
-    return writeLocationOutput(ds, meta, path, description)
+    writeLocationOutput(ds, meta, path, description)
+    if "onsetDaysSinceAnchor" in ds:
+        result=writeForecastFiles(ds, meta, path, description)
+    
+    return result
+
+
+
+SEASON_NAMES = {1: "summer", 2: "winter"}   # regime codes
+
+def writeForecastFiles(ds, meta, path, description):
+    # one file per anchor month (rainfall season) with season replaced by time,
+    # taken from anchorDate; skipped if the season has no data
+    showMessage("writing files for forecast")
+
+    months = np.unique(ds["anchorMonth"].values)
+    months = months[~np.isnan(months)].astype(int)
+    for m in months:
+        mask = ds["anchorMonth"] == m
+        da = ds[["onsetDaysSinceAnchor"]].where(mask)
+        if not da["onsetDaysSinceAnchor"].notnull().any():
+            continue
+        # anchor date is the same for all cells of one season: collapse over space
+        space = [d for d in ds["anchorDate"].dims if d != "season"]
+        dates = ds["anchorDate"].where(mask).min(dim=space, skipna=True)
+        da = (da.assign_coords(time=("season", dates.values))
+                .swap_dims({"season": "time"})
+                .drop_vars("season"))
+        da = da.sel(time=da["time"].notnull())       # seasons without an anchor date
+        if description:
+            da = da.assign_attrs(description=description)
+        name = "m{:02d}".format(m)
+        if "regime" in ds:
+            codes = np.unique(ds["regime"].where(mask).values)
+            codes = codes[~np.isnan(codes)]
+            if len(codes) == 1 and int(codes[0]) in SEASON_NAMES:
+                name = SEASON_NAMES[int(codes[0])]
+        outfile = path.with_name("{}_{}_for_forecast".format(path.name, name))        
+        writeLocationOutput(da, meta, outfile, description)
+                
+        
+        
+

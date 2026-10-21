@@ -1,54 +1,71 @@
+# Sphinx configuration for the CFT documentation.
+# Merge the marked sections into your existing conf.py if it has other settings.
+
+import inspect
 import os
+import re
 import sys
 
-# resolve relative to this file's own location, not the CWD Sphinx happens to be run from
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.insert(0, os.path.abspath(".."))
 
-project = "CFT"
-copyright = "SADC Climate Services Centre"
-author = "Piotr Wolski, Sunshine Gamedze"
-
-try:
-    from importlib.metadata import version as _version
-    release = _version("sadc-cft")
-except Exception:
-    release = "0.0.0"
+project = "CFT — Climate Forecasting Toolbox"
+author = "SADC Climate Services Centre"
 
 extensions = [
+    "myst_parser",            # pages written in Markdown
     "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",   # supports Google/NumPy-style docstrings
-    "sphinx.ext.viewcode",   # adds links to highlighted source
-    "myst_parser",           # lets .md files (e.g. README) be included alongside .rst
+    "sphinx.ext.napoleon",
 ]
 
-templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
+myst_enable_extensions = ["colon_fence"]
+myst_heading_anchors = 3
 
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
 
-# --- autodoc behaviour ---
+# generated include files are not pages of their own
+exclude_patterns = ["_build", "modules/_*.md"]
 
-# Only document things we explicitly reference with autofunction/automodule below -
-# nothing gets pulled in automatically, so internal/GUI-only helpers never leak into the docs
-autodoc_default_options = {
-    "members": False,
-}
+# --- GDAL is needed only by the zoning module, and is not installed on the
+# --- documentation build server
+autodoc_mock_imports = ["osgeo"]
 
-# If NOT using the conda-based RTD build (docs/environment.yml), these heavy/native
-# dependencies won't be installed in the docs build environment. Mocking them lets
-# autodoc still import each functions_*.py module to pull out docstrings, without
-# needing GDAL/PyQt5/etc. actually installed and working.
-#
-# Remove this list entirely if you switch to the conda-based .readthedocs.yaml instead.
-autodoc_mock_imports = [
-    "osgeo",
-    "cartopy",
-    "PyQt5",
-    "rasterio",
-    "rasterstats",
-    "geopandas",
-    "rioxarray",
-    "geocube",
-    "netCDF4",
-]
+
+# --- onset definitions table, generated from the docstrings of the onset
+# --- functions each time the documentation is built
+ONSET_MODULE = "cft.functions.kernels_onset_agro"
+ONSET_TABLE = os.path.join(os.path.dirname(__file__), "modules", "_onset_definitions.md")
+
+
+def _label(name):
+    # onsetSouthAfrica -> South Africa, onsetTadross -> Tadross et al.
+    label = re.sub(r"(?<!^)(?=[A-Z])", " ", name[len("onset"):])
+    return "Tadross et al." if label == "Tadross" else label
+
+
+def write_onset_table(app):
+    import importlib
+
+    try:
+        module = importlib.import_module(ONSET_MODULE)
+    except ImportError as err:
+        text = "*Onset definitions could not be loaded: {}*\n".format(err)
+    else:
+        rows = []
+        for name, func in inspect.getmembers(module, inspect.isfunction):
+            if func.__module__ != module.__name__ or not name.startswith("onset"):
+                continue
+            doc = inspect.getdoc(func)
+            if doc:
+                rows.append((_label(name), name, " ".join(doc.split())))
+        # Tadross first, then countries in alphabetical order
+        rows.sort(key=lambda r: (r[1] != "onsetTadross", r[0]))
+        lines = ["| Definition | Product | Rule |", "|---|---|---|"]
+        lines += ["| {} | `{}` | {} |".format(*r) for r in rows]
+        text = "\n".join(lines) + "\n"
+    with open(ONSET_TABLE, "w") as f:
+        f.write(text)
+
+
+def setup(app):
+    app.connect("builder-inited", write_onset_table)

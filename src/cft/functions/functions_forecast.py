@@ -2552,7 +2552,7 @@ colormaps={"percent_normal":{
         "categorized":True,
         "nlev":11,
         "title":"Forecast value",
-        "cmap":{"rainfall":plt.cm.YlGnBu, "temperature":plt.cm.RdBu_r},
+        "cmap":{"rainfall":plt.cm.YlGnBu, "temperature":plt.cm.RdBu_r, "other":plt.cm.BrBG},
         "vmin":"auto",
         "vmax":"auto",
         "symmetric":False,
@@ -2565,7 +2565,7 @@ colormaps={"percent_normal":{
         "categorized":True,
         "nlev":21,
         "title":"Forecast anomaly",
-        "cmap":{"rainfall":plt.cm.BrBG, "temperature":plt.cm.RdBu_r},
+        "cmap":{"rainfall":plt.cm.BrBG, "temperature":plt.cm.RdBu_r, "other":plt.cm.BrBG},
         "vmin":"auto",
         "vmax":"auto",
         "symmetric":True,
@@ -2829,7 +2829,7 @@ colormaps={"percent_normal":{
         "categorized":False,        
         "nlev":None,
         "title":"Forecast category (tercile)",
-        "cmap":{"rainfall": colors.ListedColormap(['#d2b48c', '0.8','blue']), "temperature": colors.ListedColormap(['blue', '0.8','red'])},
+        "cmap":{"rainfall": colors.ListedColormap(['#d2b48c', '0.8','blue']), "temperature": colors.ListedColormap(['blue', '0.8','red']),"other": colors.ListedColormap(['blue', '0.8','#d2b48c'])},
         "vmin":0,
         "vmax":3,
         "symmetric":False,
@@ -3245,7 +3245,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
             colorbar=False
-
+            print(score)
             cm=colormaps[score]
             title=cm["title"]
             cmap=cm["cmap"]

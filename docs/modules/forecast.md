@@ -49,13 +49,6 @@ CFT counts the lead time in months from the forecast month (month 1) to the last
 
 Forecast files number their lead months the same way: lead month 1 is the initialisation month (`forecastMonth` 1 in CDS files). For a July forecast of August–October, CFT averages lead months 2, 3 and 4. If the file does not contain all the lead months the target season needs, CFT stops with an error naming the missing months. CDS seasonal forecasts cover 6 lead months, so the target season can end at most 5 months after the forecast month.
 
-### Changes from earlier versions
-
-From version 7.1:
-
-- **CSV predictors** (e.g. teleconnection indices) are taken from the month before the forecast month, as observed netCDF predictors already were. If you previously set `Jun` to use June index values for an August–October forecast, set `Jul` now.
-- **Forecast predictors** are averaged over the months of the target season. Earlier versions used the months one month earlier: July–September for an August–October target with a July forecast.
-
 ### Overlap with the predictand
 
 The predictor and predictand must overlap in at least 20 years after this alignment, and both must cover the climatological period.

@@ -37,6 +37,7 @@ import sys, time
 from pathlib import Path
 
 import inspect
+import copy
 
 from cft import gl
 from cft.functions.functions_common import showMessage, readConfigFile, getNJobs
@@ -47,6 +48,8 @@ from cft.functions.functions_onset_agro import (preAgroOnset, calcAgroOnset, pos
 from cft.functions.functions_onset_accum import (preAccumOnset, calcAccumOnset, postAccumOnset,
                                                  writeAccumOnsetOutput)
 from cft.functions.functions_onset_dwtp import preDWTPOnset, calcDWTPOnset, postDWTPOnset, writeDWTPOnsetOutput
+
+from cft.functions.plot_outputs import plotLocationOutput   # wherever you put the file
 
 # registry ##########################################################################
 
@@ -93,9 +96,19 @@ DEFAULT_SETTINGS = {
 }
 
 
-def loadSettings():
-    """simply reads config from dictionary embedded in the code"""
-    settings = dict(DEFAULT_SETTINGS)
+def loadSettings(config=None):
+    """Settings from DEFAULT_SETTINGS, overridden by values in the run config
+    (from the GUI or the json file) for keys that exist in DEFAULT_SETTINGS."""
+    if config is None:
+        config = getattr(gl, "config", None) or {}
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
+    for key, value in config.items():
+        if key not in settings:
+            continue
+        if isinstance(settings[key], dict) and isinstance(value, dict):
+            settings[key].update(value)   # e.g. only "summer" given: "winter" keeps its default
+        else:
+            settings[key] = value
     return settings
 
 
@@ -135,7 +148,8 @@ def postprocess(category, result, settings):
 
 def writeoutput(category, result, meta, outDir, obsdatasetcode, productname, description):
     if category == "agronomic_onset":
-        writeAgroOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)        
+        writeAgroOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
+        plotLocationOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)                    
     elif category == "accum_onset":
         writeAccumOnsetOutput(result, meta, outDir / "{}_{}".format(obsdatasetcode, productname), description)
     elif category == "dwtp_onset":

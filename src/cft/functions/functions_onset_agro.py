@@ -122,6 +122,7 @@ def setRegimeAttrs(regime):
 def calcAgroOnset(inputs, func, n_jobs, settings):
     windowDays = {settings["onsetAnchorMonth"][r]: settings["onsetWindowDays"][r]
                   for r in settings["onsetAnchorMonth"]}
+                  
     return runParallel(applyAgroOnsetKernel, inputs["data"], n_jobs,
                        kernel=func, windowDays=windowDays)
 

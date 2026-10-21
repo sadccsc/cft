@@ -1,0 +1,18 @@
+check aggregated zonal vs. gridded - for onset
+parsing dates expressed as year throws an error
+one of the regression models give biased results
+
+
+obs reading - add alternative format
+check regime algorithm in Neils code
+align/check regime map grid vs. data grid
+day of year and labelling of years in onset data across the calendar year
+change category from onset to agronomic onset
+add onset anomaly, climatology, onset dekad, dekad climatology, dekad anomaly
+add meaningful file name: onsetA_{datasetID}_{fdate}-{ldate}.nc
+why two outputs in computeproductsNoGui()?
+add docstring to computeproductsNoGui()
+
+default config from file, not in code, also include deep config entries
+
+

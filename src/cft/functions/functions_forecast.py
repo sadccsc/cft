@@ -85,9 +85,6 @@ regressors = {
     }
 
 
-terc2num={"below":0,"normal":1,"above":2}
-num2terc={0: "below",1:"normal",2:"above"}
-
 cem2num={"below":0,"normal-to-below":1,"normal-to-above":2,"above":3}
 num2cem={0:"below",1:"normal-to-below",2:"normal-to-above",3:"above"}
 
@@ -113,10 +110,17 @@ def computeModelNoGui(config):
     Reads the predictor and predictand data described in ``config``, aligns them
     to a common hindcast period, optionally aggregates the predictand to zones,
     fits the configured statistical model under cross-validation, and produces
-    deterministic, probabilistic, tercile, and 4-category (CEM) forecasts along
-    with cross-validated skill scores. All results - forecast/hindcast data,
+    deterministic, probabilistic and categorical forecasts along with
+    cross-validated skill scores. All results - forecast/hindcast data,
     skill scores, and diagnostic plots - are written to disk under
     ``config['rootDir']``; this function does not return the forecast data itself.
+
+    The probabilistic forecast is a multi-category forecast. Categories are defined
+    by K thresholds (K>=1), which gives K+1 categories. Thresholds can be given either
+    as quantiles of the climatological distribution (``quantileThreshold``, default
+    [0.33, 0.66], i.e. the classical tercile forecast), or as absolute values in the units
+    of the (time-aggregated) predictand (``absoluteThreshold``). If ``absoluteThreshold``
+    is defined, it takes precedence over ``quantileThreshold``.
 
     On any failure (bad input data, incompatible predictor/pre-processor
     combination, etc.) an error is logged via ``showMessage`` and the function
@@ -133,7 +137,7 @@ def computeModelNoGui(config):
               ``'Aug-Oct'`` (or a single three-letter month for monthly forecasts).
             * ``fcstTargetYear`` (int): year of the first month of the forecast target season.
             * ``climStartYr`` / ``climEndYr`` (int): first/last year of the
-              climatological reference period used to compute anomalies and terciles.
+              climatological reference period used to compute anomalies and category thresholds.
             * ``predictorExtents`` (dict): bounding box for the predictor domain,
               with keys ``minLon``, ``maxLon``, ``minLat``, ``maxLat``.
             * ``predictorFileName`` (str): path to the predictor NetCDF or CSV file.
@@ -164,6 +168,13 @@ def computeModelNoGui(config):
             * ``overlayFile`` (str): optional vector file (e.g. admin boundaries)
               overlaid on output maps; pass ``""`` for none.
             * ``plotMaps`` (bool): whether or not output maps are created
+            * ``parallelize`` (bool): whether or not to run cross-validation and skill in parallel
+            * ``quantileThreshold`` (list of float, optional): increasing quantile levels,
+              between 0 and 1, defining category boundaries. Default ``[0.33, 0.66]``.
+            * ``absoluteThreshold`` (list of float or None, optional): increasing absolute
+              values defining category boundaries, in units of the time-aggregated predictand
+              (e.g. seasonal total if ``timeAggregation`` is ``'sum'``). No default. If given,
+              it is used instead of ``quantileThreshold``.
 
     Returns:
         bool or None: ``True`` if the forecast ran to completion and all output
@@ -198,6 +209,9 @@ def computeModelNoGui(config):
         ...     'regridPredictand': False,
         ...     'overlayFile': '',
         ...     'plotMaps': True,
+        ...     'parallelize': True,
+        ...     'quantileThreshold': [0.33, 0.66],
+        ...     'absoluteThreshold': None,
         ... }
         >>> computeModelNoGui(config)
         True
@@ -208,29 +222,29 @@ def computeModelNoGui(config):
 
     #reading inputs
     readFunctionConfig()
-    
+
     #checking inputs
     result=checkInputs()
 
     if result is None:
         showMessage("Check of input fields failed. Look above for errors, fix and try again.", "ERROR")
         return
- 
+
     #derived variables
-    
-    #set target type 
+
+    #set target type
     if gl.config["zonesAggregate"]:
         gl.targetType="zones"
     elif gl.config["predictandFileName"][-3:]=="csv":
         gl.targetType="points"
     else:
         gl.targetType="grid"
-    
+
     if len(gl.config["fcstTargetSeas"])>3:
         gl.fcstBaseTime="seas"
     else:
         gl.fcstBaseTime="mon"
-    
+
 
 
     #getting the number of available cpus. This will be None or a percent of available depending on gl.config["parallelize"] and gl.deepConfig["fractionCpus"]
@@ -238,82 +252,82 @@ def computeModelNoGui(config):
 
     #=======================================================================================================
     #reading data
-     
+
     #determine lead time
     leadTime=getLeadTime()
-        
+
     if leadTime is None:
         showMessage("Lead time could not be calculated, stopping early.", "ERROR")
         return
-       
+
     #reading predictors data
     predictor,geoDataPredictor=readPredictor()
     if predictor is None:
         showMessage("Predictor could not be read, stopping early.", "ERROR")
         return
-    
+
     #reading predictand data - this will calculate seasonal from monthly if needed.
     predictand0, geoData0=readPredictand()
     if predictand0 is None:
         showMessage("Predictand could not be read, stopping early.", "ERROR")
         return
-            
+
     if np.max(predictand0)<0.01:
         showMessage(f"Predictand has values ranging between {np.min(predictand0)} and {np.max(predictand0)}. CFT cannot handle that, please rescale your data so that values have no more than 2 significant decimal digits", "ERROR")
         return
-        
+
     #aggregating to zones if required
     if gl.config["zonesAggregate"]:
         showMessage("Aggregating data to zones read from {} ...".format(gl.config["zonesFile"]))
-        
+
         zonesVector=gpd.read_file(gl.config["zonesFile"])
-        
+
         showMessage("checking validity of data from {} ...".format(gl.config["zonesFile"]))
-        
+
         check=checkPolyValidity(zonesVector)
         if not check:
             showMessage("Vector file {} fails the validity check indicating that it is likely corrupted.".format(zonesVector), "ERROR")
             return
-        
+
         if not zonesVector[gl.config["zonesAttribute"]].is_unique:
             showMessage("Selected vector attribute in regions map contains identical values. These values have to be unique for each zone, please check the zones vector file or the attribute you selected. Stopping early.", "ERROR")
             return
-        
+
         #retaining just the attribute as index
         zonesVector=zonesVector[[gl.config["zonesAttribute"], 'geometry']].set_index(gl.config["zonesAttribute"])
-        
-        # calling the aggregation function   
+
+        # calling the aggregation function
         predictand,geoData=aggregatePredictand(predictand0, geoData0, zonesVector)
-            
+
         if predictand is None:
             showMessage("Predictand could not be aggregated to zones. Make sure there is overlap between predictand data and zones vector. Stopping early.", "ERROR")
             return
-        
+
         #checking if result has data
         if predictand.dropna(axis=1).empty:
             showMessage("Predictand could not be aggregated to zones. Make sure there is overlap between predictand data and zones vector. Stopping early.", "ERROR")
             return
-            
+
     else:
         zonesVector=None
         predictand=predictand0.copy()
         geoData=geoData0.copy()
-    
-    
-    
+
+
+
     #reading overlay file
     overlayVector=None
     if gl.config["overlayFile"] != "":
         if os.path.exists(gl.config["overlayFile"]):
             overlayVector=gpd.read_file(gl.config["overlayFile"])
-            
-            
+
+
     #=======================================================================================================
     #preprocessing
-            
+
     #defining target date for forecast. If seasonal - then this is the first month of the season.
     fcstTgtDate=pd.to_datetime("01 {} {}".format(gl.config['fcstTargetSeas'][0:3], gl.config['fcstTargetYear']))
-    
+
     #finding overlap of predictand and predictor
     showMessage("Aligning predictor and predictand data...")
     predictandHcst,predictorHcst=getHcstData(predictand,predictor)
@@ -323,65 +337,82 @@ def computeModelNoGui(config):
     if novlpYears<20:
         showMessage(f"Only {novlpYears} of overlap years between predictand and predictor. Minimum allowed is 20.", "ERROR")
         return None
- 
+
     predictorFcst=getFcstData(predictor)
 
     if predictandHcst is None:
         showMessage("Hindcast data for predictand could not be derived, stopping early.", "ERROR")
         return
-    
-    
-    #calculaing observed terciles
-    #is there a need to do a strict control of overlap???
-    result=getObsTerciles(predictand, predictandHcst)
+
+
+    #defining forecast categories and calculating observed categories.
+    #This handles both quantile and absolute thresholds, and any number of categories (2 or more).
+    #It also sets gl.catLabels, gl.nCat, gl.catBounds, gl.thresholdType and gl.thresholdCode
+    result=getObsCategories(predictand, predictandHcst)
     if result is None:
-        showMessage("Terciles could not be calculated, stopping early.", "ERROR")
+        showMessage("Forecast categories could not be calculated, stopping early.", "ERROR")
         return
-            
-    obsTercile,tercThresh=result
-    
-    
+
+    # obsCategory - observed category (integer code 0...nCat-1) for each hindcast year and location
+    # catThresh   - threshold values (in predictand units) for each threshold and location
+    # catLevels   - threshold quantile levels (climatological non-exceedance probability) for each threshold and location
+    # climProbs   - climatological probability of each category at each location
+    obsCategory,catThresh,catLevels,climProbs=result
+
+    #adding colormaps for plotting of category-dependent variables (probabilities, ROC scores, most likely category)
+    addCategoryColormaps()
+
     #check for locations with too many identical values - forecast and skill measures cannot be derived for such locations
     max_counts = predictandHcst.apply(lambda col: col.value_counts().max())
     bad=max_counts>0.2*predictandHcst.shape[0]
-    good=np.invert(bad)
-    
+
+    #check for locations where at least one category has zero climatological probability, i.e. was never observed
+    #in the climatological period. This can happen with absolute thresholds outside of the range of the data.
+    emptycat=(climProbs<=0).any(axis=0)
+
     #listing bad locations
-    if len(bad)>0:
+    if bad.any():
         badnames=predictandHcst.loc[:,bad].columns
         for name in badnames:
             showMessage("cannot calculate forecast for {} - too many similar values in predictand".format(name), "NONCRITICAL")
-            
-    
+    if emptycat.any():
+        badnames=predictandHcst.loc[:,emptycat].columns
+        for name in badnames:
+            showMessage("cannot calculate forecast for {} - at least one forecast category does not occur in the climatological period. Check your thresholds.".format(name), "NONCRITICAL")
+
+    good=np.invert(bad | emptycat)
+
     #removing bad locations
     predictandHcst=predictandHcst.loc[:,good]
-    tercThresh=tercThresh.loc[:,good]
-    obsTercile=obsTercile.loc[:,good]
-    
+    obsCategory=obsCategory.loc[:,good]
+    catThresh=catThresh.loc[:,good]
+    catLevels=catLevels.loc[:,good]
+    climProbs=climProbs.loc[:,good]
+
 
     #checking if predictand have valid data
 
     if predictandHcst.dropna(how='all').empty:
-        showMessage("Predictand contains no valid data. Please check your predictand domain definition and data. Stopping early...", "ERROR")
+        showMessage("Predictand contains no valid data. Please check your predictand domain definition, thresholds and data. Stopping early...", "ERROR")
         return
- 
+
     if predictorHcst.dropna(how='all').empty:
         showMessage("Predictor contains no valid data. Please check your predictor domain definition and data. Stopping early...", "ERROR")
         return
-    
+
     #=======================================================================================================
     #setting up forecast
-    
+
     #setting up cross-validation
     cvkwargs=gl.crossvalidator_config[gl.config['crossval']][1]
     cv=crossvalidators[gl.config['crossval']](**cvkwargs)
-    
+
     #arguments for regressor
     kwargs=gl.regressor_config[gl.config['regression']][1]
-    
+
     #arguments for preprocessor
     args=gl.preprocessor_config[gl.config['preproc']][1]
-        
+
     #checking compatibility between data and selected regressor
 
     if predictorHcst.shape[1]==1:
@@ -407,7 +438,7 @@ def computeModelNoGui(config):
 
             #regession model
             regressor = PCRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
-        
+
         elif gl.config['preproc']=="PCR":
 
             #transform to prevent models from generating negative rainfall forecasts
@@ -415,9 +446,9 @@ def computeModelNoGui(config):
 
             #regession model
             regressor = PCRegressor(regressor_name=gl.config['regression'], transform_target=transform, **args, **kwargs)
- 
+
         elif gl.config['preproc']=="CCA-transform":
-        
+
             #transform to prevent models from generating negative rainfall forecasts
             transform = 'sqrt' if gl.config['predictandCategory'] == 'rainfall' else None
 
@@ -433,28 +464,30 @@ def computeModelNoGui(config):
 
     #=======================================================================================================
     #setting up output directory structure
-    
-    showMessage("Setting up directories to write to...")        
+
+    showMessage("Setting up directories to write to...")
     forecastID="{}_{}".format(gl.predictorDate.strftime("%Y%m"), gl.config['fcstTargetSeas'])
-    
+
     predictorCode=Path(gl.config["predictorFileName"]).stem
-    
+
     # this is directory where all output for a given forecast will be written
-    # Note - there is no signature of predictand in the structure of this directory, 
-    # so if predictand changes, output will be written into the same directory. 
-    forecastDir=Path(gl.config['rootDir'], forecastID, predictorCode,gl.targetType, "{}_{}_{}".format(gl.config["preproc"],gl.config["regression"],gl.config["crossval"]))
-    
+    # Note - there is no signature of predictand in the structure of this directory,
+    # so if predictand changes, output will be written into the same directory.
+    # Signature of category thresholds (e.g. q33-66 or abs150-300) is part of the last directory name,
+    # so that forecasts with different categories do not overwrite each other
+    forecastDir=Path(gl.config['rootDir'], forecastID, predictorCode,gl.targetType, "{}_{}_{}_{}".format(gl.config["preproc"],gl.config["regression"],gl.config["crossval"], gl.thresholdCode))
+
     #subdirectories for different type of output
     mapsDir=Path(forecastDir, "maps")
     timeseriesDir=Path(forecastDir, "timeseries")
     outputDir=Path(forecastDir, "output")
     diagsDir=Path(forecastDir, "diagnostics")
-    
+
     dirs={"output":outputDir,
           "maps":mapsDir,
           "timeseries":timeseriesDir,
           "diagnostics":diagsDir}
-    
+
     #creating them
     for adir in dirs.keys():
         if not os.path.exists(dirs[adir]):
@@ -462,17 +495,17 @@ def computeModelNoGui(config):
             os.makedirs(dirs[adir])
         else:
             showMessage("{} will be written to {}".format(adir, dirs[adir]), "INFO")
-            
 
-    
 
-        
+
+
+
     #=======================================================================================================
     # calculating forecast
-    
+
     # cross-validated hindcast
     showMessage("Calculating cross-validated hindcast...")
-      
+
     start=time.time()
     if gl.config["parallelize"]:
         cvHcst = cross_val_predict(regressor,predictorHcst,  predictandHcst, cv=cv, n_jobs=n_jobs)
@@ -482,84 +515,96 @@ def computeModelNoGui(config):
     end=time.time()
 
     showMessage(f"parallel: {gl.config['parallelize']}, jobs: {n_jobs}, Elapsed time: {end - start:.2f} seconds")
-    
+
     # output of the above is a plain numpy array, needs to be converted to pandas
     cvHcst=pd.DataFrame(cvHcst, index=predictandHcst.index, columns=predictandHcst.columns)
-     
+
     # actual prediction - forecast
     showMessage("Calculating deteriministic forecast...")
     regressor.fit(predictorHcst,  predictandHcst)
-    
+
     # output of regression is deterministic forecast
     detFcst=regressor.predict(predictorFcst)
     detFcst=pd.DataFrame(detFcst, index=[fcstTgtDate], columns=predictandHcst.columns)
-    
-    # hindcast based on full model - for diagnostics only - called est for estimated, 
-    # to avoid confusion actual forecast 
+
+    # hindcast based on full model - for diagnostics only - called est for estimated,
+    # to avoid confusion actual forecast
     estHcst=regressor.predict(predictorHcst)
     estHcst=pd.DataFrame(estHcst, index=predictandHcst.index, columns=predictandHcst.columns)
-    
+
     #extract reference period from predictand data
     refData=predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]
-    
+
     #this adds anomalies to the dataframe
     detFcst=getFcstAnomalies(detFcst,refData)
-    
+
     # calculate anomalies on hindcast data
     # for "full model" hindcast
     estHcst=getFcstAnomalies(estHcst,refData)
-    
+
     # for cross-validated hindcast
     cvHcst=getFcstAnomalies(cvHcst,refData)
-    
-    
+
+
     #deriving probabilistic prediction
     showMessage("Calculating probabilistic hindcast and forecast using error variance...")
-    
-    #this one uses cross-validated hindcast for error
+
+    #this one uses cross-validated hindcast for error.
+    #Category boundaries are passed as quantile levels - for absolute thresholds these were derived in getObsCategories
     dist="normal"
-    result=probabilisticForecastCalibrated(cvHcst["value"], predictandHcst,detFcst["value"],tercThresh, dist=dist)
-    
+    result=probabilisticForecastCalibrated(cvHcst["value"], predictandHcst,detFcst["value"],catLevels, dist=dist)
+
     if result is None:
         showMessage("Probabilistic forecast could not be calculated", "ERROR")
         return
-    
-    probFcst,probHcst,calibHcstCdf=result    
-        
-    #tercile forecast
-    showMessage("Calculating tercile forecast (highest probability category)")
-    
+
+    probFcst,probHcst,calibHcstCdf=result
+
+    #most likely category forecast
+    showMessage("Calculating most likely category forecast (highest probability category)")
+
     # forecast
-    tercFcst=getTercCategory(probFcst)
-    
+    catFcst=getMostLikelyCategory(probFcst)
+
     # and hindcast
-    tercHcst=getTercCategory(probHcst)
-    
-    #CEM categories
-    showMessage("Calculating CEM categories")
-    
-    #forecast
-    cemFcst=getCemCategory(probFcst)
-    
-    #hindcast
-    cemHcst=getCemCategory(probHcst)
-    
+    catHcst=getMostLikelyCategory(probHcst)
+
+    #CEM categories - these are defined only for three-category forecast
+    if gl.nCat==3:
+        showMessage("Calculating CEM categories")
+
+        #forecast
+        cemFcst=getCemCategory(probFcst)
+
+        #hindcast
+        cemHcst=getCemCategory(probHcst)
+    else:
+        showMessage("CEM categories are defined only for three-category forecast, skipping...", "INFO")
+        cemFcst,cemHcst=None,None
+
     #calculating skill
     showMessage("Calculating skill scores...")
 
     try:
         start=time.time()
 
+        #arguments for computeSkill, for each location.
+        #Probabilities are passed as a dataframe with one column per category, in the order of gl.catLabels.
+        #Categories are passed explicitly, rather than through gl, because in parallel mode gl is not shared with worker processes
+        skillArgs=[(pd.concat([probHcst[lab][col] for lab in gl.catLabels], axis=1, keys=gl.catLabels),
+                    climProbs[col],
+                    cvHcst["value"][col],
+                    predictandHcst[col],
+                    obsCategory[col],
+                    config["predictandCategory"]) for col in predictandHcst.columns]
+
         if (gl.config["parallelize"] is False) or (n_jobs==1):
             # this runs as is
-            results = [computeSkill(probHcst["above"][col],probHcst["normal"][col],probHcst["below"][col], cvHcst["value"][col],predictandHcst[col],obsTercile[col], config["predictandCategory"]) for col in predictandHcst.columns]
+            results = [computeSkill(*skillArg) for skillArg in skillArgs]
 
         else:
             # this runs in parallel
-            results = Parallel(n_jobs=n_jobs)(
-                delayed(computeSkill)(probHcst["above"][col],probHcst["normal"][col],probHcst["below"][col], cvHcst["value"][col],predictandHcst[col],obsTercile[col], config["predictandCategory"])
-                for col in predictandHcst.columns
-            )
+            results = Parallel(n_jobs=n_jobs)(delayed(computeSkill)(*skillArg) for skillArg in skillArgs)
 
         scores=pd.concat(results, axis=1, keys=predictandHcst.columns)
         scores.index.name = 'category'
@@ -567,128 +612,171 @@ def computeModelNoGui(config):
         end=time.time()
         showMessage(f"parallel: {gl.config['parallelize']}, jobs: {n_jobs}, Elapsed time: {end - start:.2f} seconds")
     except Exception as e:
-        showMessage((f"Skill could not be calculated. Full error: {e}", "ERROR"))
+        showMessage(f"Skill could not be calculated. Full error: {e}", "ERROR")
         return
-    
+
     #saving data
-    showMessage("Plotting forecast maps and saving output files...")    
-    #all dataframes have two levels of column multiindex 
+    showMessage("Plotting forecast maps and saving output files...")
+    #all dataframes have two levels of column multiindex
     #cvHcst.unstack().to_xarray().transpose("time","lat","lon").to_dataset(name=gl.config['predictandVar'])
-    
+
     if gl.targetType=="grid":
         #these are for plotting maps
         detfcst_plot=detFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         probfcst_plot=probFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
-        tercfcst_plot=tercFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
-        cemfcst_plot=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        catfcst_plot=catFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
+        if cemFcst is not None:
+            cemfcst_plot=cemFcst.stack(level=["lat","lon"],future_stack=True).droplevel(0).T
         scores_plot=scores.copy()
-        
+
         #these are for writing
-        probfcst_write=probFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
-        probhcst_write=probHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
-        tercfcst_write=tercFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
-        cemhcst_write=cemHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         detfcst_write=detFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         dethcst_write=cvHcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
         scores_write=scores.T.to_xarray().sortby("lat").sortby("lon")
+
+        #probabilistic forecast and hindcast.
+        #In the netcdf file category is a dimension with integer codes (0,1,...,nCat-1),
+        #while category labels and the lower and upper bounds of each category are coordinates along that dimension.
+        #Bounds are quantile levels for quantile thresholds, and values in predictand units for absolute thresholds
+        probwrite=[]
+        for _prob in [probFcst, probHcst]:
+            #this gives a dataset with one variable per category label
+            _ds=_prob.stack(level=["lat","lon"], future_stack=True).to_xarray()
+            #converting it to a single variable with category dimension
+            _da=xr.concat([_ds[lab].rename("probability") for lab in gl.catLabels], dim="category")
+            _da=_da.transpose("time","category","lat","lon")
+            _da=_da.assign_coords(category=np.arange(gl.nCat),
+                                  label=("category", gl.catLabels),
+                                  lower_bound=("category", gl.catBounds[0]),
+                                  upper_bound=("category", gl.catBounds[1]))
+            #CF-style description of category codes
+            _da["category"].attrs={"long_name":"forecast category code",
+                                   "flag_values":np.arange(gl.nCat),
+                                   "flag_meanings":" ".join(gl.catLabels)}
+            _da["lower_bound"].attrs={"long_name":"lower bound of category, {} threshold".format(gl.thresholdType)}
+            _da["upper_bound"].attrs={"long_name":"upper bound of category, {} threshold".format(gl.thresholdType)}
+            _da.attrs={"long_name":"probability of category", "units":"1", "threshold_type":gl.thresholdType}
+            probwrite.append(_da.to_dataset().sortby("lat").sortby("lon"))
+        probfcst_write,probhcst_write=probwrite
+
+        #most likely category - integer codes, with meaning of the codes described in attributes
+        catfcst_write=catFcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
+        catfcst_write["most_likely_category"].attrs={"long_name":"most likely forecast category",
+                                                     "flag_values":np.arange(gl.nCat),
+                                                     "flag_meanings":" ".join(gl.catLabels)}
+
+        #category thresholds - both as values and as quantile levels
+        threshwrite=xr.Dataset({"threshold_value":catThresh.stack(level=["lat","lon"], future_stack=True).to_xarray(),
+                                "threshold_quantile":catLevels.stack(level=["lat","lon"], future_stack=True).to_xarray()})
+        threshwrite=threshwrite.sortby("lat").sortby("lon")
+        threshwrite.attrs={"threshold_type":gl.thresholdType}
+        thresh_write=threshwrite
+
         fileExtension="nc"
     else:
         #these are for plotting maps
         detfcst_plot=detFcst.stack(future_stack=True).droplevel(0).T
         probfcst_plot=probFcst.stack(future_stack=True).droplevel(0).T
-        tercfcst_plot=tercFcst.stack(future_stack=True).droplevel(0).T
-        cemfcst_plot=cemFcst.stack(future_stack=True).droplevel(0).T
+        catfcst_plot=catFcst.stack(future_stack=True).droplevel(0).T
+        if cemFcst is not None:
+            cemfcst_plot=cemFcst.stack(future_stack=True).droplevel(0).T
         scores_plot=scores.copy()
-        
+
         #these are for writing
         detfcst_write=detfcst_plot.copy()
         probfcst_write=probfcst_plot.copy()
-        tercfcst_write=tercfcst_plot.copy()
-        cemfcst_write=cemfcst_plot.copy()
+        catfcst_write=catfcst_plot.copy()
         dethcst_write=cvHcst.copy()
         probhcst_write=probHcst.copy()
         scores_write=scores.copy()
+        #category thresholds - both as values and as quantile levels
+        thresh_write=pd.concat([catThresh, catLevels], keys=["threshold_value","threshold_quantile"], names=["variable"])
         fileExtension="csv"
-        
+
     showMessage("Writing output files...")
     outputFile=Path(outputDir, "{}_deterministic-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(detfcst_write,2), outputFile)
-    
+
     outputFile=Path(outputDir, "{}_probabilistic-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(probfcst_write,2),outputFile)
-    
+
+    outputFile=Path(outputDir, "{}_category-fcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(catfcst_write,outputFile)
+
     outputFile=Path(outputDir, "{}_skill_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(scores_write, outputFile)
-    
+
     outputFile=Path(outputDir, "{}_deterministic-hcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(dethcst_write,2),outputFile)
-    
+
     outputFile=Path(outputDir, "{}_probabilistic-hcst_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
     writeOutput(np.round(probhcst_write,2),outputFile)
-    
-    
+
+    outputFile=Path(outputDir, "{}_category-thresholds_{}.{}".format(gl.config['predictandVar'], forecastID,fileExtension))
+    writeOutput(np.round(thresh_write,3),outputFile)
+
+
     showMessage("Plotting maps...")
-    
+
     annotation="Forecast for: {} {}".format(gl.config['fcstTargetSeas'], gl.config['fcstTargetYear'])
     annotation+="\nPredictors from: {} {}".format(gl.config['predictorMonth'], gl.config['predictorYear'])
     annotation+="\nPredictor: {}".format(Path(gl.config["predictorFileName"]).stem)
     annotation+="\nPredictand: {}".format(Path(gl.config["predictandFileName"]).stem)
     annotation+="\nClimatological period: {}-{}".format(gl.config['climStartYr'], gl.config['climEndYr'])
-    
-    
+    annotation+="\nCategories: {} ({} thresholds: {})".format(", ".join(gl.catLabels), gl.thresholdType, ", ".join(["{:g}".format(x) for x in gl.catBounds[1][:-1]]))
+
+
     #maskedscores=getSkillMask(scores_plot, scores_plot)
 
     if gl.config["plotMaps"]:
-        showMessage("Plotting tercile probabilities map...")    
+        showMessage("Plotting category probabilities map...")
         #plotting
-        plotTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector)
+        plotCategoryProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector)
 
-        showMessage("Plotting smooth tercile probabilities map...")
+        showMessage("Plotting smooth category probabilities map...")
         #return probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector
 
-        plotSmoothTercileProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector, gl.deep_config["sigmaSmooth"], gl.deep_config["enhanceSmooth"])
+        plotSmoothCategoryProbMap(probFcst, predictandHcst, geoData, mapsDir, forecastID, annotation, overlayVector, gl.deep_config["sigmaSmooth"], gl.deep_config["enhanceSmooth"])
 
 
         showMessage("Plotting forecast...")
 
         plotMaps(detfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation,overlayVector)
         plotMaps(probfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-        plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-        plotMaps(tercfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-        
-        
-        showMessage("Plotting skill maps...")    
+        if cemFcst is not None:
+            plotMaps(cemfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+        plotMaps(catfcst_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
+
+
+        showMessage("Plotting skill maps...")
         #plotting skill scores
         plotMaps(scores_plot, geoData, mapsDir, forecastID, zonesVector, annotation, overlayVector)
-        
-        
-        showMessage("Plotting time series plots...") 
-        plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, tercThresh, timeseriesDir, forecastID, annotation)
-        
-        
+
+
+        showMessage("Plotting time series plots...")
+        plotTimeSeries(cvHcst["value"],predictandHcst, detFcst, catThresh, timeseriesDir, forecastID, annotation)
+
+
         showMessage("Plotting preprocessing diagnostics...")
         if gl.config['preproc']=="PCR":
             plotDiagsPCR(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
-        
+
         if gl.config['preproc']=="CCA":
             plotDiagsCCA(regressor, predictorHcst, predictandHcst, geoData, diagsDir, forecastID, annotation)
-        
+
         showMessage("Plotting regression diagnostics...")
-        plotDiagsRegression(predictandHcst, cvHcst, estHcst, tercThresh, detFcst, diagsDir, forecastID, annotation)
-        
+        plotDiagsRegression(predictandHcst, cvHcst, estHcst, catThresh, detFcst, diagsDir, forecastID, annotation)
+
         showMessage("Plotting calibration diagnostics...")
-        plotCalibDiags(calibHcstCdf, predictandHcst, cvHcst["value"], diagsDir, forecastID)
+        plotCalibDiags(obsCategory, predictandHcst, diagsDir, forecastID)
     else:
         showMessage("skipping plotting maps and diagnostics, as requested")
-        
+
     showMessage("All done!", "SUCCESS")
-    showMessage("Inspect log above for potential errors!", "SUCCESS")    
-    showMessage("All output written to {}".format(forecastDir), "SUCCESS")    
-        
+    showMessage("Inspect log above for potential errors!", "SUCCESS")
+    showMessage("All output written to {}".format(forecastDir), "SUCCESS")
+
     return True
-
-
-
 
 
 def readFunctionConfig():
@@ -1316,7 +1404,7 @@ def readNetcdf(ncfile, ncvar):
         #decode_times fixes the IRI netcdf calendar problem
         ds = xr.open_mfdataset(ncfile, decode_times=False)
     except Exception as e:
-        showMessage((f"File cannot be read. please check if the file is properly formatted. Full error: {e}", "ERROR"))
+        showMessage(f"File cannot be read. please check if the file is properly formatted. Full error: {e}", "ERROR")
         return
     
     #aligning coordinate names    
@@ -1608,40 +1696,134 @@ def getFcstData(_predictor):
    
 
 
-def getObsTerciles(_predictand, _predictandHcst):
-    showMessage("Calculating observed terciles...")
+def absToQuantileThreshold(_refData, _absThresh):
+    """Convert absolute thresholds into quantile levels, separately for each location.
+
+    The quantile level of an absolute threshold is its climatological non-exceedance
+    probability, i.e. the fraction of years in the reference period with value <= threshold.
+    This is the empirical cdf of the reference data evaluated at the threshold.
+    Because climatology differs between locations, so do the quantile levels.
+
+    Args:
+        _refData (DataFrame): predictand in the climatological reference period, (years, locations)
+        _absThresh (list): increasing absolute thresholds, in predictand units
+
+    Returns:
+        DataFrame: quantile levels, (thresholds, locations), index named "threshold" with values 0..K-1
+    """
+    levels=[(_refData<=thresh).mean(axis=0) for thresh in _absThresh]
+    levels=pd.DataFrame(levels, columns=_refData.columns)
+    levels.index=pd.Index(range(len(_absThresh)), name="threshold")
+    return levels
+
+
+
+def getObsCategories(_predictand, _predictandHcst):
+    """Define forecast categories and derive observed category for each hindcast year.
+
+    Categories are defined by K increasing thresholds, which gives K+1 categories, coded 0..K.
+    Thresholds come either from gl.config["absoluteThreshold"] (if defined) or from
+    gl.config["quantileThreshold"]. Whichever is used, both threshold values and threshold
+    quantile levels are derived for every location:
+        - quantile thresholds: levels are given, values are quantiles of the reference period data
+        - absolute thresholds: values are given, levels are derived with absToQuantileThreshold
+    Downstream, the probabilistic forecast uses quantile levels, and observed categories use values,
+    so both types of thresholds are processed in exactly the same way.
+
+    Observed category is the number of thresholds that the value exceeds (value > threshold),
+    so a value equal to a threshold falls into the lower of the two categories.
+
+    Also sets the following global variables:
+        gl.thresholdType - "quantile" or "absolute"
+        gl.nCat          - number of categories
+        gl.catLabels     - list of category labels
+        gl.catBounds     - tuple of lists (lower bounds, upper bounds) of categories, in units of the thresholds used
+        gl.thresholdCode - short string describing thresholds, used in output directory name
+
+    Returns:
+        tuple: (obsCategory, catThresh, catLevels, climProbs) or None if failed
+            obsCategory - DataFrame (years, locations) of integer category codes
+            catThresh   - DataFrame (thresholds, locations) of threshold values
+            catLevels   - DataFrame (thresholds, locations) of threshold quantile levels
+            climProbs   - DataFrame (categories, locations) of climatological probability of each category
+    """
+    showMessage("Calculating observed categories...")
+
+    #reference period
     refData = _predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]
-    tercThresh = refData.quantile([0.33,0.50,0.66])
+    nloc=refData.shape[1]
 
-    obsTercile = pd.DataFrame(
-        np.select(
-            [_predictandHcst.ge(tercThresh.loc[0.66]),
-             _predictandHcst.le(tercThresh.loc[0.33])],
-            ["above", "below"],
-            default="normal",
-        ),
-        index=_predictandHcst.index,
-        columns=_predictandHcst.columns,
-    )
-    return obsTercile, tercThresh
+    absThresh=gl.config.get("absoluteThreshold", None)
 
-    
-    
-def getObsTerciles_v0(_predictand,_predictandHcst):
-    
-    showMessage("Calculating observed terciles...")
-    refData=_predictand[str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]   
-    _tercThresh=refData.quantile([0.33, 0.5, 0.66])
-    _obsTercile=_predictandHcst.copy().astype(str)
-    _obsTercile[:]="normal"
-    sel=_predictandHcst>=_tercThresh.loc[0.66]
-    _obsTercile[sel.values]="above"
-    #below
-    sel=_predictandHcst<=_tercThresh.loc[0.33]
-    _obsTercile[sel.values]="below"
+    if absThresh is not None and len(absThresh)>0:
+        #absolute thresholds - same values for all locations, quantile levels differ between locations
+        gl.thresholdType="absolute"
+        thresholds=[float(x) for x in absThresh]
 
-    return _obsTercile,_tercThresh 
-    
+        catThresh=pd.DataFrame(np.tile(np.array(thresholds)[:,np.newaxis], (1,nloc)), columns=refData.columns)
+        catThresh.index=pd.Index(range(len(thresholds)), name="threshold")
+
+        #converting absolute thresholds to quantile levels
+        catLevels=absToQuantileThreshold(refData, thresholds)
+
+        #bounds of categories
+        gl.catBounds=([-np.inf]+thresholds, thresholds+[np.inf])
+        gl.thresholdCode="abs"+"-".join(["{:g}".format(x) for x in thresholds])
+    else:
+        #quantile thresholds - same quantile levels for all locations, values differ between locations
+        gl.thresholdType="quantile"
+        thresholds=[float(x) for x in gl.config.get("quantileThreshold", [0.33,0.66])]
+
+        catThresh=refData.quantile(thresholds)
+        catThresh.index=pd.Index(range(len(thresholds)), name="threshold")
+
+        catLevels=pd.DataFrame(np.tile(np.array(thresholds)[:,np.newaxis], (1,nloc)), columns=refData.columns)
+        catLevels.index=pd.Index(range(len(thresholds)), name="threshold")
+
+        #bounds of categories
+        gl.catBounds=([0.0]+thresholds, thresholds+[1.0])
+        gl.thresholdCode="q"+"-".join([str(int(round(x*100))) for x in thresholds])
+
+    gl.thresholdCode=sanitize_string(gl.thresholdCode)
+
+    #number of categories and their labels
+    #for 2 and 3 categories "classical" labels are used, so that existing colormaps etc. can be used
+    #for more categories labels are derived from thresholds, e.g. q0-20, q20-40... or lt50, 50-100, gt100
+    nCat=len(thresholds)+1
+    if nCat==2:
+        labels=["below","above"]
+    elif nCat==3:
+        labels=["below","normal","above"]
+    else:
+        if gl.thresholdType=="quantile":
+            bnds=[str(int(round(x*100))) for x in [0.0]+thresholds+[1.0]]
+            labels=["q{}-{}".format(bnds[k],bnds[k+1]) for k in range(nCat)]
+        else:
+            bnds=["{:g}".format(x) for x in thresholds]
+            labels=["lt{}".format(bnds[0])]+["{}-{}".format(bnds[k],bnds[k+1]) for k in range(nCat-2)]+["gt{}".format(bnds[-1])]
+    gl.nCat=nCat
+    gl.catLabels=labels
+
+    showMessage("Forecast for {} categories: {}, defined by {} thresholds: {}".format(nCat, ", ".join(labels), gl.thresholdType, thresholds), "INFO")
+
+    #climatological probability of each category - difference between consecutive quantile levels
+    edges=np.vstack([np.zeros((1,nloc)), catLevels.values, np.ones((1,nloc))])
+    climProbs=pd.DataFrame(np.diff(edges, axis=0), index=pd.Index(labels, name="category"), columns=refData.columns)
+
+    #warning if categories are expected to be very poorly sampled in the hindcast
+    expectedcount=np.nanmin(climProbs.values)*_predictandHcst.shape[0]
+    if expectedcount<5:
+        showMessage("At some locations at least one category is expected to occur fewer than 5 times in the {} years of hindcast. Skill scores for such categories will be unreliable.".format(_predictandHcst.shape[0]), "NONCRITICAL")
+
+    #observed category - number of thresholds exceeded.
+    #Arrays are broadcast to (thresholds, years, locations) and summed over thresholds
+    #note - columns of catThresh and _predictandHcst are in the same order, as both are derived from _predictand
+    obsCategory=np.sum(_predictandHcst.values[np.newaxis,:,:] > catThresh.values[:,np.newaxis,:], axis=0)
+    obsCategory=pd.DataFrame(obsCategory, index=_predictandHcst.index, columns=_predictandHcst.columns)
+
+    return obsCategory, catThresh, catLevels, climProbs
+
+
 def getFcstAnomalies(_det_fcst,_ref_data):
     absanom=_det_fcst-_ref_data.mean()
     percanom=(_det_fcst-_ref_data.mean())/_ref_data.mean()*100
@@ -1657,10 +1839,32 @@ def getFcstAnomalies(_det_fcst,_ref_data):
 
 
 
-def probabilisticForecastCalibrated(Y_hcst,Y_obs,Y_fcst,terc_thresh, dist="empirical"):
-        
-    # getting cdf threshold array (we are not using threshold values here)
-    targetcdfs=np.tile(terc_thresh.index.values[:, np.newaxis], (1, terc_thresh.shape[1]))
+def probabilisticForecastCalibrated(Y_hcst,Y_obs,Y_fcst,cat_levels, dist="empirical"):
+    """Calibrated probabilistic forecast and hindcast for any number of categories.
+
+    Forecast distribution is deterministic forecast + cross-validated hindcast errors.
+    It is calibrated against the distribution of all hindcasts + errors: category boundaries
+    (given as quantile levels) are mapped to values through the inverse cdf of the hindcast
+    distribution, and the cdf of the forecast distribution is evaluated at those values.
+    Probability of each category is the difference of cdfs at its upper and lower bound.
+
+    Args:
+        Y_hcst (DataFrame): cross-validated hindcast (years, locations)
+        Y_obs (DataFrame): observations (years, locations)
+        Y_fcst (DataFrame): deterministic forecast (1, locations)
+        cat_levels (DataFrame): quantile levels of category boundaries (thresholds, locations)
+        dist (str): "normal" or "empirical"
+
+    Returns:
+        tuple: probability forecast, probability hindcast, calibrated hindcast cdfs.
+            Probabilities have columns multiindex with category labels (gl.catLabels) in the first level.
+            Calibrated cdfs is an array of shape (years, thresholds, locations)
+    """
+
+    # cdf levels of category boundaries, shape (nthresholds, nlocations).
+    # these may differ between locations (absolute thresholds).
+    # Clipping, because levels of 0 or 1 give infinite values of the inverse cdf.
+    targetcdfs=np.clip(cat_levels.values.astype(float), 1e-3, 1-1e-3)
 
     #prediction error
     pred_err=Y_hcst-Y_obs
@@ -1670,9 +1874,6 @@ def probabilisticForecastCalibrated(Y_hcst,Y_obs,Y_fcst,terc_thresh, dist="empir
 
     fcstdistrib = fit_dist_to_arr(fcstvals, dist=dist)
 
-    #obs distribution - should be list
-    obsdistrib = fit_dist_to_arr(Y_obs.values.astype(float), dist=dist)
-
     #this is distribution of hindcast+error - shaped nyears*nyears,nfeatures
     hcstfulldata=(Y_hcst.values[:, None, :] + pred_err.values[None, :, :])
 
@@ -1680,43 +1881,54 @@ def probabilisticForecastCalibrated(Y_hcst,Y_obs,Y_fcst,terc_thresh, dist="empir
     #this will be a list
     hcstfulldistrib = fit_dist_to_arr(arr, dist=dist)
 
-
+    #forecast - cdf at category boundaries, shape (nthresholds, nlocations)
     calibfcstcdf=calibrate(targetcdfs, fcstdistrib, hcstfulldistrib, dist=dist)
-    calibfcstcdf=pd.DataFrame(calibfcstcdf, index=terc_thresh.index, columns=Y_fcst.columns)    
 
-    temp=calibfcstcdf.loc[0.33]
-    prob_below_fcst=pd.DataFrame(temp.values.reshape(*Y_fcst.shape), index=Y_fcst.index, columns=Y_fcst.columns)
+    #probabilities of categories, shape (ncategories, nlocations)
+    probfcst=cdf2prob(calibfcstcdf)
 
-    temp=1-calibfcstcdf.loc[0.66]
-    prob_above_fcst=pd.DataFrame(temp.values.reshape(*Y_fcst.shape), index=Y_fcst.index, columns=Y_fcst.columns)
-    prob_normal_fcst=1-(prob_above_fcst+prob_below_fcst)
+    prob_fcst=pd.concat([pd.DataFrame(probfcst[k].reshape(*Y_fcst.shape), index=Y_fcst.index, columns=Y_fcst.columns) for k in range(gl.nCat)],
+                        keys=gl.catLabels, names=["category"], axis=1)
 
-
+    #hindcast - the same, separately for each hindcast year
     calibhcstcdf=[]
+    probhcst=[]
     for i in range(hcstfulldata.shape[0]):
         hcstyeardistrib=fit_dist_to_arr(hcstfulldata[i,:].astype(float), dist=dist)
         temp=calibrate(targetcdfs,hcstyeardistrib,hcstfulldistrib, dist=dist)
         calibhcstcdf.append(temp)
-    calibhcstcdf=pd.DataFrame(np.concatenate(calibhcstcdf, axis=1), index=terc_thresh.index)    
+        probhcst.append(cdf2prob(temp))
+
+    #shape (nyears, nthresholds, nlocations)
+    calibhcstcdf=np.stack(calibhcstcdf, axis=0)
+    #shape (nyears, ncategories, nlocations)
+    probhcst=np.stack(probhcst, axis=0)
+
+    prob_hcst=pd.concat([pd.DataFrame(probhcst[:,k,:], index=Y_hcst.index, columns=Y_hcst.columns) for k in range(gl.nCat)],
+                        keys=gl.catLabels, names=["category"], axis=1)
+
+    prob_fcst.index.name="time"
+    prob_hcst.index.name="time"
+
+    return prob_fcst, prob_hcst, calibhcstcdf
 
 
-    temp=calibhcstcdf.loc[0.33]
-    prob_below_hcst=pd.DataFrame(temp.values.reshape(*Y_hcst.shape), index=Y_hcst.index, columns=Y_hcst.columns)
-    prob_below_hcst
 
-    temp=1-calibhcstcdf.loc[0.66]
-    prob_above_hcst=pd.DataFrame(temp.values.reshape(*Y_hcst.shape), index=Y_hcst.index, columns=Y_hcst.columns)
-    prob_above_hcst
-    prob_normal_hcst=1-(prob_above_hcst+prob_below_hcst)
+def cdf2prob(_cdf):
+    """Convert cdf values at category boundaries into probabilities of categories.
 
-    #preparing final dataframes
-    terc_fcst=pd.concat([prob_below_fcst,prob_normal_fcst,prob_above_fcst], keys=["below","normal","above"],  names=["category"], axis=1)
-    terc_hcst=pd.concat([prob_below_hcst,prob_normal_hcst,prob_above_hcst], keys=["below","normal","above"], names=["category"],axis=1)
-    terc_fcst.index.name="time"
-    terc_hcst.index.name="time"
-    
-    return terc_fcst, terc_hcst, calibhcstcdf
+    Args:
+        _cdf (array): cdf at the K category thresholds, shape (K, nlocations)
 
+    Returns:
+        array: probability of each of K+1 categories, shape (K+1, nlocations)
+    """
+    _cdf=np.clip(_cdf, 0, 1)
+    #making sure cdf is non-decreasing across thresholds, this could be violated by numerical noise
+    _cdf=np.maximum.accumulate(_cdf, axis=0)
+    #adding cdf=0 and cdf=1 as the outer bounds
+    edges=np.vstack([np.zeros((1,_cdf.shape[1])), _cdf, np.ones((1,_cdf.shape[1]))])
+    return np.diff(edges, axis=0)
 
 
 class ECDF:
@@ -1790,41 +2002,44 @@ def calibrate(targetcdfs, fcstdistrib, hcstfulldistrib, dist="normal"):
 
 def two_afc_multicategory(forecast_probs, obs):
     """
-    Compute generalized 2AFC score for 3-category forecast.
-    forecast_probs: np.array of shape (n_samples, 3)
-    obs: np.array of shape (n_samples,) with values 0, 1, 2
+    Compute generalized 2AFC score for multi-category forecast.
+    forecast_probs: np.array of shape (n_samples, n_categories)
+    obs: np.array of shape (n_samples,) with values 0...n_categories-1
     """
     scores = []
-    
-    for cat in range(3):
+
+    for cat in range(forecast_probs.shape[1]):
         correct = 0
         total = 0
-        
+
         # Indices where obs is in current category (event)
         idx_event = np.where(obs == cat)[0]
         # Indices where obs is not in current category (non-event)
         idx_nonevent = np.where(obs != cat)[0]
-        
+
         for i in idx_event:
             for j in idx_nonevent:
                 f_i = forecast_probs[i, cat]
                 f_j = forecast_probs[j, cat]
-                
+
                 if f_i > f_j:
                     correct += 1
                 elif f_i == f_j:
                     correct += 0.5
                 total += 1
-                
+
         score = correct / total if total > 0 else np.nan
         scores.append(score)
-        
+
     return np.nanmean(scores)
 
 
-def rps_score(forecast_probs, observed_class, n_categories=3):
+def rps_score(forecast_probs, observed_class, n_categories=None):
     # forecast_probs: array of shape (n_samples, n_categories)
-    # observed_class: array of shape (n_samples,), with integer values 0, 1, ..., K-
+    # observed_class: array of shape (n_samples,), with integer values 0, 1, ..., K-1
+    # n_categories: if None, taken from forecast_probs
+    if n_categories is None:
+        n_categories=forecast_probs.shape[1]
     rps = 0
     for i in range(len(observed_class)):
         obs = np.zeros(n_categories)
@@ -1835,13 +2050,10 @@ def rps_score(forecast_probs, observed_class, n_categories=3):
     return rps / len(observed_class)
 
 
-
 def rpss_score(forecast_probs, climatology_probs, observed_class):
     rps_forecast = rps_score(forecast_probs, observed_class)
     rps_climatology = rps_score(np.tile(climatology_probs, (len(observed_class), 1)), observed_class)
     return 1 - rps_forecast / rps_climatology
-
-cat2num={"below":0,"normal":1,"above":2}
 
 def ignorance_score(forecast_probs, observed_class):
     # Clip probabilities to avoid log(0)
@@ -1959,32 +2171,46 @@ def groc_score(probs, obs):
 
 
 
-def computeSkill(_prob_hcst_above,_prob_hcst_normal,_prob_hcst_below,_det_hcst,_predictand_hcst,_obs_tercile, predictandCategory):
-    #iterating through stations/locations
-    #print(_prob_hcst_below)
+def computeSkill(_prob_hcst, _clim_prob, _det_hcst, _predictand_hcst, _obs_category, predictandCategory):
+    """Skill scores of hindcast for a single location.
+
+    Args:
+        _prob_hcst (DataFrame): probabilistic hindcast (years, categories), columns are category labels, in order of category codes
+        _clim_prob (Series): climatological probability of each category
+        _det_hcst (Series): deterministic (cross-validated) hindcast
+        _predictand_hcst (Series): observations
+        _obs_category (Series): observed category codes 0...ncat-1
+        predictandCategory (str): rainfall, temperature or other
+
+    Returns:
+        Series: skill scores, with ROC score for each category named ROC_<label>
+    """
     index=[]
     scoreslist=[]
-    
-    roc_score_above = np.round(roc_auc_score(_obs_tercile=="above", _prob_hcst_above),2)
-    scoreslist.append(roc_score_above)
-    index.append("ROC_above")
-      
-    roc_score_below = np.round(roc_auc_score(_obs_tercile=="below", _prob_hcst_below),2)
-    scoreslist.append(roc_score_below)
-    index.append("ROC_below")
-    
-    roc_score_normal = np.round(roc_auc_score(_obs_tercile=="normal", _prob_hcst_normal),2)
-    scoreslist.append(roc_score_normal)
-    index.append("ROC_normal")
-    
+
+    labels=list(_prob_hcst.columns)
+    phcst=_prob_hcst.values
+    obscat=_obs_category.values.astype(int)
+
+    #ROC score for each category.
+    #It cannot be calculated if category was never, or always observed in the hindcast period
+    for k,lab in enumerate(labels):
+        event=obscat==k
+        if event.all() or not event.any():
+            roc_score=np.nan
+        else:
+            roc_score = np.round(roc_auc_score(event, phcst[:,k]),2)
+        scoreslist.append(roc_score)
+        index.append("ROC_{}".format(lab))
+
     cor=np.round(np.corrcoef(_det_hcst.values,_predictand_hcst.values.astype(float))[0][1],2)
     scoreslist.append(cor)
     index.append("correlation")
 
     #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
     ev=np.round(explained_variance_score(_det_hcst,_predictand_hcst))
-    
-    if predictandCategory =='rainfall':        
+
+    if predictandCategory =='rainfall':
         mape=np.round(mean_absolute_percentage_error(_det_hcst,_predictand_hcst),2)
         scoreslist.append(mape)
         index.append("MAPE")
@@ -1992,170 +2218,50 @@ def computeSkill(_prob_hcst_above,_prob_hcst_normal,_prob_hcst_below,_det_hcst,_
         mae=np.round(mean_absolute_error(_det_hcst,_predictand_hcst),2)
         scoreslist.append(mae)
         index.append("MAE")
-    
+
     rmse=np.round((mean_squared_error(_det_hcst,_predictand_hcst)**0.5),2)
     scoreslist.append(rmse)
     index.append("RMSE")
 
-    #prep data for rpss
-    obsterc=_obs_tercile
-    obsterc=obsterc.map(lambda x: cat2num[x]).values
-    
-    _prob_clim=_prob_hcst_below.copy()
-    _prob_clim[:]=0.33
-    pclim=np.concat([_prob_clim.values.reshape(-1,1),_prob_clim.values.reshape(-1,1),_prob_clim.values.reshape(-1,1)], axis=1)
-    phcst=pd.concat([_prob_hcst_below,_prob_hcst_normal,_prob_hcst_above], axis=1).values
-
-    #calculate rpss
-    rpss=rpss_score(phcst, pclim,obsterc)
+    #calculate rpss - reference forecast is climatological probability of categories
+    #for quantile thresholds these are differences between quantile levels, e.g. 0.33, 0.33, 0.34
+    #for absolute thresholds, these are derived from the observed frequency in the climatological period
+    rpss=rpss_score(phcst, _clim_prob.values, obscat)
     rpss=np.round(rpss,2)
     scoreslist.append(rpss)
     index.append("rpss")
 
 
     # ignorance score
-    ignorance=np.round(ignorance_score(phcst,obsterc),2)
+    ignorance=np.round(ignorance_score(phcst,obscat),2)
     scoreslist.append(ignorance)
     index.append("ignorance")
-    
-    hss=np.round(heidke_skill_score(phcst,obsterc),2)
+
+    hss=np.round(heidke_skill_score(phcst,obscat),2)
     scoreslist.append(hss)
     index.append("hss")
 
-    twoafc=np.round(two_afc_multicategory(phcst, obsterc),2)
+    twoafc=np.round(two_afc_multicategory(phcst, obscat),2)
     scoreslist.append(twoafc)
     index.append("2afc")
-    
-    brier=np.round(brier_skill_score(phcst, obsterc),2)
+
+    brier=np.round(brier_skill_score(phcst, obscat),2)
     scoreslist.append(brier)
     index.append("brier")
-    
-    effintrate=np.round(effective_interest_rate(phcst,obsterc),2)
+
+    effintrate=np.round(effective_interest_rate(phcst,obscat),2)
     scoreslist.append(effintrate)
     index.append("effintrate")
-    
-    groc=np.round(groc_score(phcst,obsterc),2)
+
+    groc=np.round(groc_score(phcst,obscat),2)
     scoreslist.append(groc)
     index.append("groc")
-    
 
-    #entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss, ignorance, hss, twoafc, brier, effintrate, groc], index=index)
-    
     entryscores=pd.Series(scoreslist, index=index)
 
     return entryscores
 
 
-
-
-def getSkill_v0(_prob_hcst,_det_hcst,_predictand_hcst,_obs_tercile):
-    #iterating through stations/locations
-
-    allscores=[]
-    for entry in _det_hcst.columns:
-        index=[]
-        scoreslist=[]
-        
-        roc_score_above = np.round(roc_auc_score(_obs_tercile[entry]=="above", _prob_hcst["above"][entry]),2)
-        scoreslist.append(roc_score_above)
-        index.append("ROC_above")
-          
-        roc_score_below = np.round(roc_auc_score(_obs_tercile[entry]=="below", _prob_hcst["below"][entry]),2)
-        scoreslist.append(roc_score_below)
-        index.append("ROC_below")
-        
-        roc_score_normal = np.round(roc_auc_score(_obs_tercile[entry]=="normal", _prob_hcst["normal"][entry]),2)
-        scoreslist.append(roc_score_normal)
-        index.append("ROC_normal")
-        
-        cor=np.round(np.corrcoef(_det_hcst[entry].values,_predictand_hcst[entry].values.astype(float))[0][1],2)
-        scoreslist.append(cor)
-        index.append("correlation")
-
-        #r2=np.round(r2_score(_det_hcst[entry],_predictand_hcst[entry]))
-        ev=np.round(explained_variance_score(_det_hcst[entry],_predictand_hcst[entry]))
-        
-        if gl.config["predictandCategory"] =='rainfall':        
-            mape=np.round(mean_absolute_percentage_error(_det_hcst[entry],_predictand_hcst[entry]),2)
-            scoreslist.append(mape)
-            index.append("MAPE")
-        else:
-            mae=np.round(mean_absolute_error(_det_hcst[entry],_predictand_hcst[entry]),2)
-            scoreslist.append(mae)
-            index.append("MAE")
-        
-        rmse=np.round((mean_squared_error(_det_hcst[entry],_predictand_hcst[entry])**0.5),2)
-        scoreslist.append(rmse)
-        index.append("RMSE")
-
-        #prep data for rpss
-        _prob_clim=_prob_hcst.copy()
-        _prob_clim[:]=0.33
-        obsterc=_obs_tercile[entry]
-        obsterc=obsterc.map(lambda x: cat2num[x]).values
-        if isinstance(entry, tuple):
-            mask = (_prob_clim.columns.get_level_values('lat') == entry[0]) & (_prob_clim.columns.get_level_values('lon') == entry[1])
-            pclim=_prob_clim.loc[:, mask].values
-            mask = (_prob_clim.columns.get_level_values('lat') == entry[0]) & (_prob_clim.columns.get_level_values('lon') == entry[1])
-            phcst=_prob_hcst.loc[:,mask]
-        else:
-            pclim=_prob_clim.loc[:,_prob_clim.columns.get_level_values(1)==entry].values
-            phcst=_prob_hcst.loc[:,_prob_hcst.columns.get_level_values(1)==entry]
-
-        phcst.columns = phcst.columns.droplevel(1)
-        #have to reorder so that below is 0, normal is 1, above is 2 as per cat2num
-        phcst=phcst.loc[:,["below","normal","above"]].values
-
-        #calculate rpss
-        rpss=rpss_score(phcst, pclim,obsterc)
-        rpss=np.round(rpss,2)
-        scoreslist.append(rpss)
-        index.append("rpss")
-
-
-        # ignorance score
-        ignorance=np.round(ignorance_score(phcst,obsterc),2)
-        scoreslist.append(ignorance)
-        index.append("ignorance")
-        
-        hss=np.round(heidke_skill_score(phcst,obsterc),2)
-        scoreslist.append(hss)
-        index.append("hss")
-
-        twoafc=np.round(two_afc_multicategory(phcst, obsterc),2)
-        scoreslist.append(twoafc)
-        index.append("2afc")
-        
-        brier=np.round(brier_skill_score(phcst, obsterc),2)
-        scoreslist.append(brier)
-        index.append("brier")
-        
-        effintrate=np.round(effective_interest_rate(phcst,obsterc),2)
-        scoreslist.append(effintrate)
-        index.append("effintrate")
-        
-        groc=np.round(groc_score(phcst,obsterc),2)
-        scoreslist.append(groc)
-        index.append("groc")
-        
-
-        #entryscores=pd.Series([cor,mape,rmse,roc_score_above, roc_score_normal,roc_score_below, rpss, ignorance, hss, twoafc, brier, effintrate, groc], index=index)
-        
-        entryscores=pd.Series(scoreslist, index=index)
-
-        allscores.append(entryscores)
-
-    scores=pd.concat(allscores, axis=1, keys=_det_hcst.columns)
-    scores.index.name = "category"
-    return(scores)
-
-
-
-
-
-    
-        
-        
 def saveConfig():
     #defined parameters/variables
     with open(gl.configFile, "w") as f:
@@ -2294,6 +2400,17 @@ def populateGui():
 
     gl.window.lineEdit_overlayfile.setText(gl.config['overlayFile'])
 
+    #category thresholds, shown as comma-separated values
+    itemName="lineEdit_quantilethreshold"
+    if hasattr(gl.window, itemName):
+        thresholds=gl.config.get("quantileThreshold", [0.33,0.66])
+        getattr(gl.window, itemName, None).setText(",".join([str(x) for x in thresholds]))
+
+    itemName="lineEdit_absolutethreshold"
+    if hasattr(gl.window, itemName):
+        thresholds=gl.config.get("absoluteThreshold", None)
+        getattr(gl.window, itemName, None).setText("" if thresholds is None else ",".join([str(x) for x in thresholds]))
+
     
 def makeConfig():
     gl.config={}
@@ -2332,6 +2449,10 @@ def makeConfig():
     gl.config["regridPredictand"]=False
 
     gl.config["overlayFile"]=""
+    
+    #category thresholds - quantile thresholds are used unless absolute thresholds are defined
+    gl.config["quantileThreshold"]=[0.33,0.66]
+    gl.config["absoluteThreshold"]=None
     
     
     
@@ -2398,6 +2519,31 @@ def readGUI():
     if hasattr(gl.window, itemName):
         gl.config["regression"]=getattr(gl.window, itemName, None).currentData()
 
+    #category thresholds, entered as comma-separated values, e.g. 0.33,0.66
+    itemName="lineEdit_quantilethreshold"
+    if hasattr(gl.window, itemName):
+        txt=getattr(gl.window, itemName, None).text().strip()
+        if txt!="":
+            try:
+                gl.config["quantileThreshold"]=[float(x) for x in txt.split(",")]
+            except:
+                showMessage("Quantile thresholds have to be numeric, separated by commas", "ERROR")
+                return
+        else:
+            gl.config["quantileThreshold"]=[0.33,0.66]
+
+    #absolute thresholds, entered as comma-separated values, e.g. 150,300. Empty means not used.
+    itemName="lineEdit_absolutethreshold"
+    if hasattr(gl.window, itemName):
+        txt=getattr(gl.window, itemName, None).text().strip()
+        if txt!="":
+            try:
+                gl.config["absoluteThreshold"]=[float(x) for x in txt.split(",")]
+            except:
+                showMessage("Absolute thresholds have to be numeric, separated by commas", "ERROR")
+                return
+        else:
+            gl.config["absoluteThreshold"]=None
             
     #derived variables
     
@@ -2849,20 +2995,9 @@ colormaps={"percent_normal":{
         "levels":np.array([1,2,3,4])-0.5,
         "whitelev":[],
         "tick_labels":['BN', 'N-BN','N-AN','AN'],
-        "extend":"neither"},
-    "tercile_category":{
-        "categorized":False,        
-        "nlev":None,
-        "title":"Forecast category (tercile)",
-        "cmap":{"rainfall": colors.ListedColormap(['#d2b48c', '0.8','blue']), "temperature": colors.ListedColormap(['blue', '0.8','red']),"other": colors.ListedColormap(['blue', '0.8','#d2b48c'])},
-        "vmin":0,
-        "vmax":3,
-        "symmetric":False,
-        "cbar_label":"category",
-        "levels":np.array([1,2,3])-0.5,
-        "whitelev":[],
-        "tick_labels":['BN', 'N', 'AN'],
         "extend":"neither"}
+    #entry for most likely category ("most_likely_category") is added by addCategoryColormaps(),
+    #once the number of categories is known
 }
 
 skillMasks={
@@ -2956,27 +3091,71 @@ def getSkillMask(_vars, _skillscores):
 
 
 
-def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
-    if gl.targetType!="grid":    
-        allprobs=calibhcstcdf.values.reshape(-1,*Y_hcst.shape)
-        #distribution here has to be empirical, this is how the terciles are calculated
-        obsdistrib=fit_dist_to_arr(Y_obs.values.astype(float), dist="empirical")
-        obsprobs=get_cdf(Y_obs.values.astype(float),obsdistrib, dist="empirical")
+def addCategoryColormaps():
+    """Add entries to the colormaps dictionary for variables that depend on forecast categories.
 
-        catnames=["below normal","normal","above normal"]
+    Probability maps and ROC score maps are plotted per category, and their names
+    are category labels, which are known only once thresholds are defined.
+    Entries for below/normal/above already exist; for other labels they are copied from
+    the "above" templates. Colormap for the most likely category is built for the actual
+    number of categories. Uses gl.catLabels and gl.nCat.
+    """
+    labels=gl.catLabels
+    ncat=gl.nCat
 
-        ncat=calibhcstcdf.shape[0]
-        obscat=(obsprobs*ncat).astype(int)
-        obscat[obscat==ncat]=ncat-1
+    for lab in labels:
+        #probability of each category
+        if lab not in colormaps:
+            colormaps[lab]=dict(colormaps["above"])
+            colormaps[lab]["title"]="Forecast probability \nof {} category".format(lab)
+        #ROC score for each category
+        key="ROC_{}".format(lab)
+        if key not in colormaps:
+            colormaps[key]=dict(colormaps["ROC_above"])
+            colormaps[key]["title"]="ROC score for {} category\n(hindcast)".format(lab)
 
-        for loc,name in enumerate(Y_obs.columns):
-            probs=allprobs[:,:,loc]
-            obs_idx=obscat[:,loc]
+    #most likely category - one colour per category
+    if ncat==3:
+        #keeping the original tercile colours
+        cmapdict={"rainfall": colors.ListedColormap(['#d2b48c', '0.8','blue']),
+                  "temperature": colors.ListedColormap(['blue', '0.8','red']),
+                  "other": colors.ListedColormap(['blue', '0.8','#d2b48c'])}
+        ticklabels=['BN', 'N', 'AN']
+    else:
+        cmapdict={"rainfall": colors.ListedColormap(plt.get_cmap("BrBG")(np.linspace(0.1,0.9,ncat))),
+                  "temperature": colors.ListedColormap(plt.get_cmap("RdBu_r")(np.linspace(0.1,0.9,ncat))),
+                  "other": colors.ListedColormap(plt.get_cmap("BrBG_r")(np.linspace(0.1,0.9,ncat)))}
+        ticklabels=['BN', 'AN'] if ncat==2 else labels
+
+    #category codes are 0...ncat-1, so colour bins are centered on integers, ticks are in the middle of the bins
+    colormaps["most_likely_category"]={
+        "categorized":False,
+        "nlev":None,
+        "title":"Forecast category (most likely)",
+        "cmap":cmapdict,
+        "vmin":0,
+        "vmax":ncat,
+        "symmetric":False,
+        "cbar_label":"category",
+        "levels":np.arange(ncat)+0.5,
+        "whitelev":[],
+        "tick_labels":ticklabels,
+        "extend":"neither"}
+
+
+
+def plotCalibDiags(obscategory, Y_hcst, figuresdir, forecastid):
+    """Histogram of observed categories in the hindcast period, for each zone/location.
+    Works for any number of categories."""
+    if gl.targetType!="grid":
+        catnames=gl.catLabels
+        ncat=gl.nCat
+
+        for name in Y_hcst.columns:
+            obs_idx=obscategory[name].values.astype(int)
 
             # Rank histogram
-            counts = np.zeros(probs.shape[0])
-            for i in range(len(obscat)):
-                counts[obs_idx[i]] += 1
+            counts = np.bincount(obs_idx, minlength=ncat)
 
             fig=plt.figure(figsize=(5,3))
             pl=fig.add_subplot(1,1,1)
@@ -2992,236 +3171,203 @@ def plotCalibDiags(calibhcstcdf, Y_obs, Y_hcst, figuresdir, forecastid):
             plt.close()
 
 
+def plotCategoryProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
+    """Map of the probability of the most likely category, coloured by category.
+    Works for any number of categories (2 or more).
+    Lowest category uses "dry/cold" colours, highest category uses "wet/warm" colours,
+    intermediate categories use grey and other sequential colourmaps."""
 
+    labels=gl.catLabels
+    ncat=gl.nCat
 
-
-
-def plotTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None):
     if gl.config["predictandCategory"]=="rainfall":
         _cmap_above="BrBG"
         _cmap_below="BrBG_r"
     else:
         _cmap_above="RdBu_r"
         _cmap_below="RdBu"
-    
-    cbar_label_dry="probablity [%]\nbelow normal"
-    cbar_label_norm="probablity [%]\nnormal"
-    cbar_label_wet="probablity [%]\nabove normal"
+    #for intermediate categories
+    _cmaps_mid=["Greys","Purples","Oranges","Greens","PuRd"]
 
-    
-    #calculating max value
-    data=probfcst.values.reshape(-1,predictandhcst.shape[1])
-    row_idx = np.argmax(data, axis=0)
-    data_max=np.max(data, 0)
-    data=(data_max+row_idx)*100
+    #probability of each category - array (ncategories, nlocations), in %
+    #probfcst has a single row, columns are (category, location) with categories in order of labels
+    data=probfcst.values.reshape(ncat,-1)*100
 
-    
+    #most likely category and its probability
+    maxcat=np.argmax(data, axis=0)
+    maxprob=np.max(data, axis=0)
+
+    #colour levels start at the "equal odds" probability, which is 33% for terciles, 50% for two categories etc.
+    base=np.floor(100/ncat)
+    levels=[base]+[x for x in [30,40,50,60,70] if x>base]+[100]
 
     fig=plt.figure(figsize=(5,5))
     pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
 
-    levels_dry=[33,40,50,60,70,100]
-    ncat=len(levels_dry)
-    cmap_dry = plt.get_cmap(_cmap_below)
-    cols_dry = cmap_dry(np.linspace(0.53, 0.9, ncat-1))
-    cmap_dry, norm_dry = colors.from_levels_and_colors(levels_dry, cols_dry, extend="neither")
+    #vertical space of each colorbar
+    cbspace=0.7/ncat
 
+    for k,lab in enumerate(labels):
+        #colourmap for this category
+        if k==0:
+            cols=plt.get_cmap(_cmap_below)(np.linspace(0.53, 0.9, len(levels)-1))
+        elif k==ncat-1:
+            cols=plt.get_cmap(_cmap_above)(np.linspace(0.53, 0.9, len(levels)-1))
+        else:
+            cols=plt.get_cmap(_cmaps_mid[(k-1)%len(_cmaps_mid)])(np.linspace(0, 0.5, len(levels)-1))
+        catcmap, catnorm = colors.from_levels_and_colors(levels, cols, extend="neither")
 
+        #only locations where this category is the most likely are plotted with this colourmap
+        sel=maxcat==k
 
-    levels_norm=[133,140,150,170,200]
-    ncat=len(levels_norm)
-    cmap_norm = plt.get_cmap("Greys")
-    cols_norm = cmap_norm(np.linspace(0, 0.5, ncat-1))
-    cmap_norm, norm_norm = colors.from_levels_and_colors(levels_norm, cols_norm, extend="neither")
+        if gl.targetType=="grid":
+            datadf=predictandhcst.iloc[0:1,:].copy()
+            datadf[:]=np.where(sel, maxprob, np.nan)
+            dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
+            dataxr.plot(cmap=catcmap, norm=catnorm, add_colorbar=False, ax=pl)
+        else:
+            temp=pd.DataFrame(np.where(sel, maxprob, np.nan).reshape(1,-1), index=["probability"], columns=predictandhcst.columns)
+            catgeodata=geodata.copy().join(temp.T)
+            catgeodata=catgeodata[catgeodata["probability"].notna()]
+            if not catgeodata.empty:
+                catgeodata.plot(column="probability", cmap=catcmap, norm=catnorm, legend=False, ax=pl)
 
+        #colorbar for this category, stacked from bottom (lowest category) to top (highest category)
+        ax=fig.add_axes([0.82, 0.15+k*cbspace+0.1*cbspace, 0.02, 0.8*cbspace])
+        cbar = plt.cm.ScalarMappable(norm=catnorm, cmap=catcmap)
+        ax_cbar = fig.colorbar(cbar, cax=ax, ticks=levels, extend="neither")
+        ax_cbar.set_label(lab, fontsize=7)
+        ax_cbar.ax.set_yticklabels(["{:g}".format(x) for x in levels])
+        ax_cbar.ax.tick_params(labelsize=6)
+        ax_cbar.ax.tick_params(size=0)
 
-
-    levels_wet=[233,240,250,260,270,300]
-    ncat=len(levels_wet)
-    cmap_wet = plt.get_cmap(_cmap_above)
-    cols_wet = cmap_wet(np.linspace(0.53, 0.9, ncat-1))
-    cmap_wet, norm_wet = colors.from_levels_and_colors(levels_wet, cols_wet, extend="neither")
-
-
-    if gl.targetType=="grid":
-        cont=True
-
-        datadf=predictandhcst.iloc[0:1,:].copy()
-        datadf[:]=data
-        dataxr=datadf.unstack().to_xarray().transpose("time","lat","lon").sortby('lon').sortby("lat")
-
-        m_dry=dataxr.plot(cmap=cmap_dry, vmin=33,vmax=100, add_colorbar=False, norm=norm_dry, ax=pl)
-        m_norm=dataxr.plot(cmap=cmap_norm, vmin=133,vmax=200, add_colorbar=False, norm=norm_norm, ax=pl)
-        m_wet=dataxr.plot(cmap=cmap_wet, vmin=233,vmax=300, add_colorbar=False, norm=norm_wet, ax=pl)
-
-    else:
-        
-        data=data.reshape(1,-1)
-        
-        data=pd.DataFrame(data, index=["probability"], columns=predictandhcst.columns)
-        geodata=geodata.copy().join(data.T)
-
-        m_dry=geodata.plot(column="probability", cmap=cmap_dry, legend=False, ax=pl, norm=norm_dry, vmin=33, vmax=100)
-        m_norm=geodata.plot(column="probability", cmap=cmap_norm, legend=False, ax=pl, norm=norm_norm, vmin=133, vmax=200)
-        m_wet=geodata.plot(column="probability", cmap=cmap_wet, legend=False, ax=pl, norm=norm_wet, vmin=233, vmax=300)
-
-        #geodata.boundary.plot(ax=pl)
-
-
-    cbar_label="below\nnormal"
-    ax=fig.add_axes([0.82,0.25,0.02,0.15])
-    cbar = plt.cm.ScalarMappable(norm=norm_dry, cmap=cmap_dry)
-    ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-
-    ticklabels=levels_dry
-    ax_cbar.ax.set_yticklabels([x-0 for x in ticklabels])
-    ax_cbar.ax.tick_params(labelsize=6)
-    ax_cbar.ax.tick_params(size=0)
-
-
-
-    cbar_label="normal"
-    ax=fig.add_axes([0.82,0.45,0.02,0.1])
-    cbar = plt.cm.ScalarMappable(norm=norm_norm, cmap=cmap_norm)
-    ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-
-    ticklabels=levels_norm
-    ax_cbar.ax.set_yticklabels([x-100 for x in ticklabels])
-    ax_cbar.ax.tick_params(labelsize=6)
-    ax_cbar.ax.tick_params(size=0)
-
-
-    cbar_label="above\nnormal"
-    ax=fig.add_axes([0.82,0.60,0.02,0.15])     
-    cbar = plt.cm.ScalarMappable(norm=norm_wet, cmap=cmap_wet)        
-    ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-
-    ticklabels=levels_wet
-    ax_cbar.ax.set_yticklabels([x-200 for x in ticklabels])
-    ax_cbar.ax.tick_params(labelsize=6)
-    ax_cbar.ax.tick_params(size=0)
-
-    
     if not overlayvector is None:
         overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
-    
-    title="Tercile probabilities"
-    
+
+    if ncat==3:
+        title="Tercile probabilities"
+    else:
+        title="Probability of most likely category [%]"
+
     pl.set_title(title)
-    
+
     pl.text(0,-0.01,annotation,fontsize=6, transform=pl.transAxes, va="top")
-    
+
     plt.subplots_adjust(right=0.8)
-    outfile=Path(mapsdir,"{}_tercile-probability_{}.jpg".format(gl.config['predictandVar'], forecastid))
-    
+    outfile=Path(mapsdir,"{}_category-probability_{}.jpg".format(gl.config['predictandVar'], forecastid))
+
     plt.savefig(outfile)
 
     plt.close()
-    
 
-def plotSmoothTercileProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None, sigma=2, enhanced=True):
-    
+
+def plotSmoothCategoryProbMap(probfcst, predictandhcst, geodata, mapsdir, forecastid, annotation, overlayvector=None, sigma=2, enhanced=True):
+    """Smoothed map of probability of the lowest vs the highest category.
+    Negative values - lowest category more likely, positive values - highest category more likely.
+    For more than two categories, intermediate categories are not shown."""
+
     if gl.targetType!="grid":
         showMessage("can only do for gridded data. skipping...")
     else:
-        
+
         #plotting now
-        _cmap_above="BrBG"
-        _cmap_below="BrBG"
-        
-        cbar_label_dry="probablity [%]\nbelow normal"
-        cbar_label_wet="probablity [%]\nabove normal"
+        if gl.config["predictandCategory"]=="rainfall":
+            _cmap="BrBG"
+        else:
+            _cmap="RdBu_r"
+
+        #lowest and highest category
+        lowlab=gl.catLabels[0]
+        highlab=gl.catLabels[-1]
+
         data=probfcst.stack(level=["lat","lon"], future_stack=True).to_xarray().sortby("lat").sortby("lon")
-        probs=-data["below"]
-        probs=probs.where(data["above"]<data["below"],data["above"])
+        probs=-data[lowlab]
+        probs=probs.where(data[highlab]<data[lowlab],data[highlab])
         probs=probs.rio.write_crs("epsg:4326")
 
         tempsmooth=nan_gaussian_smooth(probs, sigma=sigma)
-        
+
         #back to xarray
         smooth=probs.copy()
         smooth[:]=tempsmooth
-        
+
         smooth=smooth.rio.write_crs("epsg:4326")
-        
+
         fig=plt.figure(figsize=(5,5))
         pl=fig.add_subplot(1,1,1, projection=ccrs.PlateCarree())
-        
-        vmin_dry,vmax_dry=-1,-0.33
-        levels_dry=[-0.33,-0.40,-0.50,-0.60,-0.70,-1.00][::-1]
+
+        #levels start at the "equal odds" probability, which is 0.33 for terciles, 0.5 for two categories etc.
+        base=np.floor(100/gl.nCat)/100
+        levels_wet=[base]+[x for x in [0.3,0.4,0.5,0.6,0.7] if x>base]+[1.0]
+        levels_dry=[-x for x in levels_wet][::-1]
+
         ncat=len(levels_dry)
-        cmap_dry = plt.get_cmap(_cmap_below)
+        cmap_dry = plt.get_cmap(_cmap)
         cols_dry = cmap_dry(np.linspace(0.1, 0.45, ncat-1))
         cmap_dry, norm_dry = colors.from_levels_and_colors(levels_dry, cols_dry, extend="neither")
-        
-        
-        vmin_wet,vmax_wet=0.33,1
-        levels_wet=[0.33,0.40,0.50,0.60,0.70,1.0]
+
         ncat=len(levels_wet)
-        cmap_wet = plt.get_cmap(_cmap_above)
+        cmap_wet = plt.get_cmap(_cmap)
         cols_wet = cmap_wet(np.linspace(0.55, 0.9, ncat-1))
         cmap_wet, norm_wet = colors.from_levels_and_colors(levels_wet, cols_wet, extend="neither")
-        
+
 
         if enhanced:
-            
+
             scale = probs.std() / np.nanstd(smooth)   # or store this scale factor if data_filled isn't available later
             #toplot=probs.copy()
             toplot = np.clip(smooth * scale.data, -1, 1)
-                               
+
         else:
             toplot=smooth
-            
-        m_wet=toplot.plot(cmap=cmap_wet, vmin=vmin_wet,vmax=vmax_wet, add_colorbar=False, norm=norm_wet, ax=pl)
-        m_dry=toplot.plot(cmap=cmap_dry, vmin=vmin_dry,vmax=vmax_dry, add_colorbar=False, norm=norm_dry, ax=pl)
-    
-        pl.contour(toplot.lon, toplot.lat, toplot[0,:], levels=[-1,-0.7,-0.6,-0.5,-0.4,-0.33,0.33,0.4,0.5,0.6,0.7,1], linewidths=1, colors="grey", linestyles="dashed")
-        
-        if not overlayvector is None:
-            overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
 
-        
-        
-        cbar_label="below\nnormal"
+        #each half is plotted only where it falls into its own range of levels
+        m_wet=toplot.where(toplot>=levels_wet[0]).plot(cmap=cmap_wet, add_colorbar=False, norm=norm_wet, ax=pl)
+        m_dry=toplot.where(toplot<=levels_dry[-1]).plot(cmap=cmap_dry, add_colorbar=False, norm=norm_dry, ax=pl)
+
+        pl.contour(toplot.lon, toplot.lat, toplot[0,:], levels=levels_dry+levels_wet, linewidths=1, colors="grey", linestyles="dashed")
+
+        cbar_label="{}".format(lowlab)
         ax=fig.add_axes([0.82,0.25,0.02,0.15])
         cbar = plt.cm.ScalarMappable(norm=norm_dry, cmap=cmap_dry)
         ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-        
+
         ticklabels=levels_dry
-        ax_cbar.ax.set_yticklabels([int(-x*100) for x in ticklabels])
+        ax_cbar.ax.set_yticklabels([int(round(-x*100)) for x in ticklabels])
         ax_cbar.ax.tick_params(labelsize=6)
         ax_cbar.ax.tick_params(size=0)
-        
-        
-        cbar_label="above\nnormal"
-        ax=fig.add_axes([0.82,0.60,0.02,0.15])     
-        cbar = plt.cm.ScalarMappable(norm=norm_wet, cmap=cmap_wet)        
+
+
+        cbar_label="{}".format(highlab)
+        ax=fig.add_axes([0.82,0.60,0.02,0.15])
+        cbar = plt.cm.ScalarMappable(norm=norm_wet, cmap=cmap_wet)
         ax_cbar = fig.colorbar(cbar, cax=ax, label=cbar_label, extend="neither")
-        
+
         ticklabels=levels_wet
-        ax_cbar.ax.set_yticklabels([int(x*100) for x in ticklabels])
+        ax_cbar.ax.set_yticklabels([int(round(x*100)) for x in ticklabels])
         ax_cbar.ax.tick_params(labelsize=6)
         ax_cbar.ax.tick_params(size=0)
-        
-        
+
+
         if not overlayvector is None:
             overlayvector.boundary.plot(ax=pl, color='black', linewidth=0.3)
-        
-        title="Tercile probabilities"
-        
-        pl.set_title(title)
-        
-        pl.text(0,-0.01,annotation,fontsize=6, transform=pl.transAxes, va="top")
-        
-        plt.subplots_adjust(right=0.8)
-        
-        outfile=Path(mapsdir,"{}_tercile-probability-smooth_{}.jpg".format(gl.config['predictandVar'], forecastid))
-        
-        plt.savefig(outfile)
-        
-        plt.close()
-        
 
+        if gl.nCat==3:
+            title="Tercile probabilities"
+        else:
+            title="Probability of {} vs {} category".format(lowlab, highlab)
+
+        pl.set_title(title)
+
+        pl.text(0,-0.01,annotation,fontsize=6, transform=pl.transAxes, va="top")
+
+        plt.subplots_adjust(right=0.8)
+
+        outfile=Path(mapsdir,"{}_category-probability-smooth_{}.jpg".format(gl.config['predictandVar'], forecastid))
+
+        plt.savefig(outfile)
+
+        plt.close()
 
 
 def nan_gaussian_smooth(data, sigma=2):
@@ -3496,7 +3642,7 @@ def plotMaps(_scores, _geoData, _figuresDir, _forecastID, _zonesVector, annotati
             
             
             
-def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecastid, annotation):
+def plotTimeSeries(_dethcst,_obs, _detfcst, _catthresh, _figuresdir, _forecastid, annotation):
     if gl.targetType in ["zones","points"]:
         for entry in _obs.columns:
             _entry=sanitize_string(str(entry))
@@ -3508,9 +3654,14 @@ def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecasti
             _obs[entry].plot(marker="o", label="observed", markersize=3)
             _dethcst[entry].plot(label="deterministic hindcast", markersize=3)
             _detfcst["value"][entry].plot(marker="o",label="forecast", markersize=8)
-            pl.axhline(_tercthresh.loc[0.33][entry], color="0.6")
-            pl.axhline(_tercthresh.loc[0.66][entry], color="0.6", label="climatological terciles")
-            pl.axhline(_tercthresh.loc[0.50][entry], color="0.8", label="climatological median")
+
+            #category thresholds - any number of them
+            for k in _catthresh.index:
+                pl.axhline(_catthresh.loc[k][entry], color="0.6", label="category thresholds" if k==_catthresh.index[0] else "_nolegend_")
+
+            #climatological median
+            refobs=_obs[entry][str(gl.config["climStartYr"]):str(gl.config["climEndYr"])]
+            pl.axhline(refobs.median(), color="0.8", label="climatological median")
 
             pl.axvline(pd.to_datetime("{}-01-01".format(gl.config["climStartYr"])), color="0.9", label="climatological period")
             pl.axvline(pd.to_datetime("{}-12-31".format(gl.config["climEndYr"])), color="0.9", label="climatological period")
@@ -3520,14 +3671,13 @@ def plotTimeSeries(_dethcst,_obs, _detfcst, _tercthresh, _figuresdir, _forecasti
 
             pl.text(0,-0.15,annotation,fontsize=6, transform=pl.transAxes, va="top")
             plt.legend(loc=(1.05, 0.3))
-            
+
             plt.subplots_adjust(bottom=0.25, right=0.7)
-            plt.savefig(outfile)            
+            plt.savefig(outfile)
             plt.close()
         #showMessage("done")
-    else:    
+    else:
         showMessage("Forecasting target is a grid, time series cannot be plotted.", "INFO")
-
 
 
 def plotDiagsCCA(_regressor, predictorhcst, predictandhcst, _geodata, _diagsdir, _forecastid, annotation):
@@ -3677,7 +3827,7 @@ def plotDiagsPCR(_regressor, predictorhcst, predictandhcst, _geodata, _diagsdir,
         
         
 
-def plotDiagsRegression(predictandhcst, cvhcst, esthcst, tercthresh, detfcst, _diagsdir, _forecastid, annotation):
+def plotDiagsRegression(predictandhcst, cvhcst, esthcst, catthresh, detfcst, _diagsdir, _forecastid, annotation):
     
     if gl.targetType!="grid":
         for entry in predictandhcst.columns:
@@ -3771,8 +3921,9 @@ def plotDiagsRegression(predictandhcst, cvhcst, esthcst, tercthresh, detfcst, _d
             
             pl.axvline(fcst.values, color="red", label="forecast")
             
-            pl.axvline(tercthresh.loc[0.33][entry], color="blue", label="terciles")
-            pl.axvline(tercthresh.loc[0.66][entry], color="blue", label="_terciles")
+            #category thresholds - any number of them
+            for k in catthresh.index:
+                pl.axvline(catthresh.loc[k][entry], color="blue", label="category thresholds" if k==catthresh.index[0] else "_nolegend_")
             
 
             pl.set_xlabel("value")
@@ -3790,19 +3941,26 @@ def plotDiagsRegression(predictandhcst, cvhcst, esthcst, tercthresh, detfcst, _d
 
 
 
-def getTercCategory(_data):
-    if gl.targetType=="grid":
-        temp=_data.stack(level=[1,2], future_stack=True).idxmax(axis=1).unstack(level=[1,2]).map(lambda x: terc2num[x])
-        #add a level to multiindex
-        temp.columns=pd.MultiIndex.from_tuples([('tercile_category',) + col for col in temp.columns], names=["category"] + list(temp.columns.names))
+def getMostLikelyCategory(_data):
+    """Most likely category (category with the highest probability), for any number of categories.
 
-    else:
-        temp=_data.stack(future_stack=True).idxmax(axis=1).unstack().map(lambda x: terc2num[x])
-        temp.columns=pd.MultiIndex.from_tuples([('tercile_category',col) for col in temp.columns], names=["category",temp.columns.name])
+    Args:
+        _data (DataFrame): probabilities, columns multiindex with category labels in the first level
+
+    Returns:
+        DataFrame: integer category codes (0...nCat-1, in order of gl.catLabels),
+            columns multiindex with "most_likely_category" in the first level
+    """
+    #array of probabilities, shape (ncategories, ntimes, nlocations), categories in the order of gl.catLabels
+    vals=np.stack([_data[lab].values for lab in gl.catLabels], axis=0)
+
+    #code of the category with the highest probability. In case of ties, lower category is selected.
+    temp=pd.DataFrame(np.argmax(vals, axis=0), index=_data.index, columns=_data[gl.catLabels[0]].columns)
+
+    #add a level to multiindex
+    temp=pd.concat([temp], keys=["most_likely_category"], names=["category"], axis=1)
 
     return temp
-
-
 
 
 def getCemCategory(_data):
@@ -4169,15 +4327,15 @@ def is_number(s):
     try:
         float(s)
         return True
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
-    
+
 def checkInputs():
-    configVars=['rootDir', 'predictorYear', 'predictorMonth', 'fcstTargetSeas', 'fcstTargetYear', 'climStartYr', 'climEndYr', 'predictorExtents', 'predictorFileName', 'predictorVar', 'predictorCode', 'crossval', 'preproc', 'regression', 'timeAggregation', 'predictandFileName', 'predictandVar', 'predictandCategory', 'predictandMissingValue', 'zonesFile', 'zonesAttribute', 'zonesAggregate', 'regridPredictand', 'overlayFile', 'predictandUnit','plotMaps', "parallelize"]
+    configVars=['rootDir', 'predictorYear', 'predictorMonth', 'fcstTargetSeas', 'fcstTargetYear', 'climStartYr', 'climEndYr', 'predictorExtents', 'predictorFileName', 'predictorVar', 'predictorCode', 'crossval', 'preproc', 'regression', 'timeAggregation', 'predictandFileName', 'predictandVar', 'predictandCategory', 'predictandMissingValue', 'zonesFile', 'zonesAttribute', 'zonesAggregate', 'regridPredictand', 'overlayFile', 'plotMaps', "parallelize"]
 
     for var in configVars:
-        if not var in configVars:
+        if not var in gl.config:
             showMessage(f"config variable {var} missing", "ERROR")
             return
 
@@ -4284,5 +4442,41 @@ def checkInputs():
     if not all(check):
             showMessage("\nLat and Lon values should be numeric.", "ERROR")
             return    
+
+    #category thresholds. Either absolute or quantile, absolute take precedence if defined.
+    #quantile thresholds default to terciles
+    absThresh=gl.config.get("absoluteThreshold", None)
+    if absThresh is not None and np.isscalar(absThresh):
+        #single threshold given as number rather than list
+        absThresh=[absThresh]
+        
+    if absThresh is not None and len(absThresh)>0:
+        thresholds=absThresh
+        thresholdType="absolute"
+    else:
+        if gl.config.get("quantileThreshold", None) in [None, []]:
+            gl.config["quantileThreshold"]=[0.33,0.66]
+        if np.isscalar(gl.config["quantileThreshold"]):
+            gl.config["quantileThreshold"]=[gl.config["quantileThreshold"]]
+        thresholds=gl.config["quantileThreshold"]
+        thresholdType="quantile"
+        
+    if not all([is_number(x) for x in thresholds]):
+        showMessage(f"{thresholdType} thresholds should be numeric. Got: {thresholds}", "ERROR")
+        return
+    thresholds=[float(x) for x in thresholds]
+    
+    if np.any(np.diff(thresholds)<=0):
+        showMessage(f"{thresholdType} thresholds should be strictly increasing. Got: {thresholds}", "ERROR")
+        return
+    
+    if thresholdType=="quantile":
+        if min(thresholds)<=0 or max(thresholds)>=1:
+            showMessage(f"quantile thresholds should be between 0 and 1 (exclusive). Got: {thresholds}", "ERROR")
+            return
+        gl.config["quantileThreshold"]=thresholds
+    else:
+        gl.config["absoluteThreshold"]=thresholds
+        showMessage(f"Absolute thresholds {thresholds} will be used. Note that these have to be in units of the {gl.config['timeAggregation']} of the predictand over the target season/month.", "INFO")
         
     return True

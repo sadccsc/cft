@@ -375,12 +375,16 @@ def computeModelNoGui(config):
         badnames=predictandHcst.loc[:,bad].columns
         for name in badnames:
             showMessage("cannot calculate forecast for {} - too many similar values in predictand".format(name), "NONCRITICAL")
-    if emptycat.any():
-        badnames=predictandHcst.loc[:,emptycat].columns
-        for name in badnames:
-            showMessage("cannot calculate forecast for {} - at least one forecast category does not occur in the climatological period. Check your thresholds.".format(name), "NONCRITICAL")
+    #if emptycat.any():
+    #    badnames=predictandHcst.loc[:,emptycat].columns
+    #    for name in badnames:
+    #        showMessage("cannot calculate forecast for {} - at least one forecast category does not occur in the climatological period. Check your thresholds.".format(name), "NONCRITICAL")
 
-    good=np.invert(bad | emptycat)
+    # this does not calculate if categories missing
+    #good=np.invert(bad | emptycat)
+    #this does
+    print("only bad")
+    good=np.invert(bad)
 
     #removing bad locations
     predictandHcst=predictandHcst.loc[:,good]
